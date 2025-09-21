@@ -1,0 +1,92 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0 auto;
+    background-color: #f4f4f4;
+    padding: 20px;
+}
+
+h1 {
+    color: #333;
+    text-align: center;
+}
+
+h2 {
+    color: #555;
+    text-align: center;
+}   
+
+#game {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    max-width: 800px;
+    margin: 20px auto;
+}
+
+#hottakes-container {
+    width: 48%;
+}
+
+#ranks-container {
+    width: 48%;
+}
+
+
+
+
+/* Hottakes-Styling */
+.hottake {
+    background-color: green;
+    color: white;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 3px;
+    cursor: grab;
+}
+
+.rank-wrapper {
+    margin-bottom: 10px;
+}
+
+.rank-label {
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+.rank {
+    background-color: #ccc;
+    min-height: 40px;
+    border-radius: 3px;
+    padding: 10px;
+}
+
+#admin-area {
+    display: none;
+    flex-direction: column; /* erst Überschrift oben, dann zwei Spalten */
+    align-items: center;
+    padding: 20px;
+    max-width: 900px;
+    margin: 20px auto;
+    background-color: #f9f9f9;
+    border: 2px solid #ccc;
+    border-radius: 5px;
+}
+
+#admin-area h2 {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+#admin-content {
+    display: flex;          /* nebeneinander anordnen */
+    gap: 20px;              /* Abstand zwischen links und rechts */
+    justify-content: space-between;
+}
+
+#hottake-list, #add-hottakes {
+    flex: 1;                /* gleiche Breite */
+    padding: 10px;
+    background-color: #f0f0f0;
+    border-radius: 5px;
+}
+
+
