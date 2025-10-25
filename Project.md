@@ -207,12 +207,3 @@ Langfristig soll das Projekt **portfolio-reif** werden: klare Struktur, sauberes
 **Abschlusskriterien:**  
 - Live-Updates aktiv.  
 - Skalierung möglich.
-
----
-
-### 📘 Hinweise für Copilot
-- Du kannst Copilot in VS Code oder Codespaces verwenden.  
-- Bei jeder neuen Aufgabe:  
-  👉 **„Ich bin jetzt in Phase X, Schritt Y. Bitte hilf mir bei ...“**  
-- Copilot versteht diese Datei, wenn sie im Projekt liegt.  
-- Ergänze „✅“ am Ende jeder Phase, wenn sie abgeschlossen ist.
