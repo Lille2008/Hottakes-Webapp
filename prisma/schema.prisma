@@ -46,12 +46,11 @@ model Setting {
 
 model AdminEvent {
   id          Int      @id @default(autoincrement())
-  title       String
-  description String?
+  description String
   startTime   DateTime?
   lockTime    DateTime?
   endTime     DateTime?
-  active      Boolean  @default(true)
+  activeFlag  Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   @@map("admin_events")

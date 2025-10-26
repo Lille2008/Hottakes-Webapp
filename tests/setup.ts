@@ -6,7 +6,7 @@ import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers
 let container: StartedPostgreSqlContainer;
 
 beforeAll(async () => {
-  container = await new PostgreSqlContainer()
+  container = await new PostgreSqlContainer('postgres:16-alpine')
     .withDatabase('hottakes')
     .withUsername('postgres')
     .withPassword('postgres')
