@@ -72,7 +72,7 @@ Langfristig soll das Projekt **portfolio-reif** werden: klare Struktur, sauberes
 
 ---
 
-## 🚀 Phase 7 – Basis-Backend & API (aktueller Fokus) ✅
+## 🚀 Phase 7 – Basis-Backend & API ✅
 
 **Ziel:** Zentrale API, DB-Anbindung und persistente Speicherung für Hottakes, Submissions und Leaderboard.
 
