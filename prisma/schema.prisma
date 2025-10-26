@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Hottake {
+  id        Int      @id @default(autoincrement())
+  text      String
+  correct   Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@map("hottakes")
+}
+
+model User {
+  id        Int          @id @default(autoincrement())
+  nickname  String       @unique
+  createdAt DateTime     @default(now())
+  submission Submission?
+  @@map("users")
+}
+
+model Submission {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
+  user      User     @relation(fields: [userId], references: [id])
+  picks     Int[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@map("submissions")
+}
+
+model Setting {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@map("settings")
+}
+
+model AdminEvent {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?
+  startTime   DateTime?
+  lockTime    DateTime?
+  endTime     DateTime?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@map("admin_events")
+}
