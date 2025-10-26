@@ -1,3 +1,4 @@
+import path from 'node:path';
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { ZodError } from 'zod';
@@ -11,6 +12,7 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.use('/api/hottakes', hottakesRouter);
 app.use('/api/submissions', submissionsRouter);

@@ -1,256 +1,418 @@
-// Hottakes
-let hottakes = JSON.parse(localStorage.getItem('hottakes')) || [];
+const API_BASE = window.APP_API_BASE || '/api';
+const RANK_COUNT = 5;
 
-// Punktevergabe
-function scoring(userpicks) {
-    let score = 0;
+let hottakes = [];
+let picks = Array(RANK_COUNT).fill(null);
+let currentNickname = '';
+let adminPasswordToken = null;
+let adminEnabled = false;
 
-    for (let i = 0; i < userpicks.length; i++) {
-        if (userpicks[i] === -1) continue; // Nicht gewählte Hottakes überspringen
+const hottakesContainer = document.getElementById('hottakes-container');
+const ranksContainer = document.getElementById('ranks-container');
+const leaderboardContainer = document.getElementById('leaderboard-container');
+const nicknameInput = document.getElementById('nickname');
+const setNicknameButton = document.getElementById('set-nickname');
+const savePicksButton = document.getElementById('save-picks');
+const adminArea = document.getElementById('admin-area');
+const adminList = document.getElementById('hottake-list');
+const adminAdd = document.getElementById('add-hottakes');
 
-        const hottake = hottakes.find(ht => ht.id === userpicks[i]);
-        if (hottake && hottake.correct === true) {
-            score += (5 - i); // Punkte basierend auf der Platzierung vergeben
-        } 
+const hottakesList = document.createElement('div');
+hottakesList.id = 'hottakes-list';
+hottakesContainer.appendChild(hottakesList);
+
+const rankSlots = [];
+
+hottakesList.addEventListener('dragover', (event) => {
+    event.preventDefault();
+});
+
+hottakesList.addEventListener('drop', (event) => {
+    event.preventDefault();
+    const hottakeId = Number.parseInt(event.dataTransfer.getData('text/plain'), 10);
+    if (Number.isNaN(hottakeId)) {
+        return;
     }
-    
-    return score;
+
+    const element = document.querySelector(`[data-hottake-id="${hottakeId}"]`);
+    if (!element) {
+        return;
+    }
+
+    const previousParent = element.parentElement;
+    if (previousParent && previousParent.classList.contains('rank')) {
+        const prevIndex = Number(previousParent.dataset.rank) - 1;
+        if (prevIndex >= 0 && prevIndex < picks.length) {
+            picks[prevIndex] = null;
+        }
+    }
+
+    hottakesList.appendChild(element);
+});
+
+function createRankSlots() {
+    ranksContainer.querySelectorAll('.rank-wrapper').forEach((wrapper) => wrapper.remove());
+    rankSlots.length = 0;
+
+    for (let i = 1; i <= RANK_COUNT; i += 1) {
+        const container = document.createElement('div');
+        container.className = 'rank-wrapper';
+
+        const label = document.createElement('div');
+        label.textContent = `Platz ${i}`;
+        label.className = 'rank-label';
+        container.appendChild(label);
+
+        const rankDiv = document.createElement('div');
+        rankDiv.className = 'rank';
+        rankDiv.dataset.rank = String(i);
+        rankDiv.addEventListener('dragover', (event) => {
+            event.preventDefault();
+        });
+        rankDiv.addEventListener('drop', handleRankDrop);
+
+        container.appendChild(rankDiv);
+        ranksContainer.appendChild(container);
+        rankSlots.push(rankDiv);
+    }
 }
 
-function leaderboardData() {
-    const submissions = JSON.parse(localStorage.getItem('submissions')) || {};
+function handleRankDrop(event) {
+    event.preventDefault();
+    const rankDiv = event.currentTarget;
+    const hottakeId = Number.parseInt(event.dataTransfer.getData('text/plain'), 10);
 
-    let results = [];
-
-    for (const user in submissions) {
-        const nickname = user;
-        const userpicks = submissions[user];
-        const score = scoring(userpicks);
-        results.push({ user: nickname , score: score });
+    if (Number.isNaN(hottakeId)) {
+        return;
     }
 
-    results.sort((a, b) => b.score - a.score);
-    return results;
+    const element = document.querySelector(`[data-hottake-id="${hottakeId}"]`);
+    if (!element) {
+        return;
+    }
+
+    const existing = rankDiv.querySelector('.hottake');
+    if (existing) {
+        const existingId = Number(existing.dataset.hottakeId);
+        if (!Number.isNaN(existingId)) {
+            const existingIndex = picks.indexOf(existingId);
+            if (existingIndex !== -1) {
+                picks[existingIndex] = null;
+            }
+        }
+        hottakesList.appendChild(existing);
+    }
+
+    const previousParent = element.parentElement;
+    if (previousParent && previousParent.classList.contains('rank')) {
+        const previousIndex = Number(previousParent.dataset.rank) - 1;
+        if (previousIndex >= 0 && previousIndex < picks.length) {
+            picks[previousIndex] = null;
+        }
+    }
+
+    rankDiv.appendChild(element);
+    const rankIndex = Number(rankDiv.dataset.rank) - 1;
+    if (rankIndex >= 0 && rankIndex < picks.length) {
+        picks[rankIndex] = hottakeId;
+    }
 }
 
-//picks-Array: Aktuelle Picks speichern
-const picks = [null, null, null, null, null];
+async function apiFetch(path, options = {}, { allowNotFound = false } = {}) {
+    const response = await fetch(`${API_BASE}${path}`, options);
+    const text = await response.text();
+    let data = null;
 
-ranksCount = 5; // Anzahl der Ränge
+    if (text) {
+        try {
+            data = JSON.parse(text);
+        } catch (_error) {
+            data = text;
+        }
+    }
 
-for( let i = 1; i <= ranksCount; i++) { // Felder für die Hottakes
-    const container = document.createElement('div'); // umschließender Container
-    container.className = 'rank-wrapper'; // optional zum Stylen
+    if (!response.ok) {
+        if (allowNotFound && response.status === 404) {
+            return null;
+        }
+        const message = data && data.message ? data.message : typeof data === 'string' && data.length ? data : `Request failed (${response.status})`;
+        throw new Error(message);
+    }
 
-    const label = document.createElement('div'); 
-    label.textContent = 'Platz ' + i;
-    label.className = 'rank-label'; // CSS-Klasse für Styling
-    container.appendChild(label);
+    return data;
+}
 
-    const rankDiv = document.createElement('div'); // Feld für den Hottake
-    rankDiv.className = 'rank'; 
-    rankDiv.dataset.rank = i; // für picks-Array
-    container.appendChild(rankDiv); // Container um das Rank-Feld erweitern
+function sanitizePicks() {
+    const validIds = new Set(hottakes.map((hot) => hot.id));
+    picks = picks.map((id) => (typeof id === 'number' && validIds.has(id) ? id : null));
+}
 
-    document.getElementById('ranks-container').appendChild(container); // Container zum Ranks-Container hinzufügen
+function createHottakeElement(hottake) {
+    const element = document.createElement('p');
+    element.textContent = hottake.text;
+    element.className = 'hottake';
+    element.draggable = true;
+    element.dataset.hottakeId = String(hottake.id);
+    element.addEventListener('dragstart', (event) => {
+        event.dataTransfer.setData('text/plain', String(hottake.id));
+        event.dataTransfer.effectAllowed = 'move';
+    });
+    return element;
+}
 
-    rankDiv.addEventListener('dragover', function(event) { // Event Listener für Dragover
-        event.preventDefault(); // Standardverhalten im Browser verhindern
+function renderHottakes() {
+    sanitizePicks();
+    hottakesList.innerHTML = '';
+    rankSlots.forEach((slot) => {
+        slot.innerHTML = '';
     });
 
-    rankDiv.addEventListener('drop', function(event) {
-        event.preventDefault();
+    hottakes.forEach((hottake) => {
+        const element = createHottakeElement(hottake);
+        const rankIndex = picks.indexOf(hottake.id);
+        if (rankIndex !== -1) {
+            rankSlots[rankIndex].appendChild(element);
+        } else {
+            hottakesList.appendChild(element);
+        }
+    });
 
-        const hottakeId = parseInt(event.dataTransfer.getData('text/plain'), 10); // ID des gezogenen Hottakes
-        const hottakeEle = document.getElementById(hottakeId); // Das gezogene Element
+    if (adminEnabled) {
+        renderAdminOverview();
+    }
+}
 
-        if (!hottakeEle) return;
+async function refreshHottakes() {
+    try {
+        const data = await apiFetch('/hottakes');
+        hottakes = Array.isArray(data) ? data : [];
+        renderHottakes();
+    } catch (error) {
+        console.error(error);
+        hottakesList.innerHTML = '<p>Fehler beim Laden der Hottakes.</p>';
+    }
+}
 
-        // Prüfen, ob im Rank bereits ein Hot Take ist
-        const existingHottake = Array.from(rankDiv.children).find(el => el.classList.contains('hottake'));
+async function drawLeaderboard() {
+    leaderboardContainer.innerHTML = '<h2>Leaderboard</h2>';
+    try {
+        const response = await apiFetch('/leaderboard');
+        const entries = Array.isArray(response) ? response : [];
 
-        if (existingHottake) {
-            // Tausch: bestehender Hot Take an den Ursprungsort des gezogenen Hot Takes
-            const parentOfDragged = hottakeEle.parentElement;
-            parentOfDragged.appendChild(existingHottake);
-
-            // picks-Array: alten Hottake entfernen
-            const oldIndex = picks.indexOf(parseInt(existingHottake.id, 10));
-            if (oldIndex !== -1) picks[oldIndex] = null;
+        if (entries.length === 0) {
+            const emptyRow = document.createElement('p');
+            emptyRow.textContent = 'Noch keine Einsendungen.';
+            leaderboardContainer.appendChild(emptyRow);
+            return;
         }
 
-        // Gezogenen Hot Take in den Rank setzen
-        rankDiv.appendChild(hottakeEle);
-
-        // picks-Array aktualisieren
-        const rankIndex = parseInt(rankDiv.dataset.rank, 10) - 1;
-        picks[rankIndex] = hottakeId;
-
-    });
-
-    document.getElementById('ranks-container').appendChild(rankDiv); // Feld zum Container hinzufügen
-}
-
-// Scores berechnen und Leaderboard anzeigen
-function drawLeaderboard() {
-    const leaderboardContainer = document.getElementById('leaderboard-container');
-    leaderboardContainer.innerHTML = '<h2>Leaderboard</h2>'; // Überschrift hinzufügen
-    const results = leaderboardData();
-    for (let i = 0; i < results.length; i++) {
+        entries.forEach((entry, index) => {
+            const row = document.createElement('p');
+            row.textContent = `${index + 1}. ${entry.nickname}: ${entry.score} Punkte`;
+            leaderboardContainer.appendChild(row);
+        });
+    } catch (error) {
+        console.error(error);
         const row = document.createElement('p');
-        row.textContent = `${i+1}. ${results[i].user}: ${results[i].score} Punkte`;
-
+        row.textContent = 'Fehler beim Laden des Leaderboards.';
         leaderboardContainer.appendChild(row);
     }
 }
 
-drawLeaderboard();
+async function loadSubmissionForNickname(nickname) {
+    try {
+        const submission = await apiFetch(`/submissions/${encodeURIComponent(nickname)}`, {}, { allowNotFound: true });
+        const nextPicks = Array(RANK_COUNT).fill(null);
 
-//Beim Laden der Seite den Nickname aus dem Local Storage holen und anzeigen, Admin-Bereich wenn Lille und Scores berechnen
-const savedNickname = localStorage.getItem('nickname'); // Gespeicherte Nickname wird geholt
-if (savedNickname) {
-    document.getElementById('nickname').value = savedNickname; // Nickname im Eingabefeld anzeigen
-}
-
-if (savedNickname === 'Lille') {
-    const password = "Mbangula7"
-    let enteredPassword = prompt('Willkommen zurück, Lille! Bitte gib dein Passwort ein:');
-    if (enteredPassword === password) {
-        document.getElementById('admin-area').style.display = 'flex'; // Admin-Bereich anzeigen
-
-        const list = document.getElementById('hottake-list');
-        list.innerHTML = '<h3>Hottakes-Check</h3>'; // Überschrift hinzufügen
-
-        const addArea = document.getElementById('add-hottakes');
-        addArea.innerHTML = '<h3>Neue Hottakes</h3>'; // Inhalt löschen und Überschrift hinzufügen
-
-        for (let i = 0; i < hottakes.length; i++) {
-            const container = document.createElement('div'); // umschließender Container
-            const text = document.createTextNode((i + 1) + '. ' + hottakes[i].text); // Text für die Hottake
-            const toggle = document.createElement('input'); // Checkbox erstellen
-            toggle.type = 'checkbox';
-            toggle.id = 'toggle_' + i; // eindeutige ID für die Checkbox
-
-            if (hottakes[i].correct === true) toggle.checked = true; // Checkbox aktivieren, wenn Hottake als korrekt markiert ist
-
-            toggle.addEventListener('change', function() { // Event Listener für die Checkbox
-                if (toggle.checked) {
-                    hottakes[i].correct = toggle.checked; // Hottake-Status aktualisieren
-                    localStorage.setItem('hottakes', JSON.stringify(hottakes)); // Änderungen im Local Storage speichern
-                } else {
-                    hottakes[i].correct = false; // Hottake-Status aktualisieren
-                    localStorage.setItem('hottakes', JSON.stringify(hottakes)); // Änderungen im Local Storage speichern
+        if (submission && Array.isArray(submission.picks)) {
+            submission.picks.slice(0, RANK_COUNT).forEach((id, index) => {
+                if (typeof id === 'number') {
+                    nextPicks[index] = id;
                 }
-                drawLeaderboard(); // Leaderboard neu zeichnen
             });
-
-            container.appendChild(text); // Text zum Container hinzufügen
-            container.appendChild(toggle); // Checkbox zum Container hinzufügen
-            list.appendChild(container); // Container zur Liste hinzufügen
-            
-
-            const newhottake = document.createElement('input'); // Eingabefeld für neuen Hottake
-            newhottake.type = 'text';
-            newhottake.id = 'new_hottake_' + i;
-            addArea.appendChild(newhottake); // Eingabefeld zum Add-Hottakes-Bereich hinzufügen
-            
-            
         }
-        const addButton = document.createElement('button'); // Button zum Hinzufügen
-        addButton.textContent = 'Neue Hottakes speichern';
-            addButton.addEventListener('click', function() {
-                const inputs = document.querySelectorAll('[id^="new_hottake_"]');
-                const newArray = [];
 
-                for (let i=0; i<inputs.length; i++) {
-                    const val = inputs[i].value.trim();
-                    if (!val) {
-                    alert('Bitte alle 10 Hottakes ausfüllen');
-                    return;
-                    }
-                    newArray.push({ id: i, text: val, correct: null });
-                }
-
-                localStorage.setItem('hottakes', JSON.stringify(newArray));
-                // entweder neu rendern oder reload:
-                location.reload(); // Seite neu laden, um die neuen Hottakes anzuzeigen
-            });
-        addArea.appendChild(addButton); // Button zum Add-Hottakes-Bereich hinzufügen
-    } else {
-        alert('Falsches Passwort. Zugriff verweigert.');
-    }
-}  
-// Picks aus LocalStorage laden
-let savedPicks = [];
-if (savedNickname) {
-    const submissions = JSON.parse(localStorage.getItem('submissions')) || {};
-    if (savedNickname && submissions[savedNickname]) {
-        savedPicks = submissions[savedNickname];
+        picks = nextPicks;
+        renderHottakes();
+    } catch (error) {
+        alert(error.message);
     }
 }
 
-for (let i = 0; i < hottakes.length; i++) {
-    const hottake = hottakes[i]; // Hottake holen
-    const hottakeElement = document.createElement('p');
-    hottakeElement.textContent = hottakes[i].text; // Hottake Text setzen
-    hottakeElement.className = 'hottake'; // Klasse für Styling
-    hottakeElement.setAttribute('draggable', 'true'); // Drag & Drop aktivieren
-    hottakeElement.id = hottakes[i].id; // ID für Drag & Drop
-
-    hottakeElement.addEventListener('dragstart', function(event) { // Event Listener für Drag & Drop
-        if (event.target.classList.contains('hottake')) {
-            event.dataTransfer.setData('text/plain', hottake.id); // ID des Hottakes speichern
-            event.dataTransfer.effectAllowed = 'move'; // Effekt setzen
-        }
-        
-    }); // End of dragstart event listener
-
-    // Prüfen, ob dieser Hottake schon in savedPicks ist
-    const rankIndex = savedPicks.indexOf(hottake.id);
-    if (rankIndex !== -1) {
-        // Direkt in den richtigen Rank verschieben
-        const rankDiv = document.querySelector(`.rank[data-rank="${rankIndex + 1}"]`);
-        if (rankDiv) rankDiv.appendChild(hottakeElement);
-        picks[rankIndex] = hottake.id; // picks-Array setzen
-    } else {
-        // Noch nicht gewählt → in hottakes-container
-        document.getElementById('hottakes-container').appendChild(hottakeElement);
-    }
-}
-
-
-// Picks speichern, wenn der Button geklickt wird
-document.getElementById('save-picks').addEventListener('click', function() {
-    if (picks.includes(null)) {
-        alert('Bitte wähle alle 5 Hottakes aus, bevor du speicherst!');
+async function saveSubmission() {
+    if (picks.some((entry) => entry === null)) {
+        alert('Bitte wähle alle 5 Hottakes aus, bevor du speicherst.');
         return;
     }
 
-    // Alle Picks gesetzt → speichern
-    const nickname = document.getElementById('nickname').value;
+    if (!currentNickname) {
+        alert('Bitte gib zuerst einen Nickname ein.');
+        return;
+    }
+
+    try {
+        await apiFetch('/submissions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ nickname: currentNickname, picks })
+        });
+
+        alert('Deine Picks wurden gespeichert.');
+        await drawLeaderboard();
+    } catch (error) {
+        alert(error.message);
+    }
+}
+
+function renderAdminOverview() {
+    adminList.innerHTML = '<h3>Hottakes-Check</h3>';
+    if (!hottakes.length) {
+        const info = document.createElement('p');
+        info.textContent = 'Keine Hottakes vorhanden.';
+        adminList.appendChild(info);
+        return;
+    }
+
+    hottakes.forEach((hot, index) => {
+        const row = document.createElement('p');
+        const status = hot.correct ? '✅' : '❌';
+        const active = hot.isActive ? '' : ' (inaktiv)';
+        row.textContent = `${index + 1}. ${hot.text} ${status}${active}`;
+        adminList.appendChild(row);
+    });
+}
+
+function renderAdminForm() {
+    adminAdd.innerHTML = '<h3>Neue Hottakes</h3>';
+
+    const form = document.createElement('form');
+    const textInput = document.createElement('textarea');
+    textInput.name = 'text';
+    textInput.placeholder = 'Hottake-Text';
+    textInput.required = true;
+    textInput.rows = 2;
+
+    const correctLabel = document.createElement('label');
+    const correctInput = document.createElement('input');
+    correctInput.type = 'checkbox';
+    correctInput.name = 'correct';
+    correctLabel.appendChild(correctInput);
+    correctLabel.appendChild(document.createTextNode(' Treffer ist korrekt?'));
+
+    const activeLabel = document.createElement('label');
+    const activeInput = document.createElement('input');
+    activeInput.type = 'checkbox';
+    activeInput.name = 'isActive';
+    activeInput.checked = true;
+    activeLabel.appendChild(activeInput);
+    activeLabel.appendChild(document.createTextNode(' Aktiv'));
+
+    const submitButton = document.createElement('button');
+    submitButton.type = 'submit';
+    submitButton.textContent = 'Hottake speichern';
+
+    form.appendChild(textInput);
+    form.appendChild(correctLabel);
+    form.appendChild(activeLabel);
+    form.appendChild(submitButton);
+
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        if (!adminPasswordToken) {
+            alert('Kein Admin-Passwort gesetzt.');
+            return;
+        }
+
+        const text = textInput.value.trim();
+        if (text.length < 3) {
+            alert('Der Text muss mindestens 3 Zeichen lang sein.');
+            return;
+        }
+
+        const payload = {
+            text,
+            correct: correctInput.checked,
+            isActive: activeInput.checked
+        };
+
+        try {
+            await apiFetch('/hottakes', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-admin-password': adminPasswordToken
+                },
+                body: JSON.stringify(payload)
+            });
+
+            textInput.value = '';
+            correctInput.checked = false;
+            activeInput.checked = true;
+
+            await refreshHottakes();
+            await drawLeaderboard();
+            alert('Hottake gespeichert.');
+        } catch (error) {
+            alert(error.message);
+        }
+    });
+
+    adminAdd.appendChild(form);
+}
+
+function enableAdminArea(password) {
+    adminPasswordToken = password;
+    adminEnabled = true;
+    adminArea.style.display = 'flex';
+    renderAdminOverview();
+    renderAdminForm();
+}
+
+function disableAdminArea() {
+    adminPasswordToken = null;
+    adminEnabled = false;
+    adminArea.style.display = 'none';
+}
+
+setNicknameButton.addEventListener('click', async () => {
+    const nickname = nicknameInput.value.trim();
+
     if (!nickname) {
-        alert('Bitte gib einen Nickname ein, bevor du speicherst!');
+        alert('Bitte gib einen Nickname ein.');
         return;
     }
-    // Altes submissions-Objekt holen oder neues anlegen
-    let submissions = JSON.parse(localStorage.getItem('submissions')) || {};
 
-    // Aktuelle Picks für diesen Nickname speichern/überschreiben
-    submissions[nickname] = picks;
+    currentNickname = nickname;
+    await loadSubmissionForNickname(nickname);
+    alert(`Nickname gesetzt: ${nickname}`);
 
-    // Aktualisiertes Objekt zurück in localStorage speichern
-    localStorage.setItem('submissions', JSON.stringify(submissions));
-
-    alert('Deine Picks wurden gespeichert!');
+    if (nickname.toLowerCase() === 'lille') {
+        if (!adminEnabled) {
+            const password = prompt('Admin-Passwort eingeben:');
+            if (!password) {
+                return;
+            }
+            enableAdminArea(password);
+        }
+    } else if (adminEnabled) {
+        disableAdminArea();
+    }
 });
 
+savePicksButton.addEventListener('click', saveSubmission);
 
-// Nickname speichern, wenn der Button geklickt wird
-document.getElementById('set-nickname').addEventListener('click', function() {
-    const nickname = document.getElementById('nickname').value;
-    localStorage.setItem('nickname', nickname);
-    alert('Nickname gespeichert: ' + nickname);
-    console.log(localStorage.getItem('submissions'));
+async function initializeApp() {
+    createRankSlots();
+    await refreshHottakes();
+    await drawLeaderboard();
+}
+
+initializeApp().catch((error) => {
+    console.error(error);
+    alert('Fehler beim Initialisieren der App.');
 });
 
 
