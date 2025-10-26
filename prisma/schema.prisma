@@ -7,13 +7,18 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum HottakeStatus {
+  OFFEN
+  WAHR
+  FALSCH
+}
+
 model Hottake {
-  id        Int      @id @default(autoincrement())
+  id        Int            @id @default(autoincrement())
   text      String
-  correct   Boolean  @default(false)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  status    HottakeStatus  @default(OFFEN)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
   @@map("hottakes")
 }
 

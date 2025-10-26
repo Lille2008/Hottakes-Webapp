@@ -1,7 +1,23 @@
 const API_BASE = window.APP_API_BASE || '/api';
 const RANK_COUNT = 5;
+const MIN_OPEN_HOTTAKES = 10;
 
-let hottakes = [];
+const STATUS_LABELS = {
+    OFFEN: 'Offen',
+    WAHR: 'Wahr',
+    FALSCH: 'Falsch'
+};
+
+const STATUS_BADGE_CLASS = {
+    OFFEN: 'is-open',
+    WAHR: 'is-true',
+    FALSCH: 'is-false'
+};
+
+const STATUS_VALUES = ['OFFEN', 'WAHR', 'FALSCH'];
+
+let allHottakes = [];
+let openHottakes = [];
 let picks = Array(RANK_COUNT).fill(null);
 let currentNickname = '';
 let adminPasswordToken = null;
@@ -16,6 +32,48 @@ const savePicksButton = document.getElementById('save-picks');
 const adminArea = document.getElementById('admin-area');
 const adminList = document.getElementById('hottake-list');
 const adminAdd = document.getElementById('add-hottakes');
+
+if (
+    !hottakesContainer ||
+    !ranksContainer ||
+    !leaderboardContainer ||
+    !nicknameInput ||
+    !setNicknameButton ||
+    !savePicksButton ||
+    !adminArea ||
+    !adminList ||
+    !adminAdd
+) {
+    throw new Error('Hottakes App Initialisierung fehlgeschlagen: DOM-Elemente nicht gefunden.');
+}
+
+adminList.classList.add('admin-card');
+adminAdd.classList.add('admin-card');
+
+const adminFeedback = document.createElement('div');
+adminFeedback.id = 'admin-feedback';
+adminFeedback.className = 'admin-feedback';
+adminFeedback.setAttribute('role', 'status');
+adminFeedback.setAttribute('aria-live', 'polite');
+adminArea.insertBefore(adminFeedback, adminArea.firstChild);
+
+function showAdminMessage(message, tone = 'info') {
+    if (!message) {
+        adminFeedback.textContent = '';
+        adminFeedback.classList.remove('is-visible');
+        adminFeedback.removeAttribute('data-tone');
+        return;
+    }
+
+    adminFeedback.textContent = message;
+    adminFeedback.dataset.tone = tone;
+    adminFeedback.classList.add('is-visible');
+}
+
+const hottakesNotice = document.createElement('p');
+hottakesNotice.id = 'hottakes-notice';
+hottakesNotice.className = 'hottakes-notice';
+hottakesContainer.appendChild(hottakesNotice);
 
 const hottakesList = document.createElement('div');
 hottakesList.id = 'hottakes-list';
@@ -91,59 +149,116 @@ function handleRankDrop(event) {
         return;
     }
 
+    const targetIndex = Number(rankDiv.dataset.rank) - 1;
+    if (targetIndex < 0 || targetIndex >= picks.length) {
+        return;
+    }
+
+    const sourceParent = element.parentElement;
+    const sourceIndex =
+        sourceParent && sourceParent.classList.contains('rank')
+            ? Number(sourceParent.dataset.rank) - 1
+            : null;
+
+    if (sourceIndex === targetIndex) {
+        return;
+    }
+
     const existing = rankDiv.querySelector('.hottake');
+    if (existing === element) {
+        return;
+    }
+
+    if (sourceIndex !== null && sourceIndex >= 0 && sourceIndex < picks.length) {
+        picks[sourceIndex] = null;
+    }
+
     if (existing) {
         const existingId = Number(existing.dataset.hottakeId);
         if (!Number.isNaN(existingId)) {
-            const existingIndex = picks.indexOf(existingId);
-            if (existingIndex !== -1) {
-                picks[existingIndex] = null;
+            if (sourceIndex !== null && sourceParent && sourceParent.classList.contains('rank')) {
+                sourceParent.appendChild(existing);
+                picks[sourceIndex] = existingId;
+            } else {
+                hottakesList.appendChild(existing);
+                const existingIndex = picks.indexOf(existingId);
+                if (existingIndex !== -1) {
+                    picks[existingIndex] = null;
+                }
             }
-        }
-        hottakesList.appendChild(existing);
-    }
-
-    const previousParent = element.parentElement;
-    if (previousParent && previousParent.classList.contains('rank')) {
-        const previousIndex = Number(previousParent.dataset.rank) - 1;
-        if (previousIndex >= 0 && previousIndex < picks.length) {
-            picks[previousIndex] = null;
         }
     }
 
     rankDiv.appendChild(element);
-    const rankIndex = Number(rankDiv.dataset.rank) - 1;
-    if (rankIndex >= 0 && rankIndex < picks.length) {
-        picks[rankIndex] = hottakeId;
+
+    for (let i = 0; i < picks.length; i += 1) {
+        if (i !== targetIndex && picks[i] === hottakeId) {
+            picks[i] = null;
+        }
     }
+
+    picks[targetIndex] = hottakeId;
 }
 
 async function apiFetch(path, options = {}, { allowNotFound = false } = {}) {
-    const response = await fetch(`${API_BASE}${path}`, options);
-    const text = await response.text();
+    const url = `${API_BASE}${path}`;
+    const headers = new Headers(options.headers || {});
+
+    if (!headers.has('Accept')) {
+        headers.set('Accept', 'application/json');
+    }
+
+    if (options.body && !headers.has('Content-Type')) {
+        headers.set('Content-Type', 'application/json');
+    }
+
+    const response = await fetch(url, { ...options, headers });
+    const contentType = response.headers.get('content-type') || '';
+    let text = '';
     let data = null;
 
-    if (text) {
-        try {
-            data = JSON.parse(text);
-        } catch (_error) {
-            data = text;
+    try {
+        text = await response.text();
+    } catch (_error) {
+        text = '';
+    }
+
+    if (contentType.includes('application/json')) {
+        if (text) {
+            try {
+                data = JSON.parse(text);
+            } catch (_error) {
+                data = null;
+            }
         }
+    } else {
+        data = text;
     }
 
     if (!response.ok) {
         if (allowNotFound && response.status === 404) {
             return null;
         }
-        const message = data && data.message ? data.message : typeof data === 'string' && data.length ? data : `Request failed (${response.status})`;
-        throw new Error(message);
+
+        const message =
+            data && typeof data === 'object' && 'message' in data
+                ? data.message
+                : typeof data === 'string' && data.trim().length
+                    ? data.trim()
+                    : `Request failed (${response.status})`;
+
+        const hint = contentType.includes('text/html')
+            ? 'Server lieferte HTML. Prüfe API_BASE (/api) und die Server-Routing-Reihenfolge.'
+            : null;
+
+        throw new Error(hint ? `${message}\n${hint}` : message);
     }
 
     return data;
 }
 
 function sanitizePicks() {
-    const validIds = new Set(hottakes.map((hot) => hot.id));
+    const validIds = new Set(openHottakes.map((hot) => hot.id));
     picks = picks.map((id) => (typeof id === 'number' && validIds.has(id) ? id : null));
 }
 
@@ -167,7 +282,26 @@ function renderHottakes() {
         slot.innerHTML = '';
     });
 
-    hottakes.forEach((hottake) => {
+    const availableHottakes = openHottakes;
+    const hasMinimumOpen = availableHottakes.length >= MIN_OPEN_HOTTAKES;
+
+    if (adminEnabled) {
+        if (hasMinimumOpen) {
+            hottakesNotice.textContent = '';
+            hottakesNotice.classList.remove('is-visible');
+        } else {
+            hottakesNotice.textContent = `Es müssen mindestens ${MIN_OPEN_HOTTAKES} Hottakes offen sein. Aktuell verfügbar: ${availableHottakes.length}.`;
+            hottakesNotice.classList.add('is-visible');
+        }
+
+        savePicksButton.disabled = !hasMinimumOpen;
+    } else {
+        hottakesNotice.textContent = '';
+        hottakesNotice.classList.remove('is-visible');
+        savePicksButton.disabled = false;
+    }
+
+    availableHottakes.forEach((hottake) => {
         const element = createHottakeElement(hottake);
         const rankIndex = picks.indexOf(hottake.id);
         if (rankIndex !== -1) {
@@ -185,7 +319,8 @@ function renderHottakes() {
 async function refreshHottakes() {
     try {
         const data = await apiFetch('/hottakes');
-        hottakes = Array.isArray(data) ? data : [];
+        allHottakes = Array.isArray(data) ? data : [];
+        openHottakes = allHottakes.filter((hot) => hot.status === 'OFFEN');
         renderHottakes();
     } catch (error) {
         console.error(error);
@@ -267,96 +402,162 @@ async function saveSubmission() {
 }
 
 function renderAdminOverview() {
-    adminList.innerHTML = '<h3>Hottakes-Check</h3>';
-    if (!hottakes.length) {
+    adminList.innerHTML = '<h3 class="admin-section-title">Aktuelle Hottakes</h3>';
+
+    if (!allHottakes.length) {
         const info = document.createElement('p');
-        info.textContent = 'Keine Hottakes vorhanden.';
+        info.className = 'admin-empty-state';
+        info.textContent = 'Noch keine Hottakes vorhanden.';
         adminList.appendChild(info);
         return;
     }
 
-    hottakes.forEach((hot, index) => {
-        const row = document.createElement('p');
-        const status = hot.correct ? '✅' : '❌';
-        const active = hot.isActive ? '' : ' (inaktiv)';
-        row.textContent = `${index + 1}. ${hot.text} ${status}${active}`;
-        adminList.appendChild(row);
+    const list = document.createElement('ul');
+    list.className = 'admin-hottake-list';
+
+    allHottakes.forEach((hot, index) => {
+        const item = document.createElement('li');
+        item.className = 'admin-hottake-item';
+
+        const text = document.createElement('span');
+        text.className = 'admin-hottake-text';
+        text.textContent = `${index + 1}. ${hot.text}`;
+
+        const controls = document.createElement('span');
+        controls.className = 'admin-hottake-controls';
+
+        const statusBadge = document.createElement('span');
+        const badgeClass = STATUS_BADGE_CLASS[hot.status] || 'is-open';
+        statusBadge.className = `admin-badge ${badgeClass}`;
+        statusBadge.textContent = STATUS_LABELS[hot.status] || hot.status;
+
+        const statusSelect = document.createElement('select');
+        statusSelect.className = 'admin-status-select';
+
+        STATUS_VALUES.forEach((status) => {
+            const option = document.createElement('option');
+            option.value = status;
+            option.textContent = STATUS_LABELS[status] || status;
+            statusSelect.appendChild(option);
+        });
+
+        statusSelect.value = hot.status;
+
+        statusSelect.addEventListener('change', async (event) => {
+            const nextStatus = event.target.value;
+
+            if (!adminPasswordToken) {
+                statusSelect.value = hot.status;
+                showAdminMessage('Kein Admin-Passwort gesetzt.', 'error');
+                return;
+            }
+
+            if (!STATUS_VALUES.includes(nextStatus)) {
+                statusSelect.value = hot.status;
+                showAdminMessage('Ungültiger Status ausgewählt.', 'error');
+                return;
+            }
+
+            if (nextStatus === hot.status) {
+                return;
+            }
+
+            statusSelect.disabled = true;
+
+            try {
+                await apiFetch(`/hottakes/${hot.id}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'x-admin-password': adminPasswordToken
+                    },
+                    body: JSON.stringify({ status: nextStatus })
+                });
+
+                showAdminMessage(`Status aktualisiert: ${STATUS_LABELS[nextStatus]}.`, 'success');
+                await refreshHottakes();
+                await drawLeaderboard();
+            } catch (error) {
+                statusSelect.value = hot.status;
+                showAdminMessage(error.message, 'error');
+            } finally {
+                statusSelect.disabled = false;
+            }
+        });
+
+        controls.append(statusBadge, statusSelect);
+        item.append(text, controls);
+        list.appendChild(item);
     });
+
+    adminList.appendChild(list);
 }
 
 function renderAdminForm() {
-    adminAdd.innerHTML = '<h3>Neue Hottakes</h3>';
+    adminAdd.innerHTML = '<h3 class="admin-section-title">Neuen Hottake hinzufügen</h3>';
 
     const form = document.createElement('form');
+    form.className = 'admin-form';
+
+    const textLabel = document.createElement('label');
+    textLabel.className = 'admin-form-label';
+    textLabel.textContent = 'Titel & Beschreibung';
+
     const textInput = document.createElement('textarea');
     textInput.name = 'text';
-    textInput.placeholder = 'Hottake-Text';
+    textInput.placeholder = 'Beschreibe deinen Hottake...';
     textInput.required = true;
-    textInput.rows = 2;
+    textInput.rows = 4;
+    textLabel.appendChild(textInput);
 
-    const correctLabel = document.createElement('label');
-    const correctInput = document.createElement('input');
-    correctInput.type = 'checkbox';
-    correctInput.name = 'correct';
-    correctLabel.appendChild(correctInput);
-    correctLabel.appendChild(document.createTextNode(' Treffer ist korrekt?'));
-
-    const activeLabel = document.createElement('label');
-    const activeInput = document.createElement('input');
-    activeInput.type = 'checkbox';
-    activeInput.name = 'isActive';
-    activeInput.checked = true;
-    activeLabel.appendChild(activeInput);
-    activeLabel.appendChild(document.createTextNode(' Aktiv'));
+    const statusHint = document.createElement('p');
+    statusHint.className = 'admin-form-hint';
+    statusHint.textContent = 'Neue Hottakes starten immer mit dem Status Offen.';
 
     const submitButton = document.createElement('button');
     submitButton.type = 'submit';
     submitButton.textContent = 'Hottake speichern';
 
-    form.appendChild(textInput);
-    form.appendChild(correctLabel);
-    form.appendChild(activeLabel);
-    form.appendChild(submitButton);
+    form.append(textLabel, statusHint, submitButton);
 
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
 
         if (!adminPasswordToken) {
-            alert('Kein Admin-Passwort gesetzt.');
+            showAdminMessage('Kein Admin-Passwort gesetzt.', 'error');
             return;
         }
 
         const text = textInput.value.trim();
         if (text.length < 3) {
-            alert('Der Text muss mindestens 3 Zeichen lang sein.');
+            showAdminMessage('Der Text muss mindestens 3 Zeichen lang sein.', 'error');
+            textInput.focus();
             return;
         }
 
-        const payload = {
-            text,
-            correct: correctInput.checked,
-            isActive: activeInput.checked
-        };
+        const payload = { text };
+
+        submitButton.disabled = true;
+        submitButton.textContent = 'Speichern...';
 
         try {
             await apiFetch('/hottakes', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
                     'x-admin-password': adminPasswordToken
                 },
                 body: JSON.stringify(payload)
             });
 
             textInput.value = '';
-            correctInput.checked = false;
-            activeInput.checked = true;
 
             await refreshHottakes();
             await drawLeaderboard();
-            alert('Hottake gespeichert.');
+            showAdminMessage('Hottake gespeichert.', 'success');
         } catch (error) {
-            alert(error.message);
+            showAdminMessage(error.message, 'error');
+        } finally {
+            submitButton.disabled = false;
+            submitButton.textContent = 'Hottake speichern';
         }
     });
 
@@ -369,12 +570,19 @@ function enableAdminArea(password) {
     adminArea.style.display = 'flex';
     renderAdminOverview();
     renderAdminForm();
+    renderHottakes();
+    showAdminMessage('Admin-Modus aktiv. Du kannst neue Hottakes speichern.', 'info');
+    setTimeout(() => {
+        adminArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
 }
 
 function disableAdminArea() {
     adminPasswordToken = null;
     adminEnabled = false;
     adminArea.style.display = 'none';
+    showAdminMessage('', 'info');
+    renderHottakes();
 }
 
 setNicknameButton.addEventListener('click', async () => {
@@ -385,20 +593,24 @@ setNicknameButton.addEventListener('click', async () => {
         return;
     }
 
+    const isAdminNickname = nickname.toLowerCase() === 'lille';
     currentNickname = nickname;
     await loadSubmissionForNickname(nickname);
-    alert(`Nickname gesetzt: ${nickname}`);
-
-    if (nickname.toLowerCase() === 'lille') {
+    if (isAdminNickname) {
         if (!adminEnabled) {
             const password = prompt('Admin-Passwort eingeben:');
             if (!password) {
                 return;
             }
             enableAdminArea(password);
+        } else {
+            showAdminMessage('Admin-Modus aktiv.', 'info');
         }
     } else if (adminEnabled) {
         disableAdminArea();
+        alert(`Nickname gesetzt: ${nickname}`);
+    } else {
+        alert(`Nickname gesetzt: ${nickname}`);
     }
 });
 

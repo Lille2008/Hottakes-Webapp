@@ -1,5 +1,5 @@
 import prisma from './db';
-import { calculateScore, type HottakeCorrectness } from './scoring';
+import { calculateScore, type HottakeOutcome } from './scoring';
 
 export type LeaderboardEntry = {
   nickname: string;
@@ -9,27 +9,28 @@ export type LeaderboardEntry = {
 
 export async function buildLeaderboard(): Promise<LeaderboardEntry[]> {
   const hottakesRaw = await prisma.hottake.findMany({
-    where: { isActive: true },
-    select: { id: true, correct: true }
+    select: { id: true, status: true }
   });
 
   const submissions = await prisma.submission.findMany({
     include: { user: true }
   });
 
-  const mappedHottakes: HottakeCorrectness[] = hottakesRaw.map((hot): HottakeCorrectness => ({
+  const mappedHottakes: HottakeOutcome[] = hottakesRaw.map((hot: (typeof hottakesRaw)[number]): HottakeOutcome => ({
     id: hot.id,
-    correct: hot.correct
+    status: hot.status
   }));
 
-  const entries: LeaderboardEntry[] = submissions.map((submission): LeaderboardEntry => {
+  const entries: LeaderboardEntry[] = submissions.map(
+    (submission: (typeof submissions)[number]): LeaderboardEntry => {
     const score = calculateScore(submission.picks, mappedHottakes);
     return {
       nickname: submission.user.nickname,
       score,
       submittedAt: submission.updatedAt
     };
-  });
+    }
+  );
 
   return entries.sort((a, b) => {
     if (b.score !== a.score) {

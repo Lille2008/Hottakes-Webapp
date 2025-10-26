@@ -2,7 +2,9 @@ import { Router } from 'express';
 import { z } from 'zod';
 
 import prisma from '../lib/db';
-import { calculateScore } from '../lib/scoring';
+import { calculateScore, type HottakeOutcome } from '../lib/scoring';
+
+type HottakeWithStatus = { id: number; status: HottakeOutcome['status'] };
 
 const submissionSchema = z.object({
   nickname: z.string().min(2),
@@ -19,18 +21,19 @@ const router = Router();
 async function buildSubmissionResponse(userId: number, nickname: string) {
   const [submission, hottakes] = await Promise.all([
     prisma.submission.findUnique({ where: { userId } }),
-    prisma.hottake.findMany({ select: { id: true, correct: true, isActive: true } })
+    prisma.hottake.findMany({ select: { id: true, status: true } })
   ]);
 
   if (!submission) {
     return null;
   }
 
-  const activeHottakes = hottakes.filter((hot) => hot.isActive);
-  const score = calculateScore(
-    submission.picks,
-    activeHottakes.map((hot) => ({ id: hot.id, correct: hot.correct }))
-  );
+  const mappedHottakes: HottakeOutcome[] = hottakes.map((hot: HottakeWithStatus): HottakeOutcome => ({
+    id: hot.id,
+    status: hot.status
+  }));
+
+  const score = calculateScore(submission.picks, mappedHottakes);
 
   return {
     nickname,
@@ -112,13 +115,24 @@ router.post('/', async (req, res, next) => {
   try {
     const payload = submissionSchema.parse(req.body);
 
-    const hottakes = await prisma.hottake.findMany({
-      where: { id: { in: payload.picks } },
-      select: { id: true, correct: true, isActive: true }
-    });
+    const [selectedHottakes, openCount] = await Promise.all([
+      prisma.hottake.findMany({
+        where: { id: { in: payload.picks } },
+        select: { id: true, status: true }
+      }),
+      prisma.hottake.count({ where: { status: 'OFFEN' } })
+    ]);
 
-    if (hottakes.length !== payload.picks.length) {
+    if (selectedHottakes.length !== payload.picks.length) {
       return res.status(400).json({ message: 'Invalid picks detected' });
+    }
+
+    if (openCount < 10) {
+      return res.status(409).json({ message: 'Es müssen mindestens 10 offene Hottakes verfügbar sein.' });
+    }
+
+    if (selectedHottakes.some((hot: HottakeWithStatus) => hot.status !== 'OFFEN')) {
+      return res.status(400).json({ message: 'Alle Picks müssen offene Hottakes sein.' });
     }
 
     const user = await prisma.user.upsert({
@@ -133,11 +147,14 @@ router.post('/', async (req, res, next) => {
       create: { picks: payload.picks, userId: user.id }
     });
 
-    const activeHottakes = hottakes.filter((hot) => hot.isActive);
-    const score = calculateScore(
-      submission.picks,
-      activeHottakes.map((hot) => ({ id: hot.id, correct: hot.correct }))
+    const mappedHottakes: HottakeOutcome[] = selectedHottakes.map(
+      (hot: HottakeWithStatus): HottakeOutcome => ({
+        id: hot.id,
+        status: hot.status
+      })
     );
+
+    const score = calculateScore(submission.picks, mappedHottakes);
 
     res.status(201).json({
       nickname: user.nickname,

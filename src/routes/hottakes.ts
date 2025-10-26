@@ -3,10 +3,15 @@ import { z } from 'zod';
 
 import prisma from '../lib/db';
 
+const STATUS_VALUES = ['OFFEN', 'WAHR', 'FALSCH'] as const;
+
 const createHottakeSchema = z.object({
   text: z.string().min(3),
-  correct: z.boolean().optional(),
-  isActive: z.boolean().optional()
+  status: z.enum(STATUS_VALUES).optional()
+});
+
+const updateStatusSchema = z.object({
+  status: z.enum(STATUS_VALUES)
 });
 
 const router = Router();
@@ -38,13 +43,51 @@ router.post('/', async (req, res, next) => {
     const hottake = await prisma.hottake.create({
       data: {
         text: payload.text,
-        correct: payload.correct ?? false,
-        isActive: payload.isActive ?? true
+        status: payload.status ?? 'OFFEN'
       }
     });
 
     res.status(201).json(hottake);
   } catch (error) {
+    next(error);
+  }
+});
+
+router.patch('/:id', async (req, res, next) => {
+  try {
+    const adminPassword = process.env.ADMIN_PASSWORD;
+    if (!adminPassword) {
+      throw new Error('ADMIN_PASSWORD is not configured');
+    }
+
+    const providedPassword = req.header('x-admin-password');
+    if (providedPassword !== adminPassword) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const id = Number.parseInt(req.params.id, 10);
+    if (Number.isNaN(id)) {
+      return res.status(400).json({ message: 'Invalid hottake id' });
+    }
+
+    const payload = updateStatusSchema.parse(req.body);
+
+    const hottake = await prisma.hottake.update({
+      where: { id },
+      data: { status: payload.status }
+    });
+
+    res.json(hottake);
+  } catch (error) {
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      (error as { code?: unknown }).code === 'P2025'
+    ) {
+      return res.status(404).json({ message: 'Hottake not found' });
+    }
+
     next(error);
   }
 });

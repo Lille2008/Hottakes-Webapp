@@ -33,21 +33,21 @@ afterAll(async () => {
 
 describe('Hottakes API', () => {
   it('stores submissions and computes leaderboard scores', async () => {
-    const hottakeA = await prisma.hottake.create({
-      data: { text: 'Team A wins', correct: true }
-    });
-    const hottakeB = await prisma.hottake.create({
-      data: { text: 'Team B scores two goals', correct: true }
-    });
-    const hottakeC = await prisma.hottake.create({
-      data: { text: 'Player C gets red card', correct: false }
-    });
-    const hottakeD = await prisma.hottake.create({
-      data: { text: 'Match goes to penalties', correct: false }
-    });
-    const hottakeE = await prisma.hottake.create({
-      data: { text: 'Coach resigns post-match', correct: false }
-    });
+    const [hottakeA, hottakeB, hottakeC, hottakeD, hottakeE] = await Promise.all([
+      prisma.hottake.create({ data: { text: 'Team A wins', status: 'OFFEN' } }),
+      prisma.hottake.create({ data: { text: 'Team B scores two goals', status: 'OFFEN' } }),
+      prisma.hottake.create({ data: { text: 'Player C gets red card', status: 'OFFEN' } }),
+      prisma.hottake.create({ data: { text: 'Match goes to penalties', status: 'OFFEN' } }),
+      prisma.hottake.create({ data: { text: 'Coach resigns post match', status: 'OFFEN' } })
+    ]);
+
+    await Promise.all(
+      Array.from({ length: 5 }).map((_, index) =>
+        prisma.hottake.create({
+          data: { text: `Zusatz-Hottake ${index + 1}`, status: 'OFFEN' }
+        })
+      )
+    );
 
     const picks = [hottakeA.id, hottakeB.id, hottakeC.id, hottakeD.id, hottakeE.id];
 
@@ -59,8 +59,22 @@ describe('Hottakes API', () => {
     expect(submissionResponse.body).toMatchObject({
       nickname: 'Lille',
       picks,
-      score: 9
+      score: 0
     });
+
+    const updateStatus = async (id: number, status: 'OFFEN' | 'WAHR' | 'FALSCH') => {
+      await request(app)
+        .patch(`/api/hottakes/${id}`)
+        .set('x-admin-password', 'secret-admin')
+        .send({ status })
+        .expect(200);
+    };
+
+    await updateStatus(hottakeA.id, 'WAHR');
+    await updateStatus(hottakeB.id, 'WAHR');
+    await updateStatus(hottakeC.id, 'FALSCH');
+    await updateStatus(hottakeD.id, 'FALSCH');
+    await updateStatus(hottakeE.id, 'FALSCH');
 
     const byNickname = await request(app).get('/api/submissions/Lille').expect(200);
     expect(byNickname.body.score).toBe(9);
@@ -82,10 +96,10 @@ describe('Hottakes API', () => {
     const created = await request(app)
       .post('/api/hottakes')
       .set('x-admin-password', 'secret-admin')
-      .send({ text: 'Fans storm the pitch', correct: false })
+      .send({ text: 'Fans storm the pitch', status: 'OFFEN' })
       .expect(201);
 
-    expect(created.body).toMatchObject({ text: 'Fans storm the pitch', correct: false });
+    expect(created.body).toMatchObject({ text: 'Fans storm the pitch', status: 'OFFEN' });
 
     const hottakes = await request(app).get('/api/hottakes').expect(200);
     expect(hottakes.body).toHaveLength(1);
