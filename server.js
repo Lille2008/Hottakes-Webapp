@@ -1,15 +1,21 @@
-const express = require('express');
-const path = require('path');
-const app = express();
+try {
+  // Produktionsfall: Starte die kompilierte API aus dist/
+  // So stellen wir sicher, dass Render die Express-App mit allen Routen ausführt.
+  require('./dist/server.js');
+} catch (error) {
+  // Fallback (z. B. wenn dist noch nicht gebaut wurde): einfacher statischer Server
+  const express = require('express');
+  const path = require('path');
+  const app = express();
 
-// Statischer Ordner: Render liefert public/ aus
-app.use(express.static(path.join(__dirname, 'public')));
+  app.use(express.static(path.join(__dirname, 'public')));
+  app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/index.html'));
+  });
 
-// Route für Root
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/index.html'));
-});
-
-// Render gibt den Port via env vor
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server läuft auf Port ${PORT}`));
+  const PORT = Number.parseInt(process.env.PORT || '3000', 10);
+  const HOST = '0.0.0.0';
+  app.listen(PORT, HOST, () => {
+    console.log(`Fallback-Server läuft auf http://${HOST}:${PORT}`);
+  });
+}
