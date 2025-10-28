@@ -1,6 +1,6 @@
 try {
   // Produktionsfall: Starte die kompilierte API aus dist/
-  // So stellen wir sicher, dass Render die Express-App mit allen Routen ausführt.
+  // So wird sichergestellt, dass Render die Express-App mit allen Routen ausführt.
   require('./dist/server.js');
 } catch (error) {
   // Fallback (z. B. wenn dist noch nicht gebaut wurde): einfacher statischer Server

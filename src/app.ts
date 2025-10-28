@@ -48,4 +48,6 @@ app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   return res.status(500).json({ message: 'Unexpected error' });
 });
 
+// Stelle sicher, dass 'app' exportiert wird:
 export default app;
+export { app };
