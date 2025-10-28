@@ -593,7 +593,7 @@ setNicknameButton.addEventListener('click', async () => {
         return;
     }
 
-    const isAdminNickname = nickname.toLowerCase() === 'lille';
+    const isAdminNickname = nickname.toLowerCase() === 'lille08';
     currentNickname = nickname;
     await loadSubmissionForNickname(nickname);
     if (isAdminNickname) {
