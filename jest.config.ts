@@ -1,3 +1,4 @@
+// Jest-Konfiguration für TypeScript-Tests (ts-jest)
 import type { Config } from 'jest';
 
 const config: Config = {

@@ -1,3 +1,5 @@
+// Routen für Verwaltung und Auflistung von Hottakes.
+// POST/PATCH sind durch ein Admin-Passwort (HTTP-Header x-admin-password) geschützt.
 import { Router } from 'express';
 import { z } from 'zod';
 
@@ -5,17 +7,20 @@ import prisma from '../lib/db';
 
 const STATUS_VALUES = ['OFFEN', 'WAHR', 'FALSCH'] as const;
 
+// Eingabevalidierung: neuen Hottake anlegen
 const createHottakeSchema = z.object({
   text: z.string().min(3),
   status: z.enum(STATUS_VALUES).optional()
 });
 
+// Eingabevalidierung: Status-Update für bestehenden Hottake
 const updateStatusSchema = z.object({
   status: z.enum(STATUS_VALUES)
 });
 
 const router = Router();
 
+// Listet alle Hottakes (älteste zuerst) – öffentlich erreichbar
 router.get('/', async (_req, res, next) => {
   try {
     const hottakes = await prisma.hottake.findMany({
@@ -27,6 +32,7 @@ router.get('/', async (_req, res, next) => {
   }
 });
 
+// Anlage eines Hottakes (Admin)
 router.post('/', async (req, res, next) => {
   try {
     const adminPassword = process.env.ADMIN_PASSWORD;
@@ -53,6 +59,7 @@ router.post('/', async (req, res, next) => {
   }
 });
 
+// Status eines Hottakes ändern (Admin)
 router.patch('/:id', async (req, res, next) => {
   try {
     const adminPassword = process.env.ADMIN_PASSWORD;

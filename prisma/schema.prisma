@@ -1,19 +1,23 @@
+// Prisma-Konfiguration: aus diesem Schema generiert Prisma den TypeScript-Client
 generator client {
   provider = "prisma-client-js"
 }
 
+// Datenquelle: PostgreSQL – URLs kommen aus Umgebungsvariablen
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
   directUrl = env("DIRECT_DATABASE_URL") // nutzt den direkten 5432-Endpoint (oder notfalls denselben Pooler)
 }
 
+// Enum für den Status eines Hottakes (OFFEN/WAHR/FALSCH)
 enum HottakeStatus {
   OFFEN
   WAHR
   FALSCH
 }
 
+// Kernmodell: ein einzelner Hottake mit Text und Status
 model Hottake {
   id        Int            @id @default(autoincrement())
   text      String
@@ -23,6 +27,7 @@ model Hottake {
   @@map("hottakes")
 }
 
+// User mit eindeutigem Nickname (1:n zu Submissions ist hier als 1:1 modelliert)
 model User {
   id        Int          @id @default(autoincrement())
   nickname  String       @unique
@@ -31,6 +36,7 @@ model User {
   @@map("users")
 }
 
+// Eine Abgabe (Submission) pro User: enthält die Picks als Integer-Array
 model Submission {
   id        Int      @id @default(autoincrement())
   userId    Int      @unique
@@ -41,6 +47,7 @@ model Submission {
   @@map("submissions")
 }
 
+// Schlüssel-Wert-Einstellungen, z. B. für Konfigurationen zur Laufzeit
 model Setting {
   id        Int      @id @default(autoincrement())
   key       String   @unique
@@ -50,6 +57,7 @@ model Setting {
   @@map("settings")
 }
 
+// Optional: Admin-Events für Zeitsteuerung (Start/Lock/Ende) eines Spiels/Ereignisses
 model AdminEvent {
   id          Int      @id @default(autoincrement())
   description String

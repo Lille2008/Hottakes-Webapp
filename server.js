@@ -1,3 +1,6 @@
+// Universal-Startskript für Produktions-Hosts:
+// 1) Versucht zuerst, die kompilierte API (dist/server.js) zu starten.
+// 2) Fällt andernfalls auf einen reinen Static-Server zurück (nur Frontend), z. B. bei lokaler Entwicklung ohne Build.
 try {
   // Produktionsfall: Starte die kompilierte API aus dist/
   // So wird sichergestellt, dass Render die Express-App mit allen Routen ausführt.

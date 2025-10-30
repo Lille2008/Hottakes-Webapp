@@ -1,3 +1,5 @@
+// Routen für das Einreichen und Abrufen von Picks (Submissions).
+// Enthält Validierung der Eingaben sowie Score-Berechnung pro User.
 import { Router } from 'express';
 import { z } from 'zod';
 
@@ -6,6 +8,7 @@ import { calculateScore, type HottakeOutcome } from '../lib/scoring';
 
 type HottakeWithStatus = { id: number; status: HottakeOutcome['status'] };
 
+// Eingabevalidierung für Submissions: 5 eindeutige, ganzzahlige Hottake-IDs
 const submissionSchema = z.object({
   nickname: z.string().min(2),
   picks: z
@@ -18,6 +21,7 @@ const submissionSchema = z.object({
 
 const router = Router();
 
+// Hilfsfunktion: baut die API-Antwort für eine Submission inkl. Score
 async function buildSubmissionResponse(userId: number, nickname: string) {
   const [submission, hottakes] = await Promise.all([
     prisma.submission.findUnique({ where: { userId } }),
@@ -43,6 +47,8 @@ async function buildSubmissionResponse(userId: number, nickname: string) {
   };
 }
 
+// GET /api/submissions?nickname=... | ?userId=...
+// Flexible Abfrage über Nickname oder User-ID
 router.get('/', async (req, res, next) => {
   try {
     const { nickname, userId } = req.query;
@@ -90,6 +96,7 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+// GET /api/submissions/:nickname – bequeme Variante über Pfadparameter
 router.get('/:nickname', async (req, res, next) => {
   try {
     const { nickname } = req.params;
@@ -111,6 +118,7 @@ router.get('/:nickname', async (req, res, next) => {
   }
 });
 
+// POST /api/submissions – erstellt/aktualisiert die Picks eines Users
 router.post('/', async (req, res, next) => {
   try {
     const payload = submissionSchema.parse(req.body);
@@ -127,6 +135,7 @@ router.post('/', async (req, res, next) => {
       return res.status(400).json({ message: 'Invalid picks detected' });
     }
 
+    // Business-Regel: nur gültig, wenn genug offene Hottakes vorhanden sind
     if (openCount < 10) {
       return res.status(409).json({ message: 'Es müssen mindestens 10 offene Hottakes verfügbar sein.' });
     }
@@ -135,12 +144,14 @@ router.post('/', async (req, res, next) => {
       return res.status(400).json({ message: 'Alle Picks müssen offene Hottakes sein.' });
     }
 
+    // User anlegen oder wiederverwenden (eindeutiger Nickname)
     const user = await prisma.user.upsert({
       where: { nickname: payload.nickname },
       update: {},
       create: { nickname: payload.nickname }
     });
 
+    // Submission pro User (1:1) – entweder neu anlegen oder aktualisieren
     const submission = await prisma.submission.upsert({
       where: { userId: user.id },
       update: { picks: payload.picks },

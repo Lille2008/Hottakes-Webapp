@@ -1,13 +1,19 @@
+// Frontend-Logik der Hottakes-App (Vanilla JS)
+// - Lädt Hottakes/Leaderboard von der API
+// - Ermöglicht Drag&Drop von Hottakes in Ränge
+// - Enthält einen optionalen Admin-Modus (Status setzen, neue Hottakes)
 const API_BASE = window.APP_API_BASE || '/api';
-const RANK_COUNT = 5;
-const MIN_OPEN_HOTTAKES = 10;
+const RANK_COUNT = 5; // Anzahl der zu platzierenden Picks
+const MIN_OPEN_HOTTAKES = 10; // Mindestanzahl offener Hottakes, bevor Admin Submissions erlaubt
 
+// UI-Beschriftungen je Status
 const STATUS_LABELS = {
     OFFEN: 'Offen',
     WAHR: 'Wahr',
     FALSCH: 'Falsch'
 };
 
+// CSS-Badge-Klassen je Status
 const STATUS_BADGE_CLASS = {
     OFFEN: 'is-open',
     WAHR: 'is-true',
@@ -16,6 +22,7 @@ const STATUS_BADGE_CLASS = {
 
 const STATUS_VALUES = ['OFFEN', 'WAHR', 'FALSCH'];
 
+// Anwendungszustand (State)
 let allHottakes = [];
 let openHottakes = [];
 let picks = Array(RANK_COUNT).fill(null);
@@ -33,6 +40,7 @@ const adminArea = document.getElementById('admin-area');
 const adminList = document.getElementById('hottake-list');
 const adminAdd = document.getElementById('add-hottakes');
 
+// Sicherstellen, dass alle benötigten DOM-Elemente vorhanden sind
 if (
     !hottakesContainer ||
     !ranksContainer ||
@@ -75,10 +83,12 @@ hottakesNotice.id = 'hottakes-notice';
 hottakesNotice.className = 'hottakes-notice';
 hottakesContainer.appendChild(hottakesNotice);
 
+// Liste verfügbarer Hottakes (drag-source)
 const hottakesList = document.createElement('div');
 hottakesList.id = 'hottakes-list';
 hottakesContainer.appendChild(hottakesList);
 
+// Drop-Ziele für die priorisierten Plätze
 const rankSlots = [];
 
 hottakesList.addEventListener('dragover', (event) => {
@@ -108,6 +118,7 @@ hottakesList.addEventListener('drop', (event) => {
     hottakesList.appendChild(element);
 });
 
+// Erstellt/Reset die fünf Rang-Slots und hängt Drop-Handler an
 function createRankSlots() {
     ranksContainer.querySelectorAll('.rank-wrapper').forEach((wrapper) => wrapper.remove());
     rankSlots.length = 0;
@@ -135,6 +146,7 @@ function createRankSlots() {
     }
 }
 
+// Verarbeitet das Ablegen eines Hottakes in einen Rang-Slot inkl. Tausch/Zurücklegen
 function handleRankDrop(event) {
     event.preventDefault();
     const rankDiv = event.currentTarget;
@@ -200,6 +212,7 @@ function handleRankDrop(event) {
     picks[targetIndex] = hottakeId;
 }
 
+// Kleinere Fetch-Hilfsfunktion: JSON-Defaults, Fehlertexte und optional 404 erlauben
 async function apiFetch(path, options = {}, { allowNotFound = false } = {}) {
     const url = `${API_BASE}${path}`;
     const headers = new Headers(options.headers || {});
@@ -257,11 +270,13 @@ async function apiFetch(path, options = {}, { allowNotFound = false } = {}) {
     return data;
 }
 
+// Räumt ungültige Picks (nicht mehr vorhanden/geschlossen) aus dem State auf
 function sanitizePicks() {
     const validIds = new Set(openHottakes.map((hot) => hot.id));
     picks = picks.map((id) => (typeof id === 'number' && validIds.has(id) ? id : null));
 }
 
+// Erstellt ein dragbares Element für einen einzelnen Hottake
 function createHottakeElement(hottake) {
     const element = document.createElement('p');
     element.textContent = hottake.text;
@@ -275,6 +290,7 @@ function createHottakeElement(hottake) {
     return element;
 }
 
+// Rendert die verfügbaren Hottakes und verteilt bereits gewählte in ihre Ränge
 function renderHottakes() {
     sanitizePicks();
     hottakesList.innerHTML = '';
@@ -316,6 +332,7 @@ function renderHottakes() {
     }
 }
 
+// Lädt Hottakes von der API und aktualisiert die Anzeige
 async function refreshHottakes() {
     try {
         const data = await apiFetch('/hottakes');
@@ -328,6 +345,7 @@ async function refreshHottakes() {
     }
 }
 
+// Lädt das Leaderboard und zeichnet die Rangliste im UI
 async function drawLeaderboard() {
     leaderboardContainer.innerHTML = '<h2>Leaderboard</h2>';
     try {
@@ -354,6 +372,7 @@ async function drawLeaderboard() {
     }
 }
 
+// Lädt die existierende Submission eines Users und setzt die Picks im UI
 async function loadSubmissionForNickname(nickname) {
     try {
         const submission = await apiFetch(`/submissions/${encodeURIComponent(nickname)}`, {}, { allowNotFound: true });
@@ -374,6 +393,7 @@ async function loadSubmissionForNickname(nickname) {
     }
 }
 
+// Persistiert die aktuelle Auswahl (Picks) für den gesetzten Nickname
 async function saveSubmission() {
     if (picks.some((entry) => entry === null)) {
         alert('Bitte wähle alle 5 Hottakes aus, bevor du speicherst.');
@@ -401,6 +421,7 @@ async function saveSubmission() {
     }
 }
 
+// Admin: Übersicht aller Hottakes mit Status-Badges und -Select
 function renderAdminOverview() {
     adminList.innerHTML = '<h3 class="admin-section-title">Aktuelle Hottakes</h3>';
 
@@ -492,6 +513,7 @@ function renderAdminOverview() {
     adminList.appendChild(list);
 }
 
+// Admin: Formular zum Anlegen eines neuen Hottakes
 function renderAdminForm() {
     adminAdd.innerHTML = '<h3 class="admin-section-title">Neuen Hottake hinzufügen</h3>';
 
@@ -564,6 +586,7 @@ function renderAdminForm() {
     adminAdd.appendChild(form);
 }
 
+// Aktiviert den Admin-Modus (per Passwort), zeigt Admin-UI und lädt Daten neu
 function enableAdminArea(password) {
     adminPasswordToken = password;
     adminEnabled = true;
@@ -577,6 +600,7 @@ function enableAdminArea(password) {
     }, 50);
 }
 
+// Deaktiviert den Admin-Modus und blendet die Admin-UI aus
 function disableAdminArea() {
     adminPasswordToken = null;
     adminEnabled = false;
@@ -585,6 +609,7 @@ function disableAdminArea() {
     renderHottakes();
 }
 
+// Nickname setzen und ggf. Admin-Modus aktivieren
 setNicknameButton.addEventListener('click', async () => {
     const nickname = nicknameInput.value.trim();
 
@@ -614,8 +639,10 @@ setNicknameButton.addEventListener('click', async () => {
     }
 });
 
+// Speichern-Button für Picks
 savePicksButton.addEventListener('click', saveSubmission);
 
+// Bootstrap der App: Slots erstellen, Daten laden, Leaderboard zeichnen
 async function initializeApp() {
     createRankSlots();
     await refreshHottakes();
