@@ -123,21 +123,13 @@ router.post('/', async (req, res, next) => {
   try {
     const payload = submissionSchema.parse(req.body);
 
-    const [selectedHottakes, openCount] = await Promise.all([
-      prisma.hottake.findMany({
-        where: { id: { in: payload.picks } },
-        select: { id: true, status: true }
-      }),
-      prisma.hottake.count({ where: { status: 'OFFEN' } })
-    ]);
+    const selectedHottakes = await prisma.hottake.findMany({
+      where: { id: { in: payload.picks } },
+      select: { id: true, status: true }
+    });
 
     if (selectedHottakes.length !== payload.picks.length) {
       return res.status(400).json({ message: 'Invalid picks detected' });
-    }
-
-    // Business-Regel: nur gültig, wenn genug offene Hottakes vorhanden sind
-    if (openCount < 10) {
-      return res.status(409).json({ message: 'Es müssen mindestens 10 offene Hottakes verfügbar sein.' });
     }
 
     if (selectedHottakes.some((hot: HottakeWithStatus) => hot.status !== 'OFFEN')) {
