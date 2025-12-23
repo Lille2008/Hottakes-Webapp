@@ -29,10 +29,14 @@ model Hottake {
 
 // User mit eindeutigem Nickname (1:n zu Submissions ist hier als 1:1 modelliert)
 model User {
-  id        Int          @id @default(autoincrement())
-  nickname  String       @unique
-  createdAt DateTime     @default(now())
-  submission Submission?
+  id           Int          @id @default(autoincrement())
+  nickname     String       @unique
+  email        String       @unique
+  passwordHash String
+  prefs        Json         @default("{}")
+  createdAt    DateTime     @default(now())
+  submission   Submission?
+
   @@map("users")
 }
 
