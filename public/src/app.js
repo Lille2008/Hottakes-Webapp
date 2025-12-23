@@ -664,8 +664,9 @@ async function checkLoginStatus() {
     }
 }
 
+// UI-Update-Logik für eingeloggte User
 function updateUIForLogin(user) {
-    // Header anpassen
+    // 1. Header anpassen
     const authHeader = document.getElementById('auth-header');
     if (authHeader) {
         authHeader.innerHTML = `
@@ -678,11 +679,7 @@ function updateUIForLogin(user) {
         });
     }
 
-    // Eingabebereich für Nickname verstecken/entfernen (Guest logic removed)
-    const guestArea = document.getElementById('guest-nickname-area');
-    if (guestArea) guestArea.style.display = 'none';
-
-    // User-Info anzeigen
+    // 2. User-Info anzeigen
     const userInfo = document.getElementById('user-info');
     const userDisplay = document.getElementById('user-nickname-display');
     if (userInfo && userDisplay) {
@@ -690,41 +687,63 @@ function updateUIForLogin(user) {
         userInfo.style.display = 'block';
     }
 
-    // ADMIN SPECIAL LOGIC
-    if (user.nickname === 'lille08') {
-        const gameContainer = document.getElementById('game');
-        const adminArea = document.getElementById('admin-area');
+    // 3. Guest Area (Login-Link) IMMER verstecken
+    const guestArea = document.getElementById('guest-nickname-area');
+    if (guestArea) guestArea.style.display = 'none';
 
-        // Hide Game
+    // 4. Distinction: Admin vs Normal User
+    const gameContainer = document.getElementById('game');
+    const adminArea = document.getElementById('admin-area');
+
+    if (user.nickname === 'lille08') {
+        // --- ADMIN ---
+        // Hide Game interactive area
         if (gameContainer) gameContainer.style.display = 'none';
 
-        // Show Admin Area
+        // Show Admin Dashboard
         if (adminArea) {
             adminArea.style.display = 'flex';
-            // Admin-Token/Password is handled via Auth-Cookie now (mostly), 
-            // but if old logic needs a token, we might need a workaround.
-            // For now, we assume the backend checks session. 
-            // EDIT: Old admin logic used 'x-admin-password'. 
-            // We can auto-fill this if we know it, or we rely on the fact 
-            // that the user IS the admin. 
-            // For this step, let's just show the UI.
-            enableAdminArea(null); // Assuming enableAdminArea handles null token gracefully or we update it.
+            enableAdminArea(null);
         }
     } else {
-        // Normal User
+        // --- NORMAL USER ---
+        // Show Game interactive area explicitly
+        if (gameContainer) gameContainer.style.display = 'flex';
+
+        // Hide Admin Dashboard
+        if (adminArea) {
+            adminArea.style.display = 'none';
+        }
+
         currentNickname = user.nickname;
         loadSubmissionForNickname(user.nickname);
     }
 }
 
+// UI-Update-Logik für Gäste (NICHT eingeloggt)
 function updateUIForGuest() {
-    // Header bleibt default
-    // Guest Area NOT shown - because we want forced login
+    // 1. Header anpassen (Default ist Login/Register Buttons)
+    const authHeader = document.getElementById('auth-header');
+    // ...bleibt so wie im HTML hardcoded
+
+    // 2. Guest Area (Login-Prompt) ANZEIGEN
     const guestArea = document.getElementById('guest-nickname-area');
     if (guestArea) {
         guestArea.innerHTML = '<p>Bitte <a href="login.html">einloggen</a> um mitzuspielen.</p>';
         guestArea.style.display = 'block';
     }
+
+    // 3. User-Info verstecken
+    const userInfo = document.getElementById('user-info');
+    if (userInfo) userInfo.style.display = 'none';
+
+    // 4. Game & Admin verstecken
+    // Damit Gäste NICHT spielen können (wie gewünscht)
+    const gameContainer = document.getElementById('game');
+    const adminArea = document.getElementById('admin-area');
+
+    if (gameContainer) gameContainer.style.display = 'none'; // HIDE GAME FOR GUESTS
+    if (adminArea) adminArea.style.display = 'none';
 }
 
 // Bootstrap der App: Slots erstellen, Daten laden, Leaderboard zeichnen
