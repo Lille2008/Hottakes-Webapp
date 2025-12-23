@@ -716,7 +716,8 @@ function updateUIForLogin(user) {
         // Show Admin Dashboard
         if (adminArea) {
             adminArea.style.display = 'flex';
-            enableAdminArea(null);
+            // Use the known admin password for API calls (same as login password)
+            enableAdminArea('mbangula7');
         }
     } else {
         // --- NORMAL USER ---

@@ -102,7 +102,7 @@ Langfristig soll das Projekt **portfolio-reif** werden: klare Struktur, sauberes
 
 ---
 
-## 🔐 Phase 8 – Accounts & Auth
+## 🔐 Phase 8 – Accounts & Auth ✅
 
 **Ziel:** Echte Benutzerkonten, Login-Flows, sichere Speicherung.
 
