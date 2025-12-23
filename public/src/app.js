@@ -655,11 +655,22 @@ async function checkLoginStatus() {
             // User ist eingeloggt
             updateUIForLogin(data.user);
         } else {
-            // Gast
+            // Gast (z.B. 404 oder null return)
+            console.log('User is guest (no session found)');
             updateUIForGuest();
         }
     } catch (error) {
-        console.warn('Auth check failed:', error);
+        console.error('Auth check critical failure:', error);
+        // showAdminMessage is nice, but might miss if admin area is hidden.
+        // Let's create a temporary visible error banner for debugging
+        const errDiv = document.createElement('div');
+        errDiv.style.background = 'red';
+        errDiv.style.color = 'white';
+        errDiv.style.padding = '10px';
+        errDiv.style.textAlign = 'center';
+        errDiv.textContent = `Login Check Failed: ${error.message}. (Database mismatch?)`;
+        document.body.prepend(errDiv);
+
         updateUIForGuest();
     }
 }
