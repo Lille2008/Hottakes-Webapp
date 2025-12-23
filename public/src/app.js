@@ -45,8 +45,6 @@ if (
     !hottakesContainer ||
     !ranksContainer ||
     !leaderboardContainer ||
-    !nicknameInput ||
-    !setNicknameButton ||
     !savePicksButton ||
     !adminArea ||
     !adminList ||
@@ -615,34 +613,36 @@ function disableAdminArea() {
 }
 
 // Nickname setzen und ggf. Admin-Modus aktivieren
-setNicknameButton.addEventListener('click', async () => {
-    const nickname = nicknameInput.value.trim();
+if (setNicknameButton && nicknameInput) {
+    setNicknameButton.addEventListener('click', async () => {
+        const nickname = nicknameInput.value.trim();
 
-    if (!nickname) {
-        alert('Bitte gib einen Nickname ein.');
-        return;
-    }
-
-    const isAdminNickname = nickname.toLowerCase() === 'lille08';
-    currentNickname = nickname;
-    await loadSubmissionForNickname(nickname);
-    if (isAdminNickname) {
-        if (!adminEnabled) {
-            const password = prompt('Admin-Passwort eingeben:');
-            if (!password) {
-                return;
-            }
-            enableAdminArea(password);
-        } else {
-            showAdminMessage('Admin-Modus aktiv.', 'info');
+        if (!nickname) {
+            alert('Bitte gib einen Nickname ein.');
+            return;
         }
-    } else if (adminEnabled) {
-        disableAdminArea();
-        alert(`Nickname gesetzt: ${nickname}`);
-    } else {
-        alert(`Nickname gesetzt: ${nickname}`);
-    }
-});
+
+        const isAdminNickname = nickname.toLowerCase() === 'lille08';
+        currentNickname = nickname;
+        await loadSubmissionForNickname(nickname);
+        if (isAdminNickname) {
+            if (!adminEnabled) {
+                const password = prompt('Admin-Passwort eingeben:');
+                if (!password) {
+                    return;
+                }
+                enableAdminArea(password);
+            } else {
+                showAdminMessage('Admin-Modus aktiv.', 'info');
+            }
+        } else if (adminEnabled) {
+            disableAdminArea();
+            alert(`Nickname gesetzt: ${nickname}`);
+        } else {
+            alert(`Nickname gesetzt: ${nickname}`);
+        }
+    });
+}
 
 // Speichern-Button für Picks
 savePicksButton.addEventListener('click', saveSubmission);
