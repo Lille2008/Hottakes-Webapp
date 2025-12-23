@@ -6,9 +6,12 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { ZodError } from 'zod';
 
+import cookieParser from 'cookie-parser';
+
 import hottakesRouter from './routes/hottakes';
 import submissionsRouter from './routes/submissions';
 import leaderboardRouter from './routes/leaderboard';
+import authRouter from './routes/auth';
 import healthRouter from './routes/health';
 
 // Neue Express-Anwendung erstellen
@@ -17,6 +20,9 @@ const app = express();
 // Allgemeine Middleware
 app.use(cors()); // erlaubt Cross-Origin-Anfragen (Frontend <-> API)
 app.use(express.json()); // parst JSON-Request-Bodies
+app.use(cookieParser()); // parst Cookies (jwt)
+
+app.use('/api/auth', authRouter);
 app.use('/api/hottakes', hottakesRouter);
 app.use('/api/submissions', submissionsRouter);
 app.use('/api/leaderboard', leaderboardRouter);

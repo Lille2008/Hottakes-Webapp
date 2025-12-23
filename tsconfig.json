@@ -8,9 +8,15 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
-    "resolveJsonModule": true,
-    "types": ["node", "jest"]
+    "resolveJsonModule": true
+    // "types": ["node", "jest"] <- REMOVED to allow all @types to load
   },
-  "include": ["src"],
-  "exclude": ["node_modules", "dist", "tests"]
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "tests"
+  ]
 }

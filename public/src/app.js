@@ -280,7 +280,10 @@ function sanitizePicks() {
 function createHottakeElement(hottake) {
     const element = document.createElement('p');
     element.textContent = hottake.text;
-    element.className = 'hottake';
+    element.textContent = hottake.text;
+    // Basis-Klasse plus Status-Klasse (z.B. is-true, is-false)
+    const statusClass = STATUS_BADGE_CLASS[hottake.status] || 'is-open';
+    element.className = `hottake ${statusClass}`;
     element.draggable = true;
     element.dataset.hottakeId = String(hottake.id);
     element.addEventListener('dragstart', (event) => {
@@ -337,7 +340,9 @@ async function refreshHottakes() {
     try {
         const data = await apiFetch('/hottakes');
         allHottakes = Array.isArray(data) ? data : [];
-        openHottakes = allHottakes.filter((hot) => hot.status === 'OFFEN');
+        allHottakes = Array.isArray(data) ? data : [];
+        // SHOW ALL HOTTAKES (requested by user), do not filter by OFFEN only
+        openHottakes = allHottakes;
         renderHottakes();
     } catch (error) {
         console.error(error);
@@ -642,9 +647,67 @@ setNicknameButton.addEventListener('click', async () => {
 // Speichern-Button für Picks
 savePicksButton.addEventListener('click', saveSubmission);
 
+// Initialisierung: Auth-Status prüfen
+async function checkLoginStatus() {
+    try {
+        const data = await apiFetch('/auth/me', {}, { allowNotFound: true });
+        if (data && data.user) {
+            // User ist eingeloggt
+            updateUIForLogin(data.user);
+        } else {
+            // Gast
+            updateUIForGuest();
+        }
+    } catch (error) {
+        console.warn('Auth check failed:', error);
+        updateUIForGuest();
+    }
+}
+
+function updateUIForLogin(user) {
+    // Header anpassen
+    const authHeader = document.getElementById('auth-header');
+    if (authHeader) {
+        authHeader.innerHTML = `
+            <span style="margin-right: 10px; font-weight: bold;">${user.nickname}</span>
+            <button id="btn-logout" class="btn">Logout</button>
+        `;
+        document.getElementById('btn-logout').addEventListener('click', async () => {
+            await apiFetch('/auth/logout', { method: 'POST' });
+            window.location.reload();
+        });
+    }
+
+    // Eingabebereich für Nickname verstecken
+    const guestArea = document.getElementById('guest-nickname-area');
+    if (guestArea) guestArea.style.display = 'none';
+
+    // User-Info anzeigen
+    const userInfo = document.getElementById('user-info');
+    const userDisplay = document.getElementById('user-nickname-display');
+    if (userInfo && userDisplay) {
+        userDisplay.textContent = user.nickname;
+        userInfo.style.display = 'block';
+    }
+
+    // App-State setzen
+    currentNickname = user.nickname;
+    loadSubmissionForNickname(user.nickname); // Lade Daten direkt
+}
+
+function updateUIForGuest() {
+    // Header bleibt default (Login/Register Links)
+    const guestArea = document.getElementById('guest-nickname-area');
+    if (guestArea) guestArea.style.display = 'block';
+
+    const userInfo = document.getElementById('user-info');
+    if (userInfo) userInfo.style.display = 'none';
+}
+
 // Bootstrap der App: Slots erstellen, Daten laden, Leaderboard zeichnen
 async function initializeApp() {
     createRankSlots();
+    await checkLoginStatus(); // Auth Check vor Datenladen
     await refreshHottakes();
     await drawLeaderboard();
 }

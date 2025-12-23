@@ -5,36 +5,53 @@
     Die API wird unter /api erwartet und von der Express-App bereitgestellt.
 -->
 <html lang="de">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Hottakes</title>
-        <link rel="stylesheet" href="src/styles.css">
 
-        <!-- Favicon für verschiedene Browser -->
-        <link rel="icon" type="image/png" sizes="16x16" href="hottakes_favicons/Hottakes.icon-16x16.png">
-        <link rel="icon" type="image/png" sizes="32x32" href="hottakes_favicons/Hottakes.icon-32x32.png">
-        <link rel="icon" type="image/png" sizes="48x48" href="hottakes_favicons/Hottakes.icon-48x48.png">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hottakes</title>
+    <link rel="stylesheet" href="src/styles.css">
 
-        <!-- Apple Touch Icons (iOS) -->
-        <link rel="apple-touch-icon" sizes="150x150" href="hottakes_favicons/Hottakes.icon-150x150.png">
-        <link rel="apple-touch-icon" sizes="180x180" href="hottakes_favicons/Hottakes.icon-180x180.png">
+    <!-- Favicon für verschiedene Browser -->
+    <link rel="icon" type="image/png" sizes="16x16" href="hottakes_favicons/Hottakes.icon-16x16.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="hottakes_favicons/Hottakes.icon-32x32.png">
+    <link rel="icon" type="image/png" sizes="48x48" href="hottakes_favicons/Hottakes.icon-48x48.png">
 
-        <!-- Android/Progressive Web App Icons -->
-        <link rel="icon" type="image/png" sizes="192x192" href="hottakes_favicons/Hottakes.icon-192x192.png">
-        <link rel="icon" type="image/png" sizes="512x512" href="hottakes_favicons/Hottakes.icon-512x512.png">
+    <!-- Apple Touch Icons (iOS) -->
+    <link rel="apple-touch-icon" sizes="150x150" href="hottakes_favicons/Hottakes.icon-150x150.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="hottakes_favicons/Hottakes.icon-180x180.png">
 
-        <!-- Microsoft Tiles (Windows) -->
-        <meta name="msapplication-TileColor" content="#ffffff">
-        <meta name="msapplication-TileImage" content="hottakes_favicons/Hottakes.icon-150x150.png">
+    <!-- Android/Progressive Web App Icons -->
+    <link rel="icon" type="image/png" sizes="192x192" href="hottakes_favicons/Hottakes.icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="hottakes_favicons/Hottakes.icon-512x512.png">
 
-        <!-- Optional: Theme Color -->
-        <meta name="theme-color" content="#ffffff">
-    </head>
+    <!-- Microsoft Tiles (Windows) -->
+    <meta name="msapplication-TileColor" content="#ffffff">
+    <meta name="msapplication-TileImage" content="hottakes_favicons/Hottakes.icon-150x150.png">
+
+    <!-- Optional: Theme Color -->
+    <meta name="theme-color" content="#ffffff">
+</head>
+
 <body>
-    <h1>Hottakes</h1>
-    <input type="text" id="nickname" placeholder="Nickname eingeben">
-    <button id="set-nickname">Nickname Speichern</button>
+    <header style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0;">
+        <h1>Hottakes</h1>
+        <div id="auth-header">
+            <a href="login.html" class="btn">Login</a>
+            <a href="register.html" class="btn">Register</a>
+        </div>
+    </header>
+
+    <div id="user-info" style="display: none; text-align: center; margin-bottom: 20px;">
+        <p>Hallo, <span id="user-nickname-display"></span>!</p>
+    </div>
+
+    <!-- Old nickname input, hidden if logged in -->
+    <div id="guest-nickname-area">
+        <input type="text" id="nickname" placeholder="Nickname eingeben">
+        <button id="set-nickname">Nickname Speichern</button>
+    </div>
+
     <div id="game">
         <div id="hottakes-container">
             <h2>Hottakes</h2>
@@ -45,17 +62,44 @@
     </div>
     <button id="save-picks">Picks Speichern</button>
     <div id="leaderboard-container"></div>
+
     <div id="admin-area">
         <h2>Admin Bereich</h2>
         <div id="admin-content">
             <div id="hottake-list">
-            <h3>Hottakes-Check</h3>
-        </div>
-        <div id="add-hottakes">
-            <h3>Neue Hottakes</h3>
+                <h3>Hottakes-Check</h3>
+            </div>
+            <div id="add-hottakes">
+                <h3>Neue Hottakes</h3>
+            </div>
         </div>
     </div>
+
+    <footer style="margin-top: 50px; text-align: center; font-size: 0.9em; color: #666;">
+        <hr>
+        <p>
+            <a href="impressum.html">Impressum</a> |
+            <a href="datenschutz.html">Datenschutz</a>
+        </p>
+        <div id="cookie-banner"
+            style="position: fixed; bottom: 0; left: 0; right: 0; background: #333; color: #fff; padding: 15px; text-align: center; display: none;">
+            Diese Seite nutzt technisch notwendige Cookies (Session/Auth).
+            <button id="accept-cookies" style="margin-left: 10px; cursor: pointer;">OK</button>
+        </div>
+    </footer>
+
     <!-- Frontend-Skript mit Drag&Drop-Logik und API-Aufrufen -->
     <script src="src/app.js"></script>
+    <script>
+        // Simple Cookie Banner Logic
+        if (!localStorage.getItem('cookiesAccepted')) {
+            document.getElementById('cookie-banner').style.display = 'block';
+        }
+        document.getElementById('accept-cookies').addEventListener('click', () => {
+            localStorage.setItem('cookiesAccepted', 'true');
+            document.getElementById('cookie-banner').style.display = 'none';
+        });
+    </script>
 </body>
+
 </html>

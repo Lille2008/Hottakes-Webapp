@@ -53,12 +53,36 @@ h2 {
 
 /* Hottake-Karten (dragbar) */
 .hottake {
-    background-color: green;
-    color: white;
+    background-color: #f3f4f6; /* Default (Offen) or Neutral */
+    color: #1f2937;
     padding: 10px;
     margin-bottom: 10px;
-    border-radius: 3px;
+    border-radius: 6px;
     cursor: grab;
+    border: 1px solid #d1d5db;
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.hottake:active {
+    cursor: grabbing;
+    transform: scale(1.02);
+}
+
+.hottake.is-open {
+    background-color: #ffffff;
+    border-color: #cbd5e1;
+}
+
+.hottake.is-true {
+    background-color: #dcfce7; /* Green-ish */
+    border-color: #86efac;
+    color: #14532d;
+}
+
+.hottake.is-false {
+    background-color: #fee2e2; /* Red-ish */
+    border-color: #fca5a5;
+    color: #7f1d1d;
 }
 
 .rank-wrapper {

@@ -5,7 +5,7 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "build": "tsc && node scripts/copy-static.js",
+    "build": "npx tsc && node scripts/copy-static.js",
     "start": "node dist/server.js",
     "test": "jest --runInBand"
   },
@@ -13,7 +13,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@prisma/client": "^6.18.0",
+    "@prisma/client": "^5.10.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^4.18.2",
@@ -22,13 +22,16 @@
   },
   "devDependencies": {
     "@testcontainers/postgresql": "^11.7.2",
+    "@types/bcrypt": "^6.0.0",
+    "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.4",
     "@types/jest": "^30.0.0",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.9.1",
     "@types/supertest": "^6.0.3",
     "jest": "^30.2.0",
-    "prisma": "^6.18.0",
+    "prisma": "^5.10.0",
     "supertest": "^7.1.4",
     "testcontainers": "^11.7.2",
     "ts-jest": "^29.4.5",
