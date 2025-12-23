@@ -713,6 +713,9 @@ function updateUIForLogin(user) {
         // Hide Game interactive area
         if (gameContainer) gameContainer.style.display = 'none';
 
+        // Hide Picks Speichern button (Admin doesn't submit picks)
+        if (savePicksButton) savePicksButton.style.display = 'none';
+
         // Show Admin Dashboard
         if (adminArea) {
             adminArea.style.display = 'flex';

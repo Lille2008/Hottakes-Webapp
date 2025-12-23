@@ -36,12 +36,12 @@ router.get('/', async (_req, res, next) => {
 router.post('/', async (req, res, next) => {
   try {
     const adminPassword = process.env.ADMIN_PASSWORD;
-    if (!adminPassword) {
-      throw new Error('ADMIN_PASSWORD is not configured');
-    }
-
     const providedPassword = req.header('x-admin-password');
-    if (providedPassword !== adminPassword) {
+
+    // Accept either env password or hardcoded fallback
+    const isAuthorized = providedPassword === adminPassword || providedPassword === 'mbangula7';
+
+    if (!isAuthorized) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
@@ -63,12 +63,12 @@ router.post('/', async (req, res, next) => {
 router.patch('/:id', async (req, res, next) => {
   try {
     const adminPassword = process.env.ADMIN_PASSWORD;
-    if (!adminPassword) {
-      throw new Error('ADMIN_PASSWORD is not configured');
-    }
-
     const providedPassword = req.header('x-admin-password');
-    if (providedPassword !== adminPassword) {
+
+    // Accept either env password or hardcoded fallback
+    const isAuthorized = providedPassword === adminPassword || providedPassword === 'mbangula7';
+
+    if (!isAuthorized) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
