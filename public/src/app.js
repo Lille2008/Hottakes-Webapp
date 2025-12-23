@@ -357,7 +357,7 @@ async function drawLeaderboard() {
 
         if (entries.length === 0) {
             const emptyRow = document.createElement('p');
-            emptyRow.textContent = 'Noch keine Einsendungen.';
+            emptyRow.textContent = 'Noch keine Punkte.';
             leaderboardContainer.appendChild(emptyRow);
             return;
         }
@@ -660,16 +660,18 @@ async function checkLoginStatus() {
             updateUIForGuest();
         }
     } catch (error) {
-        console.error('Auth check critical failure:', error);
-        // showAdminMessage is nice, but might miss if admin area is hidden.
-        // Let's create a temporary visible error banner for debugging
-        const errDiv = document.createElement('div');
-        errDiv.style.background = 'red';
-        errDiv.style.color = 'white';
-        errDiv.style.padding = '10px';
-        errDiv.style.textAlign = 'center';
-        errDiv.textContent = `Login Check Failed: ${error.message}. (Database mismatch?)`;
-        document.body.prepend(errDiv);
+        // Expected errors when not logged in (401 sent by requireAuth)
+        const isAuthError = error.message.includes('Authentication required') ||
+            error.message.includes('Invalid or expired token') ||
+            error.message.includes('401');
+
+        if (isAuthError) {
+            console.log('User is guest (Unauthorized)');
+            updateUIForGuest();
+            return;
+        }
+
+        console.warn('Auth check failed:', error);
 
         updateUIForGuest();
     }
