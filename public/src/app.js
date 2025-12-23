@@ -357,7 +357,7 @@ async function drawLeaderboard() {
 
         if (entries.length === 0) {
             const emptyRow = document.createElement('p');
-            emptyRow.textContent = 'Noch keine Punkte.';
+            emptyRow.textContent = 'Noch keine Scores.';
             leaderboardContainer.appendChild(emptyRow);
             return;
         }
@@ -720,6 +720,10 @@ function updateUIForLogin(user) {
         }
     } else {
         // --- NORMAL USER ---
+        // Ensure admin mode is disabled
+        adminEnabled = false;
+        adminPasswordToken = null;
+
         // Show Game interactive area explicitly
         if (gameContainer) gameContainer.style.display = 'flex';
 
@@ -735,6 +739,10 @@ function updateUIForLogin(user) {
 
 // UI-Update-Logik für Gäste (NICHT eingeloggt)
 function updateUIForGuest() {
+    // Ensure admin mode is disabled for guests
+    adminEnabled = false;
+    adminPasswordToken = null;
+
     // 1. Header anpassen (Default ist Login/Register Buttons)
     const authHeader = document.getElementById('auth-header');
     // ...bleibt so wie im HTML hardcoded
