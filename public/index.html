@@ -46,10 +46,9 @@
         <p>Hallo, <span id="user-nickname-display"></span>!</p>
     </div>
 
-    <!-- Old nickname input, hidden if logged in -->
-    <div id="guest-nickname-area">
-        <input type="text" id="nickname" placeholder="Nickname eingeben">
-        <button id="set-nickname">Nickname Speichern</button>
+    <!-- Old nickname input, hidden/removed -->
+    <div id="guest-nickname-area" style="display: none; padding: 20px; text-align: center;">
+        <!-- This is now handled dynamically by app.js to show 'Please login' -->
     </div>
 
     <div id="game">

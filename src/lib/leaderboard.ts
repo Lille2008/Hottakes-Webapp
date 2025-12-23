@@ -31,8 +31,9 @@ export async function buildLeaderboard(): Promise<LeaderboardEntry[]> {
   const entries: LeaderboardEntry[] = submissions.map(
     (submission: (typeof submissions)[number]): LeaderboardEntry => {
       const score = calculateScore(submission.picks, mappedHottakes);
+      const nickname = submission.user?.nickname || 'Unknown'; // Fallback if user is null (should normally not happen with valid foreign keys)
       return {
-        nickname: submission.user.nickname,
+        nickname,
         score,
         submittedAt: submission.updatedAt
       };

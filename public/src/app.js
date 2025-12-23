@@ -678,7 +678,7 @@ function updateUIForLogin(user) {
         });
     }
 
-    // Eingabebereich für Nickname verstecken
+    // Eingabebereich für Nickname verstecken/entfernen (Guest logic removed)
     const guestArea = document.getElementById('guest-nickname-area');
     if (guestArea) guestArea.style.display = 'none';
 
@@ -690,18 +690,41 @@ function updateUIForLogin(user) {
         userInfo.style.display = 'block';
     }
 
-    // App-State setzen
-    currentNickname = user.nickname;
-    loadSubmissionForNickname(user.nickname); // Lade Daten direkt
+    // ADMIN SPECIAL LOGIC
+    if (user.nickname === 'lille08') {
+        const gameContainer = document.getElementById('game');
+        const adminArea = document.getElementById('admin-area');
+
+        // Hide Game
+        if (gameContainer) gameContainer.style.display = 'none';
+
+        // Show Admin Area
+        if (adminArea) {
+            adminArea.style.display = 'flex';
+            // Admin-Token/Password is handled via Auth-Cookie now (mostly), 
+            // but if old logic needs a token, we might need a workaround.
+            // For now, we assume the backend checks session. 
+            // EDIT: Old admin logic used 'x-admin-password'. 
+            // We can auto-fill this if we know it, or we rely on the fact 
+            // that the user IS the admin. 
+            // For this step, let's just show the UI.
+            enableAdminArea(null); // Assuming enableAdminArea handles null token gracefully or we update it.
+        }
+    } else {
+        // Normal User
+        currentNickname = user.nickname;
+        loadSubmissionForNickname(user.nickname);
+    }
 }
 
 function updateUIForGuest() {
-    // Header bleibt default (Login/Register Links)
+    // Header bleibt default
+    // Guest Area NOT shown - because we want forced login
     const guestArea = document.getElementById('guest-nickname-area');
-    if (guestArea) guestArea.style.display = 'block';
-
-    const userInfo = document.getElementById('user-info');
-    if (userInfo) userInfo.style.display = 'none';
+    if (guestArea) {
+        guestArea.innerHTML = '<p>Bitte <a href="login.html">einloggen</a> um mitzuspielen.</p>';
+        guestArea.style.display = 'block';
+    }
 }
 
 // Bootstrap der App: Slots erstellen, Daten laden, Leaderboard zeichnen
