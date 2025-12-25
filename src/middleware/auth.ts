@@ -19,6 +19,28 @@ if (!JWT_SECRET) {
     throw new Error('JWT_SECRET is not set. Please define it in the environment.');
 }
 
+// Middleware, die optional einen authentifizierten User aus dem Token liest (ist für Admin Authentifizierung nützlich)
+export function optionalAuth(req: Request, _res: Response, next: NextFunction) {
+    const token = req.cookies?.token;
+    if (!token) {
+        return next();
+    }
+
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+
+        if (typeof decoded !== 'object' || decoded === null || !('id' in decoded)) {
+            return next();
+        }
+
+        (req as AuthRequest).user = decoded as UserPayload;
+    } catch (err) {
+        return next();
+    }
+
+    return next();
+}
+
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
     // Token aus Cookie lesen (gesetzt via httpOnly Cookie)
     const token = req.cookies?.token;

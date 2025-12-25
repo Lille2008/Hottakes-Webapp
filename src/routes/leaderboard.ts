@@ -1,4 +1,3 @@
-// Leaderboard-Endpoint: berechnet eine sortierte Rangliste aus allen Submissions.
 import { Router } from 'express';
 
 import { buildLeaderboard } from '../lib/leaderboard';

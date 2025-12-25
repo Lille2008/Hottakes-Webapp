@@ -1,5 +1,3 @@
-// Test-Bootstrap: startet eine temporäre Postgres-Instanz in Docker (Testcontainers)
-// und synchronisiert das Prisma-Schema gegen die DB.
 import { execSync } from 'node:child_process';
 import path from 'node:path';
 
@@ -16,11 +14,9 @@ beforeAll(async () => {
 
   const connectionUri = container.getConnectionUri();
   process.env.DATABASE_URL = connectionUri;
-  // Prisma kann optional directUrl nutzen – für Tests ebenfalls auf den Container zeigen
   process.env.DIRECT_DATABASE_URL = connectionUri;
   process.env.NODE_ENV = 'test';
 
-  // Prisma-Schema in die Test-DB pushen (Migrationen für den Testfall)
   execSync('npx prisma db push --skip-generate', {
     cwd: path.resolve(__dirname, '..'),
     env: {

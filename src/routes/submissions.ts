@@ -1,5 +1,3 @@
-// Routen für das Einreichen und Abrufen von Picks (Submissions).
-// Enthält Validierung der Eingaben sowie Score-Berechnung pro User.
 import { Router } from 'express';
 import { z } from 'zod';
 
@@ -9,7 +7,6 @@ import { requireAuth, type AuthRequest } from '../middleware/auth';
 
 type HottakeWithStatus = { id: number; status: HottakeOutcome['status'] };
 
-// Eingabevalidierung für Submissions: 5 eindeutige, ganzzahlige Hottake-IDs
 const submissionSchema = z.object({
   picks: z
     .array(z.number().int())
@@ -21,7 +18,6 @@ const submissionSchema = z.object({
 
 const router = Router();
 
-// Hilfsfunktion: baut die API-Antwort für eine Submission inkl. Score
 async function buildSubmissionResponse(userId: number, nickname: string) {
   const [submission, hottakes] = await Promise.all([
     prisma.submission.findUnique({ where: { userId } }),
@@ -47,8 +43,6 @@ async function buildSubmissionResponse(userId: number, nickname: string) {
   };
 }
 
-// GET /api/submissions?nickname=... | ?userId=...
-// Flexible Abfrage über Nickname oder User-ID
 router.get('/', requireAuth, async (req, res, next) => {
   try {
     const { nickname, userId } = req.query;
@@ -109,7 +103,6 @@ router.get('/', requireAuth, async (req, res, next) => {
   }
 });
 
-// GET /api/submissions/:nickname – bequeme Variante über Pfadparameter
 router.get('/:nickname', requireAuth, async (req, res, next) => {
   try {
     const currentUser = (req as AuthRequest).user;
@@ -137,7 +130,6 @@ router.get('/:nickname', requireAuth, async (req, res, next) => {
   }
 });
 
-// POST /api/submissions – erstellt/aktualisiert die Picks eines Users
 router.post('/', requireAuth, async (req, res, next) => {
   try {
     const payload = submissionSchema.parse(req.body);
@@ -166,7 +158,6 @@ router.post('/', requireAuth, async (req, res, next) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Submission pro User (1:1) – entweder neu anlegen oder aktualisieren
     const submission = await prisma.submission.upsert({
       where: { userId: user.id },
       update: { picks: payload.picks },

@@ -1,26 +1,24 @@
-// Routen für Verwaltung und Auflistung von Hottakes.
-// POST/PATCH sind durch ein Admin-Passwort (HTTP-Header x-admin-password) geschützt.
-import { Router } from 'express';
+import { Router, type Response, type NextFunction } from 'express';
 import { z } from 'zod';
 
 import prisma from '../lib/db';
+import { optionalAuth, type AuthRequest } from '../middleware/auth';
 
 const STATUS_VALUES = ['OFFEN', 'WAHR', 'FALSCH'] as const;
 
-// Eingabevalidierung: neuen Hottake anlegen
 const createHottakeSchema = z.object({
   text: z.string().min(3),
   status: z.enum(STATUS_VALUES).optional()
 });
 
-// Eingabevalidierung: Status-Update für bestehenden Hottake
 const updateStatusSchema = z.object({
   status: z.enum(STATUS_VALUES)
 });
 
 const router = Router();
 
-// Listet alle Hottakes (älteste zuerst) – öffentlich erreichbar
+const ADMIN_NICKNAME = process.env.ADMIN_NICKNAME || 'lille08';
+
 router.get('/', async (_req, res, next) => {
   try {
     const hottakes = await prisma.hottake.findMany({
@@ -32,25 +30,36 @@ router.get('/', async (_req, res, next) => {
   }
 });
 
-function isAdminRequest(req: { header: (name: string) => string | undefined }) {
+function isAdminFromHeader(req: { header: (name: string) => string | undefined }) {
   const adminPassword = process.env.ADMIN_PASSWORD;
   if (!adminPassword) {
-    throw new Error('ADMIN_PASSWORD is not set. Please define it in the environment.');
+    return false;
   }
 
   const providedPassword = req.header('x-admin-password');
   return providedPassword === adminPassword;
 }
 
-// Anlage eines Hottakes (Admin)
-router.post('/', async (req, res, next) => {
+function isAdminUser(req: AuthRequest) {
+  return req.user?.nickname === ADMIN_NICKNAME;
+}
+
+function requireAdmin(req: AuthRequest, res: Response, next: NextFunction) {
+  if (isAdminFromHeader(req)) {
+    return next();
+  }
+
+  if (isAdminUser(req)) {
+    return next();
+  }
+
+  return res.status(401).json({ message: 'Unauthorized' });
+}
+
+router.use(optionalAuth);
+
+router.post('/', requireAdmin, async (req, res, next) => {
   try {
-    const isAuthorized = isAdminRequest(req);
-
-    if (!isAuthorized) {
-      return res.status(401).json({ message: 'Unauthorized' });
-    }
-
     const payload = createHottakeSchema.parse(req.body);
     const hottake = await prisma.hottake.create({
       data: {
@@ -65,15 +74,8 @@ router.post('/', async (req, res, next) => {
   }
 });
 
-// Status eines Hottakes ändern (Admin)
-router.patch('/:id', async (req, res, next) => {
+router.patch('/:id', requireAdmin, async (req, res, next) => {
   try {
-    const isAuthorized = isAdminRequest(req);
-
-    if (!isAuthorized) {
-      return res.status(401).json({ message: 'Unauthorized' });
-    }
-
     const id = Number.parseInt(req.params.id, 10);
     if (Number.isNaN(id)) {
       return res.status(400).json({ message: 'Invalid hottake id' });

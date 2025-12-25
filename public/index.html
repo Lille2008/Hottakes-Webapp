@@ -1,9 +1,4 @@
 <!DOCTYPE html>
-<!--
-    Einstiegspunkt der Single-Page-Anwendung (SPA).
-    Lädt das Stylesheet und das Frontend-Skript und stellt die Grundstruktur bereit.
-    Die API wird unter /api erwartet und von der Express-App bereitgestellt.
--->
 <html lang="de">
 
 <head>
@@ -12,24 +7,19 @@
     <title>Hottakes</title>
     <link rel="stylesheet" href="src/styles.css">
 
-    <!-- Favicon für verschiedene Browser -->
     <link rel="icon" type="image/png" sizes="16x16" href="hottakes_favicons/Hottakes.icon-16x16.png">
     <link rel="icon" type="image/png" sizes="32x32" href="hottakes_favicons/Hottakes.icon-32x32.png">
     <link rel="icon" type="image/png" sizes="48x48" href="hottakes_favicons/Hottakes.icon-48x48.png">
 
-    <!-- Apple Touch Icons (iOS) -->
     <link rel="apple-touch-icon" sizes="150x150" href="hottakes_favicons/Hottakes.icon-150x150.png">
     <link rel="apple-touch-icon" sizes="180x180" href="hottakes_favicons/Hottakes.icon-180x180.png">
 
-    <!-- Android/Progressive Web App Icons -->
     <link rel="icon" type="image/png" sizes="192x192" href="hottakes_favicons/Hottakes.icon-192x192.png">
     <link rel="icon" type="image/png" sizes="512x512" href="hottakes_favicons/Hottakes.icon-512x512.png">
 
-    <!-- Microsoft Tiles (Windows) -->
     <meta name="msapplication-TileColor" content="#ffffff">
     <meta name="msapplication-TileImage" content="hottakes_favicons/Hottakes.icon-150x150.png">
 
-    <!-- Optional: Theme Color -->
     <meta name="theme-color" content="#ffffff">
 </head>
 
@@ -46,9 +36,7 @@
         <p>Hallo, <span id="user-nickname-display"></span>!</p>
     </div>
 
-    <!-- Old nickname input, hidden/removed -->
     <div id="guest-nickname-area" style="display: none; padding: 20px; text-align: center;">
-        <!-- This is now handled dynamically by app.js to show 'Please login' -->
     </div>
 
     <div id="game">
@@ -87,7 +75,6 @@
         </div>
     </footer>
 
-    <!-- Frontend-Skript mit Drag&Drop-Logik und API-Aufrufen -->
     <script src="src/app.js"></script>
     <script>
         // Simple Cookie Banner Logic

@@ -4,7 +4,7 @@ This document gives AI coding agents the essential, repo-specific context to be 
 
 ## Architecture Overview
 - Backend: TypeScript + Express API in `src/`. App wiring lives in `src/app.ts`; process startup is isolated in `src/server.ts`.
-- Frontend: Static SPA served from `public/` (vanilla JS in `public/src/app.js`). The API is expected under the `/api` prefix.
+- Frontend: Static SPA served from `public/` (vanilla JS in `public/src/app.js`). The API is expected under the `/api` prefix and uses cookie-based JWT auth.
 - Data: PostgreSQL via Prisma. Client is created once and reused from `src/lib/db.ts` (singleton in dev to avoid multiple connections).
 - Domain: “Hottakes” users pick 5 open predictions; scores are computed from actual outcomes and shown in a leaderboard.
 
@@ -18,10 +18,15 @@ This document gives AI coding agents the essential, repo-specific context to be 
 
 ## API Surface
 - Route registration: `src/app.ts`
+  - `/api/auth` → `src/routes/auth.ts`
+    - POST `/register` create account (nickname, email, password) and set JWT cookie
+    - POST `/login` authenticate via nickname or email + password, set JWT cookie
+    - POST `/logout` clear auth cookie
+    - GET `/me` returns current user (requires auth cookie)
   - `/api/hottakes` → `src/routes/hottakes.ts`
     - GET `/` list all (oldest first)
-    - POST `/` create (admin-only via header `x-admin-password`)
-    - PATCH `/:id` update status (admin-only)
+    - POST `/` create (admin-only via header `x-admin-password` or logged-in admin nickname)
+    - PATCH `/:id` update status (admin-only; same rules as above)
   - `/api/submissions` → `src/routes/submissions.ts`
     - GET `/?nickname=…` or `/?userId=…` fetch a submission with score
     - GET `/:nickname` convenience variant
@@ -37,11 +42,12 @@ This document gives AI coding agents the essential, repo-specific context to be 
 - Leaderboard in `src/lib/leaderboard.ts`:
   - Computes each user’s score from current hottake outcomes, then sorts by score desc, tie-break by earlier `submittedAt`.
 - Validation: Use `zod` in routes (see `createHottakeSchema`, `updateStatusSchema`, `submissionSchema`). Parse incoming bodies before DB work.
-- Admin auth: Require header `x-admin-password` to equal `process.env.ADMIN_PASSWORD` for mutating hottake routes.
+- Admin auth: `optionalAuth` reads the JWT cookie; `requireAdmin` allows either a logged-in admin nickname (`process.env.ADMIN_NICKNAME` default `lille08`) or the legacy header `x-admin-password` matching `process.env.ADMIN_PASSWORD`.
 
 ## Conventions and Patterns
 - Keep `src/app.ts` free of network `listen()`; only mount middleware and routes. Start the server only in `src/server.ts`.
 - Always import DB via the shared Prisma client in `src/lib/db.ts`.
+- Mount `optionalAuth` before admin routes that can rely on the authenticated user (e.g., hottakes); keep `requireAuth` for protected endpoints like `/api/auth/me`.
 - Prefer explicit `.json(...)` responses and 4xx/5xx codes; unknown `/api/*` should resolve to `{ message: 'Not Found' }` with 404 (see `app.use('/api', ...)`).
 - Central error handler (end of `src/app.ts`) normalizes `ZodError` to 400 with `issues` and other errors to `{ message }`.
 - Maintain the `/api` prefix to avoid clashing with SPA fallback routing.
@@ -59,7 +65,9 @@ This document gives AI coding agents the essential, repo-specific context to be 
 
 ## Environment Variables
 - `DATABASE_URL` (primary). `DIRECT_DATABASE_URL` optional. For local compat, `src/lib/db.ts` maps `DB_URL` → `DATABASE_URL` if needed.
-- `ADMIN_PASSWORD` is required for POST/PATCH under `/api/hottakes`.
+- `JWT_SECRET` **required** for issuing/verifying auth cookies.
+- `ADMIN_PASSWORD` optional legacy header for POST/PATCH under `/api/hottakes`.
+- `ADMIN_NICKNAME` logged-in admin identifier (defaults to `lille08`; must match the nickname used in the SPA to unlock admin UI).
 - `PORT` optional (defaults to `3000`).
 
 ## Adding or Modifying Endpoints (Examples)
@@ -69,11 +77,13 @@ This document gives AI coding agents the essential, repo-specific context to be 
 - When reading submissions with scores, reuse `calculateScore(...)` from `src/lib/scoring.ts` to keep business rules consistent.
 
 ## Frontend Integration Notes
-- Frontend hits the API at `/api` (see `public/src/app.js`, `API_BASE`). Keep API paths stable when changing backend routes.
-- Admin UI expects the status values `OFFEN|WAHR|FALSCH` and the `x-admin-password` header to be honored by the API.
+- Frontend hits the API at `/api` (see `public/src/app.js`, `API_BASE`) and sends credentials via cookies.
+- Login/registration lives in `public/login.html` and `public/register.html`; session is managed by the JWT cookie returned by `/api/auth/login|register`.
+- Admin UI unlocks when the logged-in nickname matches `ADMIN_NICKNAME` (default `lille08`) and calls the same hottake endpoints; legacy `x-admin-password` header is supported but the SPA primarily uses login.
+- Admin expects hottake statuses `OFFEN|WAHR|FALSCH`.
 
 ## Phase Status
-- Phase 8 (user auth/account flow) is **not implemented**: only optional `email`/`passwordHash` fields exist in the schema, there are no auth/login routes beyond the existing hottakes/submissions/leaderboard/health handlers in `src/app.ts`, and the SPA has no auth UI.
+- Phase 8 (user auth/account flow) is implemented: `/api/auth` supports register/login/logout/me with bcrypt + JWT cookies; SPA includes login/register pages and uses the cookie session to gate play/admin.
 - Phase 9 (prefs/dark mode) remains future; `prefs` is unused in the codebase.
 
 ---

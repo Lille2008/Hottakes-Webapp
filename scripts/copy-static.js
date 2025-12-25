@@ -1,12 +1,9 @@
-// Build-Hilfsskript: Kopiert den Inhalt von /public nach /dist/public,
-// damit die statischen Assets zusammen mit dem kompilierten Backend ausgeliefert werden können.
 const fs = require('fs');
 const path = require('path');
 
 const source = path.resolve(__dirname, '..', 'public');
 const destination = path.resolve(__dirname, '..', 'dist', 'public');
 
-// Rekursiver Kopierhelfer für Verzeichnisse
 function copyDirectory(src, dest) {
   if (!fs.existsSync(dest)) {
     fs.mkdirSync(dest, { recursive: true });
@@ -24,7 +21,6 @@ function copyDirectory(src, dest) {
   }
 }
 
-// Kein public/-Ordner vorhanden? Dann gibt es nichts zu kopieren
 if (!fs.existsSync(source)) {
   console.warn(`Skipping static copy: ${source} does not exist.`);
   process.exit(0);

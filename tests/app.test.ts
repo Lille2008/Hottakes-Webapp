@@ -1,4 +1,3 @@
-// End-to-End-nahe Tests für die Express-API mit echter Postgres (Testcontainers)
 import request from 'supertest';
 import type { Express } from 'express';
 import type { PrismaClient } from '@prisma/client';
@@ -6,16 +5,15 @@ import type { PrismaClient } from '@prisma/client';
 let app: Express;
 let prisma: PrismaClient;
 
-// Hilfsfunktion: setzt alle relevanten Tabellen zwischen Tests zurück
 const truncateTables = async () => {
   await prisma.$executeRawUnsafe(
     'TRUNCATE TABLE "submissions", "users", "hottakes", "settings", "admin_events" RESTART IDENTITY CASCADE;'
   );
 };
 
-// Test-Setup: ENV für Admin, App & Prisma laden
 beforeAll(async () => {
   process.env.ADMIN_PASSWORD = 'secret-admin';
+  process.env.ADMIN_NICKNAME = 'lille08';
   process.env.JWT_SECRET = 'test-secret-key';
 
   const [{ default: importedApp }, { default: prismaClient }] = await Promise.all([
@@ -27,12 +25,10 @@ beforeAll(async () => {
   prisma = prismaClient;
 });
 
-// Vor jedem Test DB leeren
 beforeEach(async () => {
   await truncateTables();
 });
 
-// Aufräumen: DB-Verbindung schließen
 afterAll(async () => {
   await prisma.$disconnect();
 });
@@ -40,13 +36,18 @@ afterAll(async () => {
 describe('Hottakes API', () => {
   it('stores submissions and computes leaderboard scores', async () => {
     const agent = request.agent(app);
+    const adminAgent = request.agent(app);
 
     await agent
       .post('/api/auth/register')
       .send({ nickname: 'Lille', email: 'lille@example.com', password: 'password123' })
       .expect(201);
 
-    // Arrange: 5 offene Hottakes + weitere, damit die Mindestanzahl erfüllt ist
+    await adminAgent
+      .post('/api/auth/register')
+      .send({ nickname: 'lille08', email: 'admin@example.com', password: 'adminpass123' })
+      .expect(201);
+
     const [hottakeA, hottakeB, hottakeC, hottakeD, hottakeE] = await Promise.all([
       prisma.hottake.create({ data: { text: 'Team A wins', status: 'OFFEN' } }),
       prisma.hottake.create({ data: { text: 'Team B scores two goals', status: 'OFFEN' } }),
@@ -65,7 +66,6 @@ describe('Hottakes API', () => {
 
     const picks = [hottakeA.id, hottakeB.id, hottakeC.id, hottakeD.id, hottakeE.id];
 
-    // Act: Submission anlegen
     const submissionResponse = await agent
       .post('/api/submissions')
       .send({ picks })
@@ -77,11 +77,9 @@ describe('Hottakes API', () => {
       score: 0
     });
 
-    // Hilfsfunktion: Admin-Statusänderung per API
     const updateStatus = async (id: number, status: 'OFFEN' | 'WAHR' | 'FALSCH') => {
-      await request(app)
+      await adminAgent
         .patch(`/api/hottakes/${id}`)
-        .set('x-admin-password', 'secret-admin')
         .send({ status })
         .expect(200);
     };
@@ -92,30 +90,32 @@ describe('Hottakes API', () => {
     await updateStatus(hottakeD.id, 'FALSCH');
     await updateStatus(hottakeE.id, 'FALSCH');
 
-  // Assert: Score korrekt berechnet
-  const byNickname = await agent.get('/api/submissions/Lille').expect(200);
+    const byNickname = await agent.get('/api/submissions/Lille').expect(200);
     expect(byNickname.body.score).toBe(9);
 
     const byQuery = await agent.get('/api/submissions?nickname=Lille').expect(200);
     expect(byQuery.body.picks).toEqual(picks);
 
-    // Leaderboard liefert Eintrag mit korrektem Score
     const leaderboard = await request(app).get('/api/leaderboard').expect(200);
     expect(Array.isArray(leaderboard.body)).toBe(true);
     expect(leaderboard.body[0]).toMatchObject({ nickname: 'Lille', score: 9 });
   });
 
   it('requires admin password for creating hottakes and exposes health check', async () => {
-    // Ohne Admin-Passwort: 401
+    const adminAgent = request.agent(app);
+
+    await adminAgent
+      .post('/api/auth/register')
+      .send({ nickname: 'lille08', email: 'admin@example.com', password: 'adminpass123' })
+      .expect(201);
+
     await request(app)
       .post('/api/hottakes')
       .send({ text: 'New bold prediction' })
       .expect(401);
 
-    // Mit Admin-Passwort: Hottake anlegbar
-    const created = await request(app)
+    const created = await adminAgent
       .post('/api/hottakes')
-      .set('x-admin-password', 'secret-admin')
       .send({ text: 'Fans storm the pitch', status: 'OFFEN' })
       .expect(201);
 
@@ -124,7 +124,6 @@ describe('Hottakes API', () => {
     const hottakes = await request(app).get('/api/hottakes').expect(200);
     expect(hottakes.body).toHaveLength(1);
 
-    // Health-Endpoint erreichbar
     const health = await request(app).get('/api/health').expect(200);
     expect(health.body).toEqual({ ok: true });
   });

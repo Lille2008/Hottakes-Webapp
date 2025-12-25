@@ -1,19 +1,19 @@
-// Frontend-Logik der Hottakes-App (Vanilla JS)
-// - Lädt Hottakes/Leaderboard von der API
-// - Ermöglicht Drag&Drop von Hottakes in Ränge
-// - Enthält einen optionalen Admin-Modus (Status setzen, neue Hottakes)
-const API_BASE = window.APP_API_BASE || '/api';
-const RANK_COUNT = 5; // Anzahl der zu platzierenden Picks
-const MIN_OPEN_HOTTAKES = 10; // Mindestanzahl offener Hottakes, bevor Admin Submissions erlaubt
 
-// UI-Beschriftungen je Status
+
+
+
+const API_BASE = window.APP_API_BASE || '/api';
+const RANK_COUNT = 5;
+const MIN_OPEN_HOTTAKES = 10;
+
+
 const STATUS_LABELS = {
     OFFEN: 'Offen',
     WAHR: 'Wahr',
     FALSCH: 'Falsch'
 };
 
-// CSS-Badge-Klassen je Status
+
 const STATUS_BADGE_CLASS = {
     OFFEN: 'is-open',
     WAHR: 'is-true',
@@ -22,12 +22,11 @@ const STATUS_BADGE_CLASS = {
 
 const STATUS_VALUES = ['OFFEN', 'WAHR', 'FALSCH'];
 
-// Anwendungszustand (State)
+
 let allHottakes = [];
 let openHottakes = [];
 let picks = Array(RANK_COUNT).fill(null);
 let currentUser = null;
-let adminPasswordToken = null;
 let adminEnabled = false;
 
 const hottakesContainer = document.getElementById('hottakes-container');
@@ -38,7 +37,7 @@ const adminArea = document.getElementById('admin-area');
 const adminList = document.getElementById('hottake-list');
 const adminAdd = document.getElementById('add-hottakes');
 
-// Sicherstellen, dass alle benötigten DOM-Elemente vorhanden sind
+
 if (
     !hottakesContainer ||
     !ranksContainer ||
@@ -79,12 +78,12 @@ hottakesNotice.id = 'hottakes-notice';
 hottakesNotice.className = 'hottakes-notice';
 hottakesContainer.appendChild(hottakesNotice);
 
-// Liste verfügbarer Hottakes (drag-source)
+
 const hottakesList = document.createElement('div');
 hottakesList.id = 'hottakes-list';
 hottakesContainer.appendChild(hottakesList);
 
-// Drop-Ziele für die priorisierten Plätze
+
 const rankSlots = [];
 
 hottakesList.addEventListener('dragover', (event) => {
@@ -114,7 +113,7 @@ hottakesList.addEventListener('drop', (event) => {
     hottakesList.appendChild(element);
 });
 
-// Erstellt/Reset die fünf Rang-Slots und hängt Drop-Handler an
+
 function createRankSlots() {
     ranksContainer.querySelectorAll('.rank-wrapper').forEach((wrapper) => wrapper.remove());
     rankSlots.length = 0;
@@ -142,7 +141,7 @@ function createRankSlots() {
     }
 }
 
-// Verarbeitet das Ablegen eines Hottakes in einen Rang-Slot inkl. Tausch/Zurücklegen
+
 function handleRankDrop(event) {
     event.preventDefault();
     const rankDiv = event.currentTarget;
@@ -208,7 +207,7 @@ function handleRankDrop(event) {
     picks[targetIndex] = hottakeId;
 }
 
-// Kleinere Fetch-Hilfsfunktion: JSON-Defaults, Fehlertexte und optional 404 erlauben
+
 async function apiFetch(path, options = {}, { allowNotFound = false } = {}) {
     const url = `${API_BASE}${path}`;
     const headers = new Headers(options.headers || {});
@@ -266,18 +265,18 @@ async function apiFetch(path, options = {}, { allowNotFound = false } = {}) {
     return data;
 }
 
-// Räumt ungültige Picks (nicht mehr vorhanden/geschlossen) aus dem State auf
+
 function sanitizePicks() {
     const validIds = new Set(openHottakes.map((hot) => hot.id));
     picks = picks.map((id) => (typeof id === 'number' && validIds.has(id) ? id : null));
 }
 
-// Erstellt ein dragbares Element für einen einzelnen Hottake
+
 function createHottakeElement(hottake) {
     const element = document.createElement('p');
     element.textContent = hottake.text;
     element.textContent = hottake.text;
-    // Basis-Klasse plus Status-Klasse (z.B. is-true, is-false)
+
     const statusClass = STATUS_BADGE_CLASS[hottake.status] || 'is-open';
     element.className = `hottake ${statusClass}`;
     element.draggable = true;
@@ -289,7 +288,7 @@ function createHottakeElement(hottake) {
     return element;
 }
 
-// Rendert die verfügbaren Hottakes und verteilt bereits gewählte in ihre Ränge
+
 function renderHottakes() {
     sanitizePicks();
     hottakesList.innerHTML = '';
@@ -331,13 +330,13 @@ function renderHottakes() {
     }
 }
 
-// Lädt Hottakes von der API und aktualisiert die Anzeige
+
 async function refreshHottakes() {
     try {
         const data = await apiFetch('/hottakes');
         allHottakes = Array.isArray(data) ? data : [];
         allHottakes = Array.isArray(data) ? data : [];
-        // SHOW ALL HOTTAKES (requested by user), do not filter by OFFEN only
+
         openHottakes = allHottakes;
         renderHottakes();
     } catch (error) {
@@ -346,7 +345,7 @@ async function refreshHottakes() {
     }
 }
 
-// Lädt das Leaderboard und zeichnet die Rangliste im UI
+
 async function drawLeaderboard() {
     leaderboardContainer.innerHTML = '<h2>Leaderboard</h2>';
     try {
@@ -373,7 +372,7 @@ async function drawLeaderboard() {
     }
 }
 
-// Lädt die existierende Submission des eingeloggten Users und setzt die Picks im UI
+
 async function loadSubmissionForCurrentUser() {
     if (!currentUser) {
         return;
@@ -398,7 +397,7 @@ async function loadSubmissionForCurrentUser() {
     }
 }
 
-// Persistiert die aktuelle Auswahl (Picks) für den eingeloggten User
+
 async function saveSubmission() {
     if (picks.some((entry) => entry === null)) {
         alert('Bitte wähle alle 5 Hottakes aus, bevor du speicherst.');
@@ -426,7 +425,7 @@ async function saveSubmission() {
     }
 }
 
-// Admin: Übersicht aller Hottakes mit Status-Badges und -Select
+
 function renderAdminOverview() {
     adminList.innerHTML = '<h3 class="admin-section-title">Aktuelle Hottakes</h3>';
 
@@ -472,12 +471,6 @@ function renderAdminOverview() {
         statusSelect.addEventListener('change', async (event) => {
             const nextStatus = event.target.value;
 
-            if (!adminPasswordToken) {
-                statusSelect.value = hot.status;
-                showAdminMessage('Kein Admin-Passwort gesetzt.', 'error');
-                return;
-            }
-
             if (!STATUS_VALUES.includes(nextStatus)) {
                 statusSelect.value = hot.status;
                 showAdminMessage('Ungültiger Status ausgewählt.', 'error');
@@ -493,9 +486,6 @@ function renderAdminOverview() {
             try {
                 await apiFetch(`/hottakes/${hot.id}`, {
                     method: 'PATCH',
-                    headers: {
-                        'x-admin-password': adminPasswordToken
-                    },
                     body: JSON.stringify({ status: nextStatus })
                 });
 
@@ -518,7 +508,7 @@ function renderAdminOverview() {
     adminList.appendChild(list);
 }
 
-// Admin: Formular zum Anlegen eines neuen Hottakes
+
 function renderAdminForm() {
     adminAdd.innerHTML = '<h3 class="admin-section-title">Neuen Hottake hinzufügen</h3>';
 
@@ -549,11 +539,6 @@ function renderAdminForm() {
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
 
-        if (!adminPasswordToken) {
-            showAdminMessage('Kein Admin-Passwort gesetzt.', 'error');
-            return;
-        }
-
         const text = textInput.value.trim();
         if (text.length < 3) {
             showAdminMessage('Der Text muss mindestens 3 Zeichen lang sein.', 'error');
@@ -569,9 +554,6 @@ function renderAdminForm() {
         try {
             await apiFetch('/hottakes', {
                 method: 'POST',
-                headers: {
-                    'x-admin-password': adminPasswordToken
-                },
                 body: JSON.stringify(payload)
             });
 
@@ -591,9 +573,8 @@ function renderAdminForm() {
     adminAdd.appendChild(form);
 }
 
-// Aktiviert den Admin-Modus (per Passwort), zeigt Admin-UI und lädt Daten neu
-function enableAdminArea(password) {
-    adminPasswordToken = password;
+
+function enableAdminArea() {
     adminEnabled = true;
     adminArea.style.display = 'flex';
     renderAdminOverview();
@@ -605,32 +586,31 @@ function enableAdminArea(password) {
     }, 50);
 }
 
-// Deaktiviert den Admin-Modus und blendet die Admin-UI aus
+
 function disableAdminArea() {
-    adminPasswordToken = null;
     adminEnabled = false;
     adminArea.style.display = 'none';
     showAdminMessage('', 'info');
     renderHottakes();
 }
 
-// Speichern-Button für Picks
+
 savePicksButton.addEventListener('click', saveSubmission);
 
-// Initialisierung: Auth-Status prüfen
+
 async function checkLoginStatus() {
     try {
         const data = await apiFetch('/auth/me', {}, { allowNotFound: true });
         if (data && data.user) {
-            // User ist eingeloggt
+
             updateUIForLogin(data.user);
         } else {
-            // Gast (z.B. 404 oder null return)
+
             console.log('User is guest (no session found)');
             updateUIForGuest();
         }
     } catch (error) {
-        // Expected errors when not logged in (401 sent by requireAuth)
+
         const isAuthError = error.message.includes('Authentication required') ||
             error.message.includes('Invalid or expired token') ||
             error.message.includes('401');
@@ -647,9 +627,9 @@ async function checkLoginStatus() {
     }
 }
 
-// UI-Update-Logik für eingeloggte User
+
 function updateUIForLogin(user) {
-    // 1. Header anpassen
+
     const authHeader = document.getElementById('auth-header');
     if (authHeader) {
         authHeader.innerHTML = `
@@ -662,7 +642,7 @@ function updateUIForLogin(user) {
         });
     }
 
-    // 2. User-Info anzeigen
+
     const userInfo = document.getElementById('user-info');
     const userDisplay = document.getElementById('user-nickname-display');
     if (userInfo && userDisplay) {
@@ -670,39 +650,27 @@ function updateUIForLogin(user) {
         userInfo.style.display = 'block';
     }
 
-    // 3. Guest Area (Login-Link) IMMER verstecken
+
     const guestArea = document.getElementById('guest-nickname-area');
     if (guestArea) guestArea.style.display = 'none';
 
-    // 4. Distinction: Admin vs Normal User
+
     const gameContainer = document.getElementById('game');
     const adminArea = document.getElementById('admin-area');
 
     currentUser = user;
 
     if (user.nickname === 'lille08') {
-        // Admin darf Hottakes verwalten, aber nicht selbst tippen
+
         if (gameContainer) gameContainer.style.display = 'none';
         if (savePicksButton) savePicksButton.style.display = 'none';
 
         if (adminArea) {
             adminArea.style.display = 'flex';
-
-            if (!adminPasswordToken) {
-                const password = prompt('Admin-Passwort eingeben:');
-                if (!password) {
-                    showAdminMessage('Admin-Passwort erforderlich, um Hottakes zu verwalten.', 'error');
-                } else {
-                    adminPasswordToken = password;
-                    enableAdminArea(password);
-                }
-            } else {
-                enableAdminArea(adminPasswordToken);
-            }
+            enableAdminArea();
         }
     } else {
         adminEnabled = false;
-        adminPasswordToken = null;
 
         if (gameContainer) gameContainer.style.display = 'flex';
         if (savePicksButton) {
@@ -718,34 +686,33 @@ function updateUIForLogin(user) {
     }
 }
 
-// UI-Update-Logik für Gäste (NICHT eingeloggt)
+
 function updateUIForGuest() {
     currentUser = null;
-    // Ensure admin mode is disabled for guests
+
     adminEnabled = false;
-    adminPasswordToken = null;
 
-    // 1. Header anpassen (Default ist Login/Register Buttons)
+
     const authHeader = document.getElementById('auth-header');
-    // ...bleibt so wie im HTML hardcoded
 
-    // 2. Guest Area (Login-Prompt) ANZEIGEN
+
+
     const guestArea = document.getElementById('guest-nickname-area');
     if (guestArea) {
         guestArea.innerHTML = '<p>Bitte <a href="login.html">einloggen</a> um mitzuspielen.</p>';
         guestArea.style.display = 'block';
     }
 
-    // 3. User-Info verstecken
+
     const userInfo = document.getElementById('user-info');
     if (userInfo) userInfo.style.display = 'none';
 
-    // 4. Game & Admin verstecken
-    // Damit Gäste NICHT spielen können (wie gewünscht)
+
+
     const gameContainer = document.getElementById('game');
     const adminArea = document.getElementById('admin-area');
 
-    if (gameContainer) gameContainer.style.display = 'none'; // HIDE GAME FOR GUESTS
+    if (gameContainer) gameContainer.style.display = 'none';
     if (adminArea) adminArea.style.display = 'none';
 
     if (savePicksButton) {
@@ -754,10 +721,10 @@ function updateUIForGuest() {
     }
 }
 
-// Bootstrap der App: Slots erstellen, Daten laden, Leaderboard zeichnen
+
 async function initializeApp() {
     createRankSlots();
-    await checkLoginStatus(); // Auth Check vor Datenladen
+    await checkLoginStatus();
     await refreshHottakes();
     await drawLeaderboard();
 }
