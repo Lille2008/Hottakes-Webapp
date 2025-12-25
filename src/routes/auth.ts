@@ -6,7 +6,7 @@ import prisma from '../lib/db';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET as string;
 
 if (!JWT_SECRET) {
     throw new Error('JWT_SECRET is not set. Please define it in the environment.');
@@ -28,7 +28,7 @@ const loginSchema = z.object({
     password: z.string() // Passwort wird gehasht und verglichen
 });
 
-// wird aufgerufen, wenn man auf registrieren klickt
+// Wird aufgerufen, wenn man auf registrieren klickt
 router.post('/register', async (req, res, next) => {
     try {
         const { nickname, email, password } = registerSchema.parse(req.body); // eingegebene Daten werden gelesen
@@ -41,7 +41,7 @@ router.post('/register', async (req, res, next) => {
         });
 
         if (existing) {
-            return res.status(409).json({ message: 'Nickname or Email already taken' });
+            return res.status(409).json({ message: 'Nickname oder Email sind bereits vergeben' });
         }
 
         const passwordHash = await bcrypt.hash(password, 10);

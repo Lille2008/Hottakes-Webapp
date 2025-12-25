@@ -8,12 +8,12 @@ export interface UserPayload {
     email: string | null;
 }
 
-// Erweitert das Request-Objekt (muss via Type-Assertion oder Declaration Merging genutzt werden)
+// Hier wird die Request erweitert, damit der payload-Typ (gibt an was im payload erwartet wird (z.B. id, nickname, email)) bekannt ist
 export interface AuthRequest extends Request {
     user?: UserPayload;
 }
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET as string;
 
 if (!JWT_SECRET) {
     throw new Error('JWT_SECRET is not set. Please define it in the environment.');
@@ -30,8 +30,13 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
 
     // Token verifizieren und Payload auslesen
     try {
-        const payload = jwt.verify(token, JWT_SECRET) as UserPayload;
-        (req as AuthRequest).user = payload;
+        const decoded = jwt.verify(token, JWT_SECRET);
+
+        if (typeof decoded !== 'object' || decoded === null || !('id' in decoded)) {
+            return res.status(401).json({ message: 'Invalid token payload' });
+        }
+
+        (req as AuthRequest).user = decoded as UserPayload;
         next();
     } catch (err) {
         // Token ungültig oder abgelaufen
