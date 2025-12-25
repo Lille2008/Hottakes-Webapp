@@ -5,12 +5,12 @@ import { z } from 'zod';
 
 import prisma from '../lib/db';
 import { calculateScore, type HottakeOutcome } from '../lib/scoring';
+import { requireAuth, type AuthRequest } from '../middleware/auth';
 
 type HottakeWithStatus = { id: number; status: HottakeOutcome['status'] };
 
 // Eingabevalidierung für Submissions: 5 eindeutige, ganzzahlige Hottake-IDs
 const submissionSchema = z.object({
-  nickname: z.string().min(2),
   picks: z
     .array(z.number().int())
     .length(5)
@@ -49,15 +49,24 @@ async function buildSubmissionResponse(userId: number, nickname: string) {
 
 // GET /api/submissions?nickname=... | ?userId=...
 // Flexible Abfrage über Nickname oder User-ID
-router.get('/', async (req, res, next) => {
+router.get('/', requireAuth, async (req, res, next) => {
   try {
     const { nickname, userId } = req.query;
+    const currentUser = (req as AuthRequest).user;
+
+    if (!currentUser) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
 
     if (!nickname && !userId) {
       return res.status(400).json({ message: 'nickname or userId required' });
     }
 
     if (nickname && typeof nickname === 'string') {
+      if (nickname !== currentUser.nickname) {
+        return res.status(403).json({ message: 'Forbidden' });
+      }
+
       const user = await prisma.user.findUnique({ where: { nickname } });
       if (!user) {
         return res.status(404).json({ message: 'Submission not found' });
@@ -75,6 +84,10 @@ router.get('/', async (req, res, next) => {
       const parsedId = Number.parseInt(userId, 10);
       if (Number.isNaN(parsedId)) {
         return res.status(400).json({ message: 'userId must be numeric' });
+      }
+
+      if (parsedId !== currentUser.id) {
+        return res.status(403).json({ message: 'Forbidden' });
       }
 
       const user = await prisma.user.findUnique({ where: { id: parsedId } });
@@ -97,9 +110,15 @@ router.get('/', async (req, res, next) => {
 });
 
 // GET /api/submissions/:nickname – bequeme Variante über Pfadparameter
-router.get('/:nickname', async (req, res, next) => {
+router.get('/:nickname', requireAuth, async (req, res, next) => {
   try {
+    const currentUser = (req as AuthRequest).user;
     const { nickname } = req.params;
+
+    if (!currentUser || nickname !== currentUser.nickname) {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+
     const user = await prisma.user.findUnique({ where: { nickname } });
 
     if (!user) {
@@ -119,9 +138,14 @@ router.get('/:nickname', async (req, res, next) => {
 });
 
 // POST /api/submissions – erstellt/aktualisiert die Picks eines Users
-router.post('/', async (req, res, next) => {
+router.post('/', requireAuth, async (req, res, next) => {
   try {
     const payload = submissionSchema.parse(req.body);
+    const currentUser = (req as AuthRequest).user;
+
+    if (!currentUser) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
 
     const selectedHottakes = await prisma.hottake.findMany({
       where: { id: { in: payload.picks } },
@@ -136,12 +160,11 @@ router.post('/', async (req, res, next) => {
       return res.status(400).json({ message: 'Alle Picks müssen offene Hottakes sein.' });
     }
 
-    // User anlegen oder wiederverwenden (eindeutiger Nickname)
-    const user = await prisma.user.upsert({
-      where: { nickname: payload.nickname },
-      update: {},
-      create: { nickname: payload.nickname }
-    });
+    const user = await prisma.user.findUnique({ where: { id: currentUser.id } });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
 
     // Submission pro User (1:1) – entweder neu anlegen oder aktualisieren
     const submission = await prisma.submission.upsert({

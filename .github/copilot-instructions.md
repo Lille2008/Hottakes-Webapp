@@ -11,7 +11,7 @@ This document gives AI coding agents the essential, repo-specific context to be 
 ## Data Model (Prisma)
 - Schema in `prisma/schema.prisma`. Key models:
   - `Hottake { id, text, status: OFFEN|WAHR|FALSCH, createdAt, updatedAt }`
-  - `User { id, nickname(unique) }`
+  - `User { id, nickname(unique), email?, passwordHash?, prefs Json? default "{}", submission? }`
   - `Submission { id, userId(unique), picks: Int[], createdAt, updatedAt }`
   - `Setting` and `AdminEvent` exist for future features.
 - Raw SQL bootstrap exists in `prisma/init.sql` and mirrors the schema.
@@ -71,6 +71,10 @@ This document gives AI coding agents the essential, repo-specific context to be 
 ## Frontend Integration Notes
 - Frontend hits the API at `/api` (see `public/src/app.js`, `API_BASE`). Keep API paths stable when changing backend routes.
 - Admin UI expects the status values `OFFEN|WAHR|FALSCH` and the `x-admin-password` header to be honored by the API.
+
+## Phase Status
+- Phase 8 (user auth/account flow) is **not implemented**: only optional `email`/`passwordHash` fields exist in the schema, there are no auth/login routes beyond the existing hottakes/submissions/leaderboard/health handlers in `src/app.ts`, and the SPA has no auth UI.
+- Phase 9 (prefs/dark mode) remains future; `prefs` is unused in the codebase.
 
 ---
 If anything above is unclear or missing for your task, propose concrete updates to this guide with file paths you’d like clarified.

@@ -1,31 +1,39 @@
 import { Router } from 'express';
-import { z } from 'zod';
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
+import { z } from 'zod'; // Eine Library mit der man überprüft, ob die Eingaben passend sind
+import bcrypt from 'bcrypt'; // Hashed Passwörter (aus einem gehashten Wert kann man nicht zurückrechnen) (Beim Login wird erneut das Paswort gehasht und beide Werte werden verglichen)
+import jwt from 'jsonwebtoken'; // JSON Web Token (Signierter (verschlüsselter) Token, der im Cookie gespeichert wird / der Inhalt des Cookies)
 import prisma from '../lib/db';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-dev-key';
+const JWT_SECRET = process.env.JWT_SECRET;
 
-// Validierungsschemata
+if (!JWT_SECRET) {
+    throw new Error('JWT_SECRET is not set. Please define it in the environment.');
+}
+
+function signUserToken(payload: { id: number; nickname: string; email: string | null }) {
+    return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' }); // Der Token ist 7 Tage gültig
+}
+
+// Gibt an, wie die Eingaben für Registrierung aussehen müssen
 const registerSchema = z.object({
-    nickname: z.string().min(3).max(20),
-    email: z.string().email(),
-    password: z.string().min(6)
+    nickname: z.string().min(3).max(20), // Nickname: 3-20 Zeichen
+    email: z.string().email(), // E-Mail muss dem Format einer E-Mail entsprechen
+    password: z.string().min(6) // Passwort mindestens 6 Zeichen
 });
 
 const loginSchema = z.object({
-    login: z.string(), // kann nickname oder email sein
-    password: z.string()
+    login: z.string(), // Kann nickname oder email sein
+    password: z.string() // Passwort wird gehasht und verglichen
 });
 
-// POST /api/auth/register
+// wird aufgerufen, wenn man auf registrieren klickt
 router.post('/register', async (req, res, next) => {
     try {
-        const { nickname, email, password } = registerSchema.parse(req.body);
+        const { nickname, email, password } = registerSchema.parse(req.body); // eingegebene Daten werden gelesen
 
-        // Prüfen ob User existiert
+        // Prüfen ob es den User bereits gibt
         const existing = await prisma.user.findFirst({
             where: {
                 OR: [{ nickname }, { email }]
@@ -38,6 +46,7 @@ router.post('/register', async (req, res, next) => {
 
         const passwordHash = await bcrypt.hash(password, 10);
 
+        // Neuen User anlegen
         const newUser = await prisma.user.create({
             data: {
                 nickname,
@@ -46,16 +55,15 @@ router.post('/register', async (req, res, next) => {
             }
         });
 
-        // Direkt einloggen -> Token generieren
         const payload = { id: newUser.id, nickname: newUser.nickname, email: newUser.email };
-        const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+        const token = signUserToken(payload);
 
-        // HttpOnly Cookie setzen
+        // HttpOnly Cookie setzen (dadurch kann der Token nicht mit JavaScript im Browser ausgelesen werden)
         res.cookie('token', token, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production', // nur https in production
+            secure: process.env.NODE_ENV === 'production', // nur https mit node_env = production
             sameSite: 'lax',
-            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 Tage
+            maxAge: 7 * 24 * 60 * 60 * 1000 // = 7 Tage
         });
 
         res.status(201).json({ user: payload });
@@ -64,33 +72,10 @@ router.post('/register', async (req, res, next) => {
     }
 });
 
-// POST /api/auth/login
+// Wenn der User auf einloggen klickt
 router.post('/login', async (req, res, next) => {
     try {
         const { login, password } = loginSchema.parse(req.body);
-
-        // SPECIAL ADMIN HANDLING
-        if (login === 'lille08') {
-            const adminPassword = process.env.ADMIN_PASSWORD;
-            if (!adminPassword) {
-                return res.status(500).json({ message: 'Server misconfiguration: ADMIN_PASSWORD not set' });
-            }
-
-            if (password === adminPassword || password === 'mbangula7') { // Allow both env pass and hardcoded user pass
-                // Fake User Object for Admin
-                const payload = { id: 999999, nickname: 'lille08', email: null };
-                const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1d' });
-
-                res.cookie('token', token, {
-                    httpOnly: true,
-                    secure: process.env.NODE_ENV === 'production',
-                    sameSite: 'lax',
-                    maxAge: 24 * 60 * 60 * 1000
-                });
-
-                return res.json({ user: payload });
-            }
-        }
 
         const user = await prisma.user.findFirst({
             where: {
@@ -99,25 +84,25 @@ router.post('/login', async (req, res, next) => {
         });
 
         if (!user || !user.passwordHash) {
-            // Sicherheits-Best-Practice: Generische Fehlermeldung
-            return res.status(401).json({ message: 'Invalid credentials' });
+            // Fehlermeldung (401), wenn es den User nicht gibt oder kein Passwort gesetzt ist
+            return res.status(401).json({ message: 'User nicht gefunden oder kein Passwort gesetzt' });
         }
 
         const cleanHash = user.passwordHash.trim();
-        const match = await bcrypt.compare(password, cleanHash);
+        const match = await bcrypt.compare(password, cleanHash); // Passwort vergleichen
 
         if (!match) {
-            return res.status(401).json({ message: 'Invalid credentials' });
+            return res.status(401).json({ message: 'Falsches Passwort' }); // Fehlermeldung, wenn Passwort nicht stimmt
         }
 
         const payload = { id: user.id, nickname: user.nickname, email: user.email };
-        const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+        const token = signUserToken(payload); // Token wird erstellt, wodurch sich der User in Zukunft ohne Login identifizieren kann
 
         res.cookie('token', token, {
-            httpOnly: true,
+            httpOnly: true, 
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
-            maxAge: 7 * 24 * 60 * 60 * 1000
+            maxAge: 7 * 24 * 60 * 60 * 1000 // = 7 Tage
         });
 
         res.json({ user: payload });
@@ -126,13 +111,17 @@ router.post('/login', async (req, res, next) => {
     }
 });
 
-// POST /api/auth/logout
+// Wenn der User auf Logout klickt
 router.post('/logout', (req, res) => {
-    res.clearCookie('token');
-    res.json({ message: 'Logged out' });
+    res.clearCookie('token', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax' // lax reicht aus, weil die gesamte Logik auf der gleichen Domain stattfindet
+    });
+    res.json({ message: 'Du bist ausgeloggt' });
 });
 
-// GET /api/auth/me
+// Ruft die Middleware requireAuth auf, um den User zu authentifizieren
 router.get('/me', requireAuth, (req, res) => {
     const user = (req as AuthRequest).user;
     res.json({ user });

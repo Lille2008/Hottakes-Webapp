@@ -16,6 +16,7 @@ const truncateTables = async () => {
 // Test-Setup: ENV für Admin, App & Prisma laden
 beforeAll(async () => {
   process.env.ADMIN_PASSWORD = 'secret-admin';
+  process.env.JWT_SECRET = 'test-secret-key';
 
   const [{ default: importedApp }, { default: prismaClient }] = await Promise.all([
     import('../src/app'),
@@ -38,6 +39,13 @@ afterAll(async () => {
 
 describe('Hottakes API', () => {
   it('stores submissions and computes leaderboard scores', async () => {
+    const agent = request.agent(app);
+
+    await agent
+      .post('/api/auth/register')
+      .send({ nickname: 'Lille', email: 'lille@example.com', password: 'password123' })
+      .expect(201);
+
     // Arrange: 5 offene Hottakes + weitere, damit die Mindestanzahl erfüllt ist
     const [hottakeA, hottakeB, hottakeC, hottakeD, hottakeE] = await Promise.all([
       prisma.hottake.create({ data: { text: 'Team A wins', status: 'OFFEN' } }),
@@ -58,9 +66,9 @@ describe('Hottakes API', () => {
     const picks = [hottakeA.id, hottakeB.id, hottakeC.id, hottakeD.id, hottakeE.id];
 
     // Act: Submission anlegen
-    const submissionResponse = await request(app)
+    const submissionResponse = await agent
       .post('/api/submissions')
-      .send({ nickname: 'Lille', picks })
+      .send({ picks })
       .expect(201);
 
     expect(submissionResponse.body).toMatchObject({
@@ -85,10 +93,10 @@ describe('Hottakes API', () => {
     await updateStatus(hottakeE.id, 'FALSCH');
 
   // Assert: Score korrekt berechnet
-  const byNickname = await request(app).get('/api/submissions/Lille').expect(200);
+  const byNickname = await agent.get('/api/submissions/Lille').expect(200);
     expect(byNickname.body.score).toBe(9);
 
-    const byQuery = await request(app).get('/api/submissions?nickname=Lille').expect(200);
+    const byQuery = await agent.get('/api/submissions?nickname=Lille').expect(200);
     expect(byQuery.body.picks).toEqual(picks);
 
     // Leaderboard liefert Eintrag mit korrektem Score

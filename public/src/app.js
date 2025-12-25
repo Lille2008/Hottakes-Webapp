@@ -26,15 +26,13 @@ const STATUS_VALUES = ['OFFEN', 'WAHR', 'FALSCH'];
 let allHottakes = [];
 let openHottakes = [];
 let picks = Array(RANK_COUNT).fill(null);
-let currentNickname = '';
+let currentUser = null;
 let adminPasswordToken = null;
 let adminEnabled = false;
 
 const hottakesContainer = document.getElementById('hottakes-container');
 const ranksContainer = document.getElementById('ranks-container');
 const leaderboardContainer = document.getElementById('leaderboard-container');
-const nicknameInput = document.getElementById('nickname');
-const setNicknameButton = document.getElementById('set-nickname');
 const savePicksButton = document.getElementById('save-picks');
 const adminArea = document.getElementById('admin-area');
 const adminList = document.getElementById('hottake-list');
@@ -223,7 +221,7 @@ async function apiFetch(path, options = {}, { allowNotFound = false } = {}) {
         headers.set('Content-Type', 'application/json');
     }
 
-    const response = await fetch(url, { ...options, headers });
+    const response = await fetch(url, { ...options, headers, credentials: 'include' });
     const contentType = response.headers.get('content-type') || '';
     let text = '';
     let data = null;
@@ -375,10 +373,14 @@ async function drawLeaderboard() {
     }
 }
 
-// Lädt die existierende Submission eines Users und setzt die Picks im UI
-async function loadSubmissionForNickname(nickname) {
+// Lädt die existierende Submission des eingeloggten Users und setzt die Picks im UI
+async function loadSubmissionForCurrentUser() {
+    if (!currentUser) {
+        return;
+    }
+
     try {
-        const submission = await apiFetch(`/submissions/${encodeURIComponent(nickname)}`, {}, { allowNotFound: true });
+        const submission = await apiFetch(`/submissions/${encodeURIComponent(currentUser.nickname)}`, {}, { allowNotFound: true });
         const nextPicks = Array(RANK_COUNT).fill(null);
 
         if (submission && Array.isArray(submission.picks)) {
@@ -396,15 +398,15 @@ async function loadSubmissionForNickname(nickname) {
     }
 }
 
-// Persistiert die aktuelle Auswahl (Picks) für den gesetzten Nickname
+// Persistiert die aktuelle Auswahl (Picks) für den eingeloggten User
 async function saveSubmission() {
     if (picks.some((entry) => entry === null)) {
         alert('Bitte wähle alle 5 Hottakes aus, bevor du speicherst.');
         return;
     }
 
-    if (!currentNickname) {
-        alert('Bitte gib zuerst einen Nickname ein.');
+    if (!currentUser) {
+        alert('Bitte melde dich zuerst an.');
         return;
     }
 
@@ -414,7 +416,7 @@ async function saveSubmission() {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ nickname: currentNickname, picks })
+            body: JSON.stringify({ picks })
         });
 
         alert('Deine Picks wurden gespeichert.');
@@ -612,38 +614,6 @@ function disableAdminArea() {
     renderHottakes();
 }
 
-// Nickname setzen und ggf. Admin-Modus aktivieren
-if (setNicknameButton && nicknameInput) {
-    setNicknameButton.addEventListener('click', async () => {
-        const nickname = nicknameInput.value.trim();
-
-        if (!nickname) {
-            alert('Bitte gib einen Nickname ein.');
-            return;
-        }
-
-        const isAdminNickname = nickname.toLowerCase() === 'lille08';
-        currentNickname = nickname;
-        await loadSubmissionForNickname(nickname);
-        if (isAdminNickname) {
-            if (!adminEnabled) {
-                const password = prompt('Admin-Passwort eingeben:');
-                if (!password) {
-                    return;
-                }
-                enableAdminArea(password);
-            } else {
-                showAdminMessage('Admin-Modus aktiv.', 'info');
-            }
-        } else if (adminEnabled) {
-            disableAdminArea();
-            alert(`Nickname gesetzt: ${nickname}`);
-        } else {
-            alert(`Nickname gesetzt: ${nickname}`);
-        }
-    });
-}
-
 // Speichern-Button für Picks
 savePicksButton.addEventListener('click', saveSubmission);
 
@@ -708,41 +678,49 @@ function updateUIForLogin(user) {
     const gameContainer = document.getElementById('game');
     const adminArea = document.getElementById('admin-area');
 
-    if (user.nickname === 'lille08') {
-        // --- ADMIN ---
-        // Hide Game interactive area
-        if (gameContainer) gameContainer.style.display = 'none';
+    currentUser = user;
 
-        // Hide Picks Speichern button (Admin doesn't submit picks)
+    if (user.nickname === 'lille08') {
+        // Admin darf Hottakes verwalten, aber nicht selbst tippen
+        if (gameContainer) gameContainer.style.display = 'none';
         if (savePicksButton) savePicksButton.style.display = 'none';
 
-        // Show Admin Dashboard
         if (adminArea) {
             adminArea.style.display = 'flex';
-            // Use the known admin password for API calls (same as login password)
-            enableAdminArea('mbangula7');
+
+            if (!adminPasswordToken) {
+                const password = prompt('Admin-Passwort eingeben:');
+                if (!password) {
+                    showAdminMessage('Admin-Passwort erforderlich, um Hottakes zu verwalten.', 'error');
+                } else {
+                    adminPasswordToken = password;
+                    enableAdminArea(password);
+                }
+            } else {
+                enableAdminArea(adminPasswordToken);
+            }
         }
     } else {
-        // --- NORMAL USER ---
-        // Ensure admin mode is disabled
         adminEnabled = false;
         adminPasswordToken = null;
 
-        // Show Game interactive area explicitly
         if (gameContainer) gameContainer.style.display = 'flex';
-
-        // Hide Admin Dashboard
+        if (savePicksButton) {
+            savePicksButton.style.display = 'inline-block';
+            savePicksButton.disabled = false;
+            savePicksButton.textContent = 'Picks Speichern';
+        }
         if (adminArea) {
             adminArea.style.display = 'none';
         }
 
-        currentNickname = user.nickname;
-        loadSubmissionForNickname(user.nickname);
+        loadSubmissionForCurrentUser();
     }
 }
 
 // UI-Update-Logik für Gäste (NICHT eingeloggt)
 function updateUIForGuest() {
+    currentUser = null;
     // Ensure admin mode is disabled for guests
     adminEnabled = false;
     adminPasswordToken = null;
@@ -769,6 +747,11 @@ function updateUIForGuest() {
 
     if (gameContainer) gameContainer.style.display = 'none'; // HIDE GAME FOR GUESTS
     if (adminArea) adminArea.style.display = 'none';
+
+    if (savePicksButton) {
+        savePicksButton.disabled = true;
+        savePicksButton.textContent = 'Einloggen zum Speichern';
+    }
 }
 
 // Bootstrap der App: Slots erstellen, Daten laden, Leaderboard zeichnen

@@ -32,14 +32,20 @@ router.get('/', async (_req, res, next) => {
   }
 });
 
+function isAdminRequest(req: { header: (name: string) => string | undefined }) {
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (!adminPassword) {
+    throw new Error('ADMIN_PASSWORD is not set. Please define it in the environment.');
+  }
+
+  const providedPassword = req.header('x-admin-password');
+  return providedPassword === adminPassword;
+}
+
 // Anlage eines Hottakes (Admin)
 router.post('/', async (req, res, next) => {
   try {
-    const adminPassword = process.env.ADMIN_PASSWORD;
-    const providedPassword = req.header('x-admin-password');
-
-    // Accept either env password or hardcoded fallback
-    const isAuthorized = providedPassword === adminPassword || providedPassword === 'mbangula7';
+    const isAuthorized = isAdminRequest(req);
 
     if (!isAuthorized) {
       return res.status(401).json({ message: 'Unauthorized' });
@@ -62,11 +68,7 @@ router.post('/', async (req, res, next) => {
 // Status eines Hottakes ändern (Admin)
 router.patch('/:id', async (req, res, next) => {
   try {
-    const adminPassword = process.env.ADMIN_PASSWORD;
-    const providedPassword = req.header('x-admin-password');
-
-    // Accept either env password or hardcoded fallback
-    const isAuthorized = providedPassword === adminPassword || providedPassword === 'mbangula7';
+    const isAuthorized = isAdminRequest(req);
 
     if (!isAuthorized) {
       return res.status(401).json({ message: 'Unauthorized' });
