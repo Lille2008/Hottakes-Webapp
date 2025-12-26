@@ -133,6 +133,11 @@ h3 {
     text-align: center;
     margin-bottom: 20px;
     color: var(--text-secondary);
+    display: none;
+}
+
+#user-info.is-visible {
+    display: block;
 }
 
 #user-info p {
@@ -142,6 +147,16 @@ h3 {
 #user-nickname-display {
     color: var(--gradient-start);
     font-weight: bold;
+}
+
+#guest-nickname-area {
+    display: none;
+    padding: 20px;
+    text-align: center;
+}
+
+#guest-nickname-area.is-visible {
+    display: block;
 }
 
 /* ============================================
