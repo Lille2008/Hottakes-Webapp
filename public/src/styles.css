@@ -6,8 +6,8 @@
     --gradient-start: #00D9FF;
     --gradient-end: #0066FF;
     --gradient-primary: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
-    --accent-green: #1fe0a2;
-    --glow-green: 0 0 18px rgba(31, 224, 162, 0.35);
+    --accent-green: #00e2a0;
+    --glow-green: 0 0 18px rgba(0, 226, 160, 0.35);
     
     /* Dark mode backgrounds */
     --bg-dark: #0f1629;
@@ -213,9 +213,10 @@ h3 {
     grid-template-columns: 1fr 1fr;
     gap: 30px;
     max-width: 1200px;
-    width: 100%;
+    width: min(1200px, calc(100% - 40px));
     margin: 20px auto;
-    padding: 0 20px;
+    padding: 0 10px;
+    justify-content: center;
 }
 
 .legal-container {
