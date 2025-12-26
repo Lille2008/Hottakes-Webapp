@@ -734,7 +734,7 @@ async function setViewMode(mode) {
     } else {
         await refreshHottakes(activeGameDay?.gameDay);
         await loadSubmissionForCurrentUser(activeGameDay?.gameDay, false);
-        await drawLeaderboard(activeGameDay?.gameDay);
+        await drawLeaderboard();
     }
 
     renderHottakes();
@@ -1001,9 +1001,9 @@ async function refreshHottakes(targetGameDay = null) {
 
 async function drawLeaderboard(targetGameDay = null) {
     leaderboardContainer.innerHTML = '<h2>Leaderboard</h2>';
-    const gameDay = targetGameDay !== null ? targetGameDay : viewMode === 'history' ? selectedHistoryGameDay : activeGameDay?.gameDay;
+    const gameDayParam = targetGameDay !== null ? targetGameDay : viewMode === 'history' ? selectedHistoryGameDay : 'all';
 
-    if (gameDay === null || gameDay === undefined) {
+    if (gameDayParam === null || gameDayParam === undefined) {
         const row = document.createElement('p');
         row.textContent = 'Kein Spieltag ausgewählt.';
         leaderboardContainer.appendChild(row);
@@ -1011,7 +1011,8 @@ async function drawLeaderboard(targetGameDay = null) {
     }
 
     try {
-        const response = await apiFetch(`/leaderboard?gameDay=${encodeURIComponent(gameDay)}`);
+        const param = gameDayParam === 'all' ? 'all' : encodeURIComponent(gameDayParam);
+        const response = await apiFetch(`/leaderboard?gameDay=${param}`);
         const entries = Array.isArray(response) ? response : [];
 
         if (entries.length === 0) {
@@ -1391,7 +1392,7 @@ function enableAdminArea() {
     adminEnabled = true;
     adminArea.style.display = 'flex';
     refreshHottakes(activeGameDay?.gameDay);
-    drawLeaderboard(activeGameDay?.gameDay);
+    drawLeaderboard();
     renderAdminOverview();
     renderAdminForm();
     renderGameDayAdmin();

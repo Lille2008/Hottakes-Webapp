@@ -1,6 +1,6 @@
 import { Router } from 'express';
 
-import { buildLeaderboard } from '../lib/leaderboard';
+import { buildLeaderboard, buildLeaderboardAll } from '../lib/leaderboard';
 import prisma from '../lib/db';
 
 const router = Router();
@@ -31,7 +31,14 @@ async function resolveGameDay(raw: unknown) {
 
 router.get('/', async (req, res, next) => {
   try {
-    const gameDay = await resolveGameDay(req.query.gameDay);
+    const raw = req.query.gameDay;
+
+    if (raw === undefined || raw === null || raw === 'all') {
+      const entries = await buildLeaderboardAll();
+      return res.json(entries);
+    }
+
+    const gameDay = await resolveGameDay(raw);
     const entries = await buildLeaderboard(gameDay);
     res.json(entries);
   } catch (error) {
