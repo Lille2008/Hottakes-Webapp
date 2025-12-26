@@ -124,20 +124,20 @@ Langfristig soll das Projekt **portfolio-reif** werden: klare Struktur, sauberes
 
 ---
 
-## ⚙️ Phase 9 – Nutzerpräferenzen & UI (Dark Mode, Einstellungen)
+## ⚙️ Phase 9 – Nutzerpräferenzen & UI (Theme & Settings) ✅
 
-**Ziel:** Geräteübergreifende Einstellungen pro Nutzer.
+**Ziel:** Geräteübergreifende Theme-Einstellungen pro Nutzer + moderneres UI.
 
-**Aufgaben:**
-1. Dark Mode Flag in `users.prefs` oder `settings`-Tabelle.  
-2. API-Route: `PUT /api/users/:id/settings`  
-3. Frontend-Toggle für Dark Mode + Speicherung über API.  
-4. UI-Refactor mit modernem Design (CSS-Grid/Flexbox).  
-5. Optional: Tailwind/Bootstrap/Material evaluieren.  
+**Umsetzung:**
+- Theme-Auswahl (Dark/Light/Auto) wird in `users.prefs.themeMode` gespeichert.  
+- API: `PATCH /api/auth/prefs` speichert Theme-Mode für eingeloggte User.  
+- Frontend: Settings-Drawer mit Theme-Pills, Auto reagiert auf `prefers-color-scheme`.  
+- Header: Settings-Icon nur eingeloggt; Gäste sehen Anmelden/Registrieren.  
+- UI-Refresh (Grid/Flex, modernisiertes Styling, modale Legal-Overlays).
 
 **Abschlusskriterien:**  
-- Dark Mode wird pro User gespeichert und korrekt geladen.  
-- UI wirkt sichtbar moderner.
+- Theme wird pro User gespeichert, geladen und bei Auto mit Geräteeinstellung synchronisiert.  
+- UI wirkt moderner; Einstellungen sind klar zugänglich.
 
 ---
 
