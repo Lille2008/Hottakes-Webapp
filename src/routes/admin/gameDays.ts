@@ -14,7 +14,8 @@ const createGameDaySchema = z.object({
   startTime: dateSchema,
   lockTime: dateSchema,
   endTime: dateSchema,
-  activeFlag: z.boolean().optional()
+  activeFlag: z.boolean().optional(),
+  gameDay: z.number().int().nonnegative().optional()
 });
 
 const updateGameDaySchema = z.object({
@@ -22,7 +23,8 @@ const updateGameDaySchema = z.object({
   startTime: dateSchema,
   lockTime: dateSchema,
   endTime: dateSchema,
-  activeFlag: z.boolean().optional()
+  activeFlag: z.boolean().optional(),
+  gameDay: z.number().int().nonnegative().optional()
 });
 
 router.get('/active', async (_req, res, next) => {
@@ -33,7 +35,7 @@ router.get('/active', async (_req, res, next) => {
     });
 
     if (!active) {
-      return res.status(404).json({ message: 'No active game day' });
+      return res.status(404).json({ message: 'Kein aktiver Spieltag vorhanden.' });
     }
 
     return res.json(active);
@@ -61,14 +63,23 @@ router.post('/', async (req, res, next) => {
   try {
     const payload = createGameDaySchema.parse(req.body);
 
-    const created = await prisma.adminEvent.create({
-      data: {
-        description: payload.description,
-        startTime: payload.startTime ?? null,
-        lockTime: payload.lockTime ?? null,
-        endTime: payload.endTime ?? null,
-        activeFlag: payload.activeFlag ?? true
-      }
+    const nextGameDay =
+      payload.gameDay ??
+      ((await prisma.adminEvent.aggregate({ _max: { gameDay: true } }))._max.gameDay ?? -1) + 1;
+
+    const created = await prisma.$transaction(async (tx) => {
+      await tx.adminEvent.updateMany({ where: { activeFlag: true }, data: { activeFlag: false } });
+
+      return tx.adminEvent.create({
+        data: {
+          description: payload.description,
+          startTime: payload.startTime ?? null,
+          lockTime: payload.lockTime ?? null,
+          endTime: payload.endTime ?? null,
+          activeFlag: payload.activeFlag ?? true,
+          gameDay: nextGameDay
+        }
+      });
     });
 
     res.status(201).json(created);
@@ -81,7 +92,7 @@ router.patch('/:id', async (req, res, next) => {
   try {
     const id = Number.parseInt(req.params.id, 10);
     if (Number.isNaN(id)) {
-      return res.status(400).json({ message: 'Invalid game day id' });
+      return res.status(400).json({ message: 'Ungültige Spieltag-ID' });
     }
 
     const payload = updateGameDaySchema.parse(req.body);
@@ -107,9 +118,19 @@ router.patch('/:id', async (req, res, next) => {
       data.activeFlag = payload.activeFlag;
     }
 
-    const updated = await prisma.adminEvent.update({
-      where: { id },
-      data
+    if (Object.prototype.hasOwnProperty.call(payload, 'gameDay') && typeof payload.gameDay === 'number') {
+      data.gameDay = payload.gameDay;
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      if (data.activeFlag === true) {
+        await tx.adminEvent.updateMany({ where: { activeFlag: true, id: { not: id } }, data: { activeFlag: false } });
+      }
+
+      return tx.adminEvent.update({
+        where: { id },
+        data
+      });
     });
 
     res.json(updated);
@@ -120,7 +141,7 @@ router.patch('/:id', async (req, res, next) => {
       'code' in error &&
       (error as { code?: unknown }).code === 'P2025'
     ) {
-      return res.status(404).json({ message: 'Game day not found' });
+      return res.status(404).json({ message: 'Spieltag nicht gefunden' });
     }
 
     next(error);
@@ -131,7 +152,7 @@ router.post('/:id/finalize', async (req, res, next) => {
   try {
     const id = Number.parseInt(req.params.id, 10);
     if (Number.isNaN(id)) {
-      return res.status(400).json({ message: 'Invalid game day id' });
+      return res.status(400).json({ message: 'Ungültige Spieltag-ID' });
     }
 
     const updated = await prisma.adminEvent.update({
@@ -142,7 +163,7 @@ router.post('/:id/finalize', async (req, res, next) => {
       }
     });
 
-    res.json({ message: 'Game day finalized. Update hottake statuses individually.', gameDay: updated });
+    res.json({ message: 'Spieltag abgeschlossen. Hottake-Status bitte separat pflegen.', gameDay: updated });
   } catch (error) {
     if (
       typeof error === 'object' &&
@@ -150,7 +171,7 @@ router.post('/:id/finalize', async (req, res, next) => {
       'code' in error &&
       (error as { code?: unknown }).code === 'P2025'
     ) {
-      return res.status(404).json({ message: 'Game day not found' });
+      return res.status(404).json({ message: 'Spieltag nicht gefunden' });
     }
 
     next(error);
@@ -161,7 +182,7 @@ router.delete('/:id', async (req, res, next) => {
   try {
     const id = Number.parseInt(req.params.id, 10);
     if (Number.isNaN(id)) {
-      return res.status(400).json({ message: 'Invalid game day id' });
+      return res.status(400).json({ message: 'Ungültige Spieltag-ID' });
     }
 
     await prisma.adminEvent.delete({ where: { id } });
@@ -173,7 +194,7 @@ router.delete('/:id', async (req, res, next) => {
       'code' in error &&
       (error as { code?: unknown }).code === 'P2025'
     ) {
-      return res.status(404).json({ message: 'Game day not found' });
+      return res.status(404).json({ message: 'Spieltag nicht gefunden' });
     }
 
     next(error);

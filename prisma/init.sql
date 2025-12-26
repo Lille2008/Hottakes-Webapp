@@ -4,6 +4,7 @@ CREATE TABLE "hottakes" (
     "id" SERIAL NOT NULL,
     "text" TEXT NOT NULL,
     "status" "HottakeStatus" NOT NULL DEFAULT 'OFFEN',
+    "gameDay" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -26,7 +27,9 @@ CREATE TABLE "users" (
 CREATE TABLE "submissions" (
     "id" SERIAL NOT NULL,
     "userId" INTEGER NOT NULL,
+    "gameDay" INTEGER NOT NULL,
     "picks" INTEGER[] NOT NULL,
+    "score" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -45,6 +48,7 @@ CREATE TABLE "settings" (
 
 CREATE TABLE "admin_events" (
     "id" SERIAL NOT NULL,
+    "gameDay" INTEGER NOT NULL,
     "description" TEXT NOT NULL,
     "startTime" TIMESTAMP(3),
     "lockTime" TIMESTAMP(3),
@@ -60,9 +64,14 @@ CREATE UNIQUE INDEX "users_nickname_key" ON "users"("nickname");
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 CREATE UNIQUE INDEX "users_resetToken_key" ON "users"("resetToken");
 
-CREATE UNIQUE INDEX "submissions_userId_key" ON "submissions"("userId");
+CREATE UNIQUE INDEX "submissions_userId_gameDay_key" ON "submissions"("userId", "gameDay");
+CREATE INDEX "hottakes_gameDay_idx" ON "hottakes"("gameDay");
+CREATE INDEX "submissions_gameDay_idx" ON "submissions"("gameDay");
+CREATE UNIQUE INDEX "admin_events_gameDay_key" ON "admin_events"("gameDay");
 
 CREATE UNIQUE INDEX "settings_key_key" ON "settings"("key");
 
 ALTER TABLE "submissions" ADD CONSTRAINT "submissions_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "submissions" ADD CONSTRAINT "submissions_gameDay_fkey" FOREIGN KEY ("gameDay") REFERENCES "admin_events"("gameDay") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "hottakes" ADD CONSTRAINT "hottakes_gameDay_fkey" FOREIGN KEY ("gameDay") REFERENCES "admin_events"("gameDay") ON DELETE RESTRICT ON UPDATE CASCADE;
 

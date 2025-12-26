@@ -11,6 +11,7 @@ import leaderboardRouter from './routes/leaderboard';
 import authRouter from './routes/auth';
 import healthRouter from './routes/health';
 import gameDaysRouter from './routes/admin/gameDays';
+import publicGameDaysRouter from './routes/gameDays';
 
 const app = express();
 
@@ -25,9 +26,10 @@ app.use('/api/leaderboard', leaderboardRouter);
 app.use('/api/health', healthRouter);
 app.use('/health', healthRouter);
 app.use('/api/admin/game-days', gameDaysRouter);
+app.use('/api/game-days', publicGameDaysRouter);
 
 app.use('/api', (_req, res) => {
-  res.status(404).json({ message: 'Not Found' });
+  res.status(404).json({ message: 'Nicht gefunden' });
 });
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
@@ -43,7 +45,7 @@ app.get('*', (req, res, next) => {
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   if (error instanceof ZodError) {
     return res.status(400).json({
-      message: 'Validation failed',
+      message: 'Validierung fehlgeschlagen',
       issues: error.issues
     });
   }
@@ -52,7 +54,7 @@ app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
     return res.status(400).json({ message: error.message });
   }
 
-  return res.status(500).json({ message: 'Unexpected error' });
+  return res.status(500).json({ message: 'Unerwarteter Fehler' });
 });
 
 export default app;

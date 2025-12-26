@@ -1296,6 +1296,33 @@ footer a:hover {
     justify-content: flex-end;
 }
 
+.game-day-select-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-card);
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(0, 217, 255, 0.25);
+    box-shadow: var(--shadow-card);
+}
+
+.game-day-select-wrapper label {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.game-day-select {
+    min-width: 180px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(0, 217, 255, 0.32);
+    background: var(--bg-card-hover);
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
 .lock-countdown {
     padding: 8px 12px;
     border-radius: 10px;

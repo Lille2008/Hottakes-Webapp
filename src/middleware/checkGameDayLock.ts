@@ -19,7 +19,7 @@ export async function checkGameDayLock(req: Request, res: Response, next: NextFu
 
     if (now >= activeGameDay.lockTime) {
       return res.status(403).json({
-        message: 'Submissions are locked. The game day has started.',
+        message: 'Picks sind gesperrt. Der Spieltag hat begonnen.',
         lockTime: activeGameDay.lockTime
       });
     }

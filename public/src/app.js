@@ -32,6 +32,8 @@ let currentUser = null;
 let adminEnabled = false;
 let viewMode = 'active';
 let activeGameDay = null;
+let gameDays = [];
+let selectedHistoryGameDay = null;
 let lockCountdownTimer = null;
 let isLocked = false;
 
@@ -63,6 +65,8 @@ const lockStatus = document.getElementById('lock-status');
 const lockCountdown = document.getElementById('lock-countdown');
 const viewToggleActive = document.getElementById('view-active');
 const viewToggleHistory = document.getElementById('view-history');
+const gameDayBanner = document.getElementById('game-day-banner');
+let historySelect = null;
 
 
 if (
@@ -75,6 +79,16 @@ if (
     !adminAdd
 ) {
     throw new Error('Hottakes App Initialisierung fehlgeschlagen: DOM-Elemente nicht gefunden.');
+}
+
+async function loadGameDays() {
+    try {
+        const data = await apiFetch('/game-days', {}, { allowNotFound: true });
+        gameDays = Array.isArray(data) ? data : [];
+        updateHistorySelect();
+    } catch (error) {
+        console.warn('Spieltage konnten nicht geladen werden.', error.message || error);
+    }
 }
 
 const THEME_MODE_STORAGE_KEY = 'hottakes-theme-mode';
@@ -687,8 +701,12 @@ function refreshLockState() {
 
 async function loadActiveGameDay() {
     try {
-        const data = await apiFetch('/admin/game-days/active', {}, { allowNotFound: true });
+        const data = await apiFetch('/game-days/active', {}, { allowNotFound: true });
         activeGameDay = data || null;
+        if (activeGameDay && selectedHistoryGameDay === null) {
+            selectedHistoryGameDay = activeGameDay.gameDay;
+            updateHistorySelect();
+        }
     } catch (error) {
         activeGameDay = null;
         console.warn('Aktueller Spieltag konnte nicht geladen werden.', error.message || error);
@@ -698,7 +716,7 @@ async function loadActiveGameDay() {
 }
 
 
-function setViewMode(mode) {
+async function setViewMode(mode) {
     viewMode = mode === 'history' ? 'history' : 'active';
 
     if (viewToggleActive) {
@@ -707,6 +725,16 @@ function setViewMode(mode) {
 
     if (viewToggleHistory) {
         viewToggleHistory.classList.toggle('is-active', viewMode === 'history');
+    }
+
+    if (viewMode === 'history') {
+        await refreshHottakes(selectedHistoryGameDay);
+        await loadSubmissionForCurrentUser(selectedHistoryGameDay, true);
+        await drawLeaderboard(selectedHistoryGameDay);
+    } else {
+        await refreshHottakes(activeGameDay?.gameDay);
+        await loadSubmissionForCurrentUser(activeGameDay?.gameDay, false);
+        await drawLeaderboard(activeGameDay?.gameDay);
     }
 
     renderHottakes();
@@ -728,6 +756,75 @@ function setupViewToggle() {
 
     if (viewToggleHistory) {
         viewToggleHistory.classList.toggle('is-active', viewMode === 'history');
+    }
+}
+
+function ensureHistorySelect() {
+    if (historySelect) {
+        return historySelect;
+    }
+
+    historySelect = document.createElement('select');
+    historySelect.id = 'history-game-day';
+    historySelect.className = 'game-day-select';
+    historySelect.addEventListener('change', async (event) => {
+        const value = Number.parseInt(event.target.value, 10);
+        if (Number.isNaN(value)) {
+            return;
+        }
+        selectedHistoryGameDay = value;
+        await refreshHottakes(value);
+        await loadSubmissionForCurrentUser(value, true);
+        await drawLeaderboard(value);
+        renderHottakes();
+    });
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'game-day-select-wrapper';
+
+    const label = document.createElement('label');
+    label.htmlFor = historySelect.id;
+    label.textContent = 'Spieltag wählen';
+
+    wrapper.append(label, historySelect);
+
+    if (gameDayBanner) {
+        gameDayBanner.appendChild(wrapper);
+    }
+
+    return historySelect;
+}
+
+function updateHistorySelect() {
+    const select = ensureHistorySelect();
+    select.innerHTML = '';
+
+    if (!Array.isArray(gameDays) || gameDays.length === 0) {
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = 'Kein Spieltag vorhanden';
+        select.appendChild(option);
+        select.disabled = true;
+        return;
+    }
+
+    select.disabled = false;
+
+    gameDays.forEach((day) => {
+        const option = document.createElement('option');
+        option.value = String(day.gameDay);
+        const suffix = day.activeFlag ? ' (aktiv)' : '';
+        option.textContent = day.description ? `${day.description}${suffix}` : `Spieltag ${day.gameDay}${suffix}`;
+        select.appendChild(option);
+    });
+
+    if (selectedHistoryGameDay === null && gameDays.length > 0) {
+        const lastFinished = [...gameDays].reverse().find((day) => !day.activeFlag) || gameDays[gameDays.length - 1];
+        selectedHistoryGameDay = lastFinished?.gameDay ?? null;
+    }
+
+    if (selectedHistoryGameDay !== null) {
+        select.value = String(selectedHistoryGameDay);
     }
 }
 
@@ -874,11 +971,21 @@ function renderHottakes() {
 }
 
 
-async function refreshHottakes() {
+async function refreshHottakes(targetGameDay = null) {
     try {
+        const gameDay = targetGameDay !== null ? targetGameDay : viewMode === 'history' ? selectedHistoryGameDay : activeGameDay?.gameDay;
+
+        if (gameDay === null || gameDay === undefined) {
+            hottakesList.innerHTML = '<p>Kein Spieltag ausgewählt.</p>';
+            openHottakes = [];
+            archivedHottakes = [];
+            allHottakes = [];
+            return;
+        }
+
         const [openData, archivedData] = await Promise.all([
-            apiFetch('/hottakes'),
-            apiFetch('/hottakes?archived=true')
+            apiFetch(`/hottakes?gameDay=${encodeURIComponent(gameDay)}`),
+            apiFetch(`/hottakes?archived=true&gameDay=${encodeURIComponent(gameDay)}`)
         ]);
 
         openHottakes = Array.isArray(openData) ? openData : [];
@@ -892,10 +999,19 @@ async function refreshHottakes() {
 }
 
 
-async function drawLeaderboard() {
+async function drawLeaderboard(targetGameDay = null) {
     leaderboardContainer.innerHTML = '<h2>Leaderboard</h2>';
+    const gameDay = targetGameDay !== null ? targetGameDay : viewMode === 'history' ? selectedHistoryGameDay : activeGameDay?.gameDay;
+
+    if (gameDay === null || gameDay === undefined) {
+        const row = document.createElement('p');
+        row.textContent = 'Kein Spieltag ausgewählt.';
+        leaderboardContainer.appendChild(row);
+        return;
+    }
+
     try {
-        const response = await apiFetch('/leaderboard');
+        const response = await apiFetch(`/leaderboard?gameDay=${encodeURIComponent(gameDay)}`);
         const entries = Array.isArray(response) ? response : [];
 
         if (entries.length === 0) {
@@ -919,13 +1035,18 @@ async function drawLeaderboard() {
 }
 
 
-async function loadSubmissionForCurrentUser() {
+async function loadSubmissionForCurrentUser(gameDay = null, isHistory = false) {
     if (!currentUser) {
         return;
     }
 
+    const targetGameDay = gameDay !== null ? gameDay : activeGameDay?.gameDay;
+    if (targetGameDay === null || targetGameDay === undefined) {
+        return;
+    }
+
     try {
-        const submission = await apiFetch(`/submissions/${encodeURIComponent(currentUser.nickname)}`, {}, { allowNotFound: true });
+        const submission = await apiFetch(`/submissions/${encodeURIComponent(currentUser.nickname)}?gameDay=${encodeURIComponent(targetGameDay)}`, {}, { allowNotFound: true });
         const nextPicks = Array(RANK_COUNT).fill(null);
 
         lastSubmissionPicks = submission && Array.isArray(submission.picks)
@@ -940,8 +1061,12 @@ async function loadSubmissionForCurrentUser() {
             });
         }
 
-        picks = nextPicks;
-        renderHottakes();
+        if (isHistory) {
+            renderHottakes();
+        } else {
+            picks = nextPicks;
+            renderHottakes();
+        }
     } catch (error) {
         alert(error.message);
     }
@@ -951,6 +1076,11 @@ async function loadSubmissionForCurrentUser() {
 async function saveSubmission() {
     if (viewMode !== 'active') {
         alert('Historie ist schreibgeschützt. Wechsle zur aktiven Ansicht.');
+        return;
+    }
+
+    if (!activeGameDay || typeof activeGameDay.gameDay !== 'number') {
+        alert('Es gibt keinen aktiven Spieltag. Bitte warte, bis ein Spieltag erstellt wurde.');
         return;
     }
 
@@ -970,7 +1100,7 @@ async function saveSubmission() {
     }
 
     try {
-        await apiFetch('/submissions', {
+        await apiFetch(`/submissions?gameDay=${encodeURIComponent(activeGameDay.gameDay)}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1155,7 +1285,11 @@ function renderGameDayAdmin() {
         lockInfo.className = 'admin-status-line';
         lockInfo.textContent = `Lock: ${formatDateTime(activeGameDay.lockTime) || 'keine Zeit gesetzt'}`;
 
-        status.append(title, lockInfo);
+        const dayInfo = document.createElement('p');
+        dayInfo.className = 'admin-status-line';
+        dayInfo.textContent = `Spieltag-Nr.: ${activeGameDay.gameDay}`;
+
+        status.append(title, lockInfo, dayInfo);
     } else {
         const empty = document.createElement('p');
         empty.className = 'admin-status-line';
@@ -1204,6 +1338,7 @@ function renderGameDayAdmin() {
         try {
             await apiFetch(`/admin/game-days/${activeGameDay.id}/finalize`, { method: 'POST' });
             showAdminMessage('Spieltag wurde beendet.', 'success');
+                await loadGameDays();
                 await loadActiveGameDay();
                 renderGameDayAdmin();
         } catch (error) {
@@ -1237,6 +1372,7 @@ function renderGameDayAdmin() {
             activeGameDay = created;
             showAdminMessage('Spieltag gespeichert.', 'success');
             refreshLockState();
+            await loadGameDays();
             renderGameDayAdmin();
         } catch (error) {
             showAdminMessage(error.message, 'error');
@@ -1254,6 +1390,8 @@ function renderGameDayAdmin() {
 function enableAdminArea() {
     adminEnabled = true;
     adminArea.style.display = 'flex';
+    refreshHottakes(activeGameDay?.gameDay);
+    drawLeaderboard(activeGameDay?.gameDay);
     renderAdminOverview();
     renderAdminForm();
     renderGameDayAdmin();
@@ -1403,6 +1541,7 @@ async function initializeApp() {
     setupLegalModal();
     setupViewToggle();
     createRankSlots();
+    await loadGameDays();
     await loadActiveGameDay();
     await checkLoginStatus();
     await refreshHottakes();
