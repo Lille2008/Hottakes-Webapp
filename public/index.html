@@ -1,10 +1,13 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="de" data-theme="dark">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hottakes</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="src/styles.css">
 
     <link rel="icon" type="image/png" sizes="16x16" href="hottakes_favicons/Hottakes.icon-16x16.png">
@@ -30,10 +33,81 @@
             <span class="brand-name">Hottakes</span>
         </a>
         <div id="auth-header" class="header-actions">
-            <a href="login.html" class="btn">Anmelden</a>
-            <a href="register.html" class="btn">Registrieren</a>
+            <div id="guest-actions" class="header-guest">
+                <a href="login.html" class="btn">Anmelden</a>
+                <a href="register.html" class="btn">Registrieren</a>
+            </div>
+            <div id="authed-actions" class="header-authed">
+                <span id="user-chip" class="user-chip" aria-live="polite"></span>
+                <button id="settings-toggle" class="icon-button" aria-expanded="false" aria-controls="settings-panel" aria-label="Einstellungen öffnen">
+                    <span class="icon-lines"></span>
+                </button>
+            </div>
         </div>
     </header>
+
+    <div id="settings-backdrop" class="settings-backdrop" aria-hidden="true"></div>
+    <aside id="settings-panel" class="settings-panel" aria-hidden="true">
+        <div class="settings-panel__inner">
+            <div class="settings-panel__header">
+                <div>
+                    <p class="settings-kicker">Steuerzentrale</p>
+                    <h3 class="settings-title">Einstellungen</h3>
+                </div>
+                <button id="settings-close" class="icon-button icon-button--close" aria-label="Einstellungen schließen">
+                    <span aria-hidden="true">×</span>
+                </button>
+            </div>
+
+            <div class="settings-section">
+                <div class="settings-row settings-row--stack">
+                    <div class="settings-row__text">
+                        <p class="settings-label">Theme</p>
+                        <p class="settings-sub">Dark, Light oder Automatik (Geräte-Setting)</p>
+                    </div>
+                    <div class="theme-choices" role="radiogroup" aria-label="Theme wählen">
+                        <label class="theme-pill">
+                            <input type="radio" name="theme-mode" value="dark" id="theme-dark">
+                            <span>Dark</span>
+                        </label>
+                        <label class="theme-pill">
+                            <input type="radio" name="theme-mode" value="light" id="theme-light">
+                            <span>Light</span>
+                        </label>
+                        <label class="theme-pill">
+                            <input type="radio" name="theme-mode" value="system" id="theme-system">
+                            <span>Auto</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section" id="settings-auth-section">
+                <div id="settings-auth-guest" class="settings-auth">
+                    <p class="settings-label">Du bist als Gast unterwegs.</p>
+                    <div class="settings-actions">
+                        <a href="login.html" class="pill-link">Anmelden</a>
+                        <a href="register.html" class="pill-link pill-link--ghost">Registrieren</a>
+                    </div>
+                </div>
+
+                <div id="settings-auth-user" class="settings-auth is-hidden">
+                    <p class="settings-label">Angemeldet als <span id="settings-username"></span></p>
+                    <div class="settings-actions">
+                        <button id="settings-logout" class="pill-link pill-link--danger" type="button">Logout</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <div id="legal-backdrop" class="legal-backdrop" aria-hidden="true"></div>
+    <section id="legal-modal" class="legal-modal" aria-hidden="true" role="dialog" aria-modal="true">
+        <article class="legal-card">
+            <button id="legal-close" class="legal-close" aria-label="Schließen">×</button>
+            <div id="legal-content"></div>
+        </article>
+    </section>
 
     <div id="user-info">
         <p>Hallo, <span id="user-nickname-display"></span>!</p>
@@ -74,8 +148,8 @@
     <footer>
         <hr>
         <p>
-            <a href="impressum.html">Impressum</a> |
-            <a href="datenschutz.html">Datenschutz</a>
+            <a href="impressum.html" class="legal-link" data-legal="impressum">Impressum</a> |
+            <a href="datenschutz.html" class="legal-link" data-legal="datenschutz">Datenschutz</a>
         </p>
         <div id="cookie-banner">
             Diese Seite nutzt technisch notwendige Cookies (Session/Auth).

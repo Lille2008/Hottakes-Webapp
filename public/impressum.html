@@ -1,9 +1,12 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="de" data-theme="dark">
 
 <head>
     <meta charset="UTF-8">
     <title>Impressum</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="src/styles.css">
 </head>
 
@@ -13,11 +16,74 @@
             <img src="hottakes_favicons/Hottakes.icon-192x192.png" alt="Hottakes Logo" class="brand-logo">
             <span class="brand-name">Hottakes</span>
         </a>
-        <div class="header-actions auth-pending" id="auth-header">
-            <a href="login.html" class="btn">Login</a>
-            <a href="register.html" class="btn">Register</a>
+        <div class="header-actions" id="auth-header">
+            <div id="guest-actions" class="header-guest">
+                <a href="login.html" class="btn">Anmelden</a>
+                <a href="register.html" class="btn">Registrieren</a>
+            </div>
+            <div id="authed-actions" class="header-authed">
+                <span id="user-chip" class="user-chip" aria-live="polite"></span>
+                <button id="settings-toggle" class="icon-button" aria-expanded="false" aria-controls="settings-panel" aria-label="Einstellungen öffnen">
+                    <span class="icon-lines"></span>
+                </button>
+            </div>
         </div>
     </header>
+
+    <div id="settings-backdrop" class="settings-backdrop" aria-hidden="true"></div>
+    <aside id="settings-panel" class="settings-panel" aria-hidden="true">
+        <div class="settings-panel__inner">
+            <div class="settings-panel__header">
+                <div>
+                    <p class="settings-kicker">Steuerzentrale</p>
+                    <h3 class="settings-title">Einstellungen</h3>
+                </div>
+                <button id="settings-close" class="icon-button icon-button--close" aria-label="Einstellungen schließen">
+                    <span aria-hidden="true">×</span>
+                </button>
+            </div>
+
+            <div class="settings-section">
+                <div class="settings-row settings-row--stack">
+                    <div class="settings-row__text">
+                        <p class="settings-label">Theme</p>
+                        <p class="settings-sub">Dark, Light oder Automatik (Geräte-Setting)</p>
+                    </div>
+                    <div class="theme-choices" role="radiogroup" aria-label="Theme wählen">
+                        <label class="theme-pill">
+                            <input type="radio" name="theme-mode" value="dark" id="theme-dark">
+                            <span>Dark</span>
+                        </label>
+                        <label class="theme-pill">
+                            <input type="radio" name="theme-mode" value="light" id="theme-light">
+                            <span>Light</span>
+                        </label>
+                        <label class="theme-pill">
+                            <input type="radio" name="theme-mode" value="system" id="theme-system">
+                            <span>Auto</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section" id="settings-auth-section">
+                <div id="settings-auth-guest" class="settings-auth">
+                    <p class="settings-label">Du bist als Gast unterwegs.</p>
+                    <div class="settings-actions">
+                        <a href="login.html" class="pill-link">Anmelden</a>
+                        <a href="register.html" class="pill-link pill-link--ghost">Registrieren</a>
+                    </div>
+                </div>
+
+                <div id="settings-auth-user" class="settings-auth is-hidden">
+                    <p class="settings-label">Angemeldet als <span id="settings-username"></span></p>
+                    <div class="settings-actions">
+                        <button id="settings-logout" class="pill-link pill-link--danger" type="button">Logout</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </aside>
 
     <main class="legal-container">
         <h1>Impressum</h1>
@@ -30,43 +96,204 @@
         <p>Telefon: +49 (0) 123 44 55 66<br>
             E-Mail: mustermann@beispiel.de</p>
 
-        <p><a href="index.html">Zurück zur Startseite</a></p>
     </main>
 
     <script>
-        (async () => {
-            const header = document.getElementById('auth-header');
-            if (!header) return;
+        (() => {
+            const THEME_MODE_STORAGE_KEY = 'hottakes-theme-mode';
+            let currentUser = null;
+            const settingsToggle = document.getElementById('settings-toggle');
+            const settingsClose = document.getElementById('settings-close');
+            const settingsPanel = document.getElementById('settings-panel');
+            const settingsBackdrop = document.getElementById('settings-backdrop');
+            const themeModeInputs = document.querySelectorAll('input[name="theme-mode"]');
+            const settingsAuthGuest = document.getElementById('settings-auth-guest');
+            const settingsAuthUser = document.getElementById('settings-auth-user');
+            const settingsUsername = document.getElementById('settings-username');
+            const settingsLogout = document.getElementById('settings-logout');
+            const userChip = document.getElementById('user-chip');
+            const guestActions = document.getElementById('guest-actions');
+            const authedActions = document.getElementById('authed-actions');
+            let systemMediaQuery = null;
 
-            try {
-                const res = await fetch('/api/auth/me', { credentials: 'include' });
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data && data.user) {
-                        header.innerHTML = `
-                            <span style="margin-right: 10px; font-weight: bold;">${data.user.nickname}</span>
-                            <button id="btn-logout" class="btn">Logout</button>
-                        `;
-                        const logoutBtn = document.getElementById('btn-logout');
-                        if (logoutBtn) {
-                            logoutBtn.addEventListener('click', async () => {
-                                await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-                                window.location.href = 'index.html';
-                            });
-                        }
-                        header.classList.remove('auth-pending');
-                        return;
-                    }
+            function resolveSystemTheme() {
+                if (window.matchMedia) {
+                    return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
                 }
-            } catch (error) {
-                console.warn('Auth check skipped on legal page', error);
+                return 'dark';
             }
 
-            header.innerHTML = `
-                <a href="login.html" class="btn">Login</a>
-                <a href="register.html" class="btn">Register</a>
-            `;
-            header.classList.remove('auth-pending');
+            function detachSystemListener() {
+                if (systemMediaQuery && typeof systemMediaQuery.removeEventListener === 'function') {
+                    systemMediaQuery.removeEventListener('change', handleSystemThemeChange);
+                }
+                systemMediaQuery = null;
+            }
+
+            function handleSystemThemeChange() {
+                const mode = getStoredThemeMode() || 'system';
+                if (mode === 'system') {
+                    document.documentElement.setAttribute('data-theme', resolveSystemTheme());
+                }
+            }
+
+            async function persistThemePreference(mode) {
+                if (!currentUser) return;
+                try {
+                    await fetch('/api/auth/prefs', {
+                        method: 'PATCH',
+                        credentials: 'include',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ themeMode: mode })
+                    });
+                } catch (error) {
+                    console.warn('Theme konnte nicht gespeichert werden:', error);
+                }
+            }
+
+            function applyThemeMode(mode) {
+                const normalized = ['light', 'dark', 'system'].includes(mode) ? mode : 'system';
+                if (normalized === 'system') {
+                    document.documentElement.setAttribute('data-theme', resolveSystemTheme());
+                    detachSystemListener();
+                    if (window.matchMedia) {
+                        systemMediaQuery = window.matchMedia('(prefers-color-scheme: light)');
+                        if (typeof systemMediaQuery.addEventListener === 'function') {
+                            systemMediaQuery.addEventListener('change', handleSystemThemeChange);
+                        }
+                    }
+                } else {
+                    document.documentElement.setAttribute('data-theme', normalized);
+                    detachSystemListener();
+                }
+
+                themeModeInputs.forEach((input) => {
+                    input.checked = input.value === normalized;
+                });
+
+                try {
+                    localStorage.setItem(THEME_MODE_STORAGE_KEY, normalized);
+                } catch (_error) {
+                    // ignore storage issues
+                }
+
+                persistThemePreference(normalized);
+            }
+
+            function getStoredThemeMode() {
+                try {
+                    const stored = localStorage.getItem(THEME_MODE_STORAGE_KEY);
+                    if (stored && ['light', 'dark', 'system'].includes(stored)) {
+                        return stored;
+                    }
+                } catch (_error) {
+                    return null;
+                }
+                return null;
+            }
+
+            function initTheme() {
+                const initialMode = getStoredThemeMode() || 'system';
+                applyThemeMode(initialMode);
+                themeModeInputs.forEach((input) => {
+                    input.addEventListener('change', (event) => {
+                        applyThemeMode(event.target.value);
+                    });
+                });
+            }
+
+            function setHeaderAuthState(isLoggedIn) {
+                if (guestActions) guestActions.style.display = isLoggedIn ? 'none' : 'flex';
+                if (authedActions) authedActions.style.display = isLoggedIn ? 'flex' : 'none';
+                if (!isLoggedIn) closeSettings();
+            }
+
+            function openSettings() {
+                settingsPanel.classList.add('is-open');
+                settingsBackdrop.classList.add('is-open');
+                settingsPanel.setAttribute('aria-hidden', 'false');
+                settingsBackdrop.setAttribute('aria-hidden', 'false');
+                settingsToggle.setAttribute('aria-expanded', 'true');
+                document.body.classList.add('settings-open');
+            }
+
+            function closeSettings() {
+                settingsPanel.classList.remove('is-open');
+                settingsBackdrop.classList.remove('is-open');
+                settingsPanel.setAttribute('aria-hidden', 'true');
+                settingsBackdrop.setAttribute('aria-hidden', 'true');
+                settingsToggle.setAttribute('aria-expanded', 'false');
+                document.body.classList.remove('settings-open');
+            }
+
+            function setupSettings() {
+                settingsToggle.addEventListener('click', () => {
+                    if (settingsPanel.classList.contains('is-open')) {
+                        closeSettings();
+                    } else {
+                        openSettings();
+                    }
+                });
+                settingsClose.addEventListener('click', closeSettings);
+                settingsBackdrop.addEventListener('click', closeSettings);
+                document.addEventListener('keydown', (event) => {
+                    if (event.key === 'Escape' && settingsPanel.classList.contains('is-open')) {
+                        closeSettings();
+                    }
+                });
+            }
+
+            function updateAuthUI(user) {
+                currentUser = user;
+
+                if (userChip) {
+                    if (user) {
+                        userChip.textContent = user.nickname;
+                        userChip.classList.add('is-visible');
+                    } else {
+                        userChip.textContent = '';
+                        userChip.classList.remove('is-visible');
+                    }
+                }
+
+                setHeaderAuthState(Boolean(user));
+
+                if (user) {
+                    settingsAuthGuest.classList.add('is-hidden');
+                    settingsAuthUser.classList.remove('is-hidden');
+                    settingsUsername.textContent = user.nickname;
+                    settingsLogout.onclick = async () => {
+                        await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+                        closeSettings();
+                        window.location.href = 'index.html';
+                    };
+                    persistThemePreference(getStoredThemeMode() || 'system');
+                } else {
+                    settingsAuthGuest.classList.remove('is-hidden');
+                    settingsAuthUser.classList.add('is-hidden');
+                    settingsLogout.onclick = null;
+                }
+            }
+
+            async function checkAuth() {
+                try {
+                    const res = await fetch('/api/auth/me', { credentials: 'include' });
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data && data.user) {
+                            updateAuthUI(data.user);
+                            return;
+                        }
+                    }
+                } catch (error) {
+                    console.warn('Auth check skipped on legal page', error);
+                }
+                updateAuthUI(null);
+            }
+
+            initTheme();
+            setupSettings();
+            checkAuth();
         })();
     </script>
 </body>

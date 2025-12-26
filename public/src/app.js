@@ -36,6 +36,22 @@ const savePicksButton = document.getElementById('save-picks');
 const adminArea = document.getElementById('admin-area');
 const adminList = document.getElementById('hottake-list');
 const adminAdd = document.getElementById('add-hottakes');
+const settingsToggle = document.getElementById('settings-toggle');
+const settingsClose = document.getElementById('settings-close');
+const settingsPanel = document.getElementById('settings-panel');
+const settingsBackdrop = document.getElementById('settings-backdrop');
+const themeModeInputs = document.querySelectorAll('input[name="theme-mode"]');
+const settingsAuthGuest = document.getElementById('settings-auth-guest');
+const settingsAuthUser = document.getElementById('settings-auth-user');
+const settingsUsername = document.getElementById('settings-username');
+const settingsLogout = document.getElementById('settings-logout');
+const userChip = document.getElementById('user-chip');
+const legalBackdrop = document.getElementById('legal-backdrop');
+const legalModal = document.getElementById('legal-modal');
+const legalContent = document.getElementById('legal-content');
+const legalClose = document.getElementById('legal-close');
+const guestActions = document.getElementById('guest-actions');
+const authedActions = document.getElementById('authed-actions');
 
 
 if (
@@ -49,6 +65,9 @@ if (
 ) {
     throw new Error('Hottakes App Initialisierung fehlgeschlagen: DOM-Elemente nicht gefunden.');
 }
+
+const THEME_MODE_STORAGE_KEY = 'hottakes-theme-mode';
+let systemMediaQuery = null;
 
 adminList.classList.add('admin-card');
 adminAdd.classList.add('admin-card');
@@ -71,6 +90,298 @@ function showAdminMessage(message, tone = 'info') {
     adminFeedback.textContent = message;
     adminFeedback.dataset.tone = tone;
     adminFeedback.classList.add('is-visible');
+}
+
+
+function resolveSystemTheme() {
+    if (window.matchMedia) {
+        const prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+        return prefersLight ? 'light' : 'dark';
+    }
+    return 'dark';
+}
+
+
+function detachSystemListener() {
+    if (systemMediaQuery && typeof systemMediaQuery.removeEventListener === 'function') {
+        systemMediaQuery.removeEventListener('change', handleSystemThemeChange);
+    }
+    systemMediaQuery = null;
+}
+
+
+function handleSystemThemeChange() {
+    const mode = getStoredThemeMode() || 'system';
+    if (mode === 'system') {
+        const nextTheme = resolveSystemTheme();
+        document.documentElement.setAttribute('data-theme', nextTheme);
+    }
+}
+
+
+async function persistThemePreference(mode) {
+    if (!currentUser) {
+        return;
+    }
+
+    try {
+        await apiFetch('/auth/prefs', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ themeMode: mode })
+        });
+    } catch (error) {
+        console.warn('Theme konnte nicht gespeichert werden:', error.message || error);
+    }
+}
+
+
+function applyThemeMode(mode) {
+    const normalizedMode = ['light', 'dark', 'system'].includes(mode) ? mode : 'system';
+
+    if (normalizedMode === 'system') {
+        document.documentElement.setAttribute('data-theme', resolveSystemTheme());
+        detachSystemListener();
+        if (window.matchMedia) {
+            systemMediaQuery = window.matchMedia('(prefers-color-scheme: light)');
+            if (typeof systemMediaQuery.addEventListener === 'function') {
+                systemMediaQuery.addEventListener('change', handleSystemThemeChange);
+            }
+        }
+    } else {
+        document.documentElement.setAttribute('data-theme', normalizedMode);
+        detachSystemListener();
+    }
+
+    themeModeInputs.forEach((input) => {
+        input.checked = input.value === normalizedMode;
+    });
+
+    try {
+        localStorage.setItem(THEME_MODE_STORAGE_KEY, normalizedMode);
+    } catch (_error) {
+        // Ignore storage issues (private mode, etc.)
+    }
+
+    persistThemePreference(normalizedMode);
+}
+
+
+function getStoredThemeMode() {
+    try {
+        const stored = localStorage.getItem(THEME_MODE_STORAGE_KEY);
+        if (stored && ['light', 'dark', 'system'].includes(stored)) {
+            return stored;
+        }
+    } catch (_error) {
+        // Ignore storage read issues
+    }
+    return null;
+}
+
+
+function initTheme() {
+    const initialMode = getStoredThemeMode() || 'system';
+    applyThemeMode(initialMode);
+
+    themeModeInputs.forEach((input) => {
+        input.addEventListener('change', (event) => {
+            applyThemeMode(event.target.value);
+        });
+    });
+}
+
+
+function openSettings() {
+    if (!settingsPanel || !settingsBackdrop) {
+        return;
+    }
+
+    settingsPanel.classList.add('is-open');
+    settingsBackdrop.classList.add('is-open');
+    settingsPanel.setAttribute('aria-hidden', 'false');
+    settingsBackdrop.setAttribute('aria-hidden', 'false');
+
+    if (settingsToggle) {
+        settingsToggle.setAttribute('aria-expanded', 'true');
+    }
+
+    document.body.classList.add('settings-open');
+}
+
+
+function closeSettings() {
+    if (!settingsPanel || !settingsBackdrop) {
+        return;
+    }
+
+    settingsPanel.classList.remove('is-open');
+    settingsBackdrop.classList.remove('is-open');
+    settingsPanel.setAttribute('aria-hidden', 'true');
+    settingsBackdrop.setAttribute('aria-hidden', 'true');
+
+    if (settingsToggle) {
+        settingsToggle.setAttribute('aria-expanded', 'false');
+    }
+
+    document.body.classList.remove('settings-open');
+}
+
+
+function setupSettingsPanel() {
+    if (settingsToggle) {
+        settingsToggle.addEventListener('click', () => {
+            if (settingsPanel && settingsPanel.classList.contains('is-open')) {
+                closeSettings();
+            } else {
+                openSettings();
+            }
+        });
+    }
+
+    if (settingsClose) {
+        settingsClose.addEventListener('click', closeSettings);
+    }
+
+    if (settingsBackdrop) {
+        settingsBackdrop.addEventListener('click', closeSettings);
+    }
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && settingsPanel && settingsPanel.classList.contains('is-open')) {
+            closeSettings();
+        }
+    });
+}
+
+
+async function loadLegalContent(type) {
+    if (!legalContent) return;
+
+    const path = type === 'impressum' ? '/impressum.html' : '/datenschutz.html';
+    legalContent.innerHTML = '<p>Lädt...</p>';
+
+    try {
+        const res = await fetch(path, { credentials: 'include' });
+        if (!res.ok) throw new Error('Fehler beim Laden');
+        const html = await res.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const main = doc.querySelector('main');
+        legalContent.innerHTML = main ? main.innerHTML : '<p>Inhalt nicht gefunden.</p>';
+    } catch (_error) {
+        legalContent.innerHTML = '<p>Inhalt konnte nicht geladen werden.</p>';
+    }
+}
+
+
+function openLegal(type) {
+    if (!legalModal || !legalBackdrop) return;
+
+    loadLegalContent(type);
+    legalModal.classList.add('is-open');
+    legalBackdrop.classList.add('is-open');
+    legalModal.setAttribute('aria-hidden', 'false');
+    legalBackdrop.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('legal-open');
+}
+
+
+function closeLegal() {
+    if (!legalModal || !legalBackdrop) return;
+
+    legalModal.classList.remove('is-open');
+    legalBackdrop.classList.remove('is-open');
+    legalModal.setAttribute('aria-hidden', 'true');
+    legalBackdrop.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('legal-open');
+}
+
+
+function setupLegalModal() {
+    const legalLinks = document.querySelectorAll('.legal-link');
+    legalLinks.forEach((link) => {
+        link.addEventListener('click', (event) => {
+            event.preventDefault();
+            const type = link.dataset.legal === 'impressum' ? 'impressum' : 'datenschutz';
+            openLegal(type);
+        });
+    });
+
+    if (legalClose) {
+        legalClose.addEventListener('click', closeLegal);
+    }
+
+    if (legalBackdrop) {
+        legalBackdrop.addEventListener('click', closeLegal);
+    }
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && legalModal && legalModal.classList.contains('is-open')) {
+            closeLegal();
+        }
+    });
+}
+
+
+function updateSettingsAuth(user) {
+    if (!settingsAuthGuest || !settingsAuthUser) {
+        return;
+    }
+
+    if (user) {
+        settingsAuthGuest.classList.add('is-hidden');
+        settingsAuthUser.classList.remove('is-hidden');
+
+        if (settingsUsername) {
+            settingsUsername.textContent = user.nickname;
+        }
+
+        if (settingsLogout) {
+            settingsLogout.onclick = async () => {
+                await apiFetch('/auth/logout', { method: 'POST' });
+                closeSettings();
+                window.location.reload();
+            };
+        }
+    } else {
+        settingsAuthGuest.classList.remove('is-hidden');
+        settingsAuthUser.classList.add('is-hidden');
+
+        if (settingsLogout) {
+            settingsLogout.onclick = null;
+        }
+    }
+}
+
+
+function updateUserChip(user) {
+    if (!userChip) {
+        return;
+    }
+
+    if (user) {
+        userChip.textContent = user.nickname;
+        userChip.classList.add('is-visible');
+    } else {
+        userChip.textContent = '';
+        userChip.classList.remove('is-visible');
+    }
+}
+
+
+function setHeaderAuthState(isLoggedIn) {
+    if (guestActions) {
+        guestActions.style.display = isLoggedIn ? 'none' : 'flex';
+    }
+
+    if (authedActions) {
+        authedActions.style.display = isLoggedIn ? 'flex' : 'none';
+    }
+
+    if (!isLoggedIn) {
+        closeSettings();
+    }
 }
 
 const hottakesNotice = document.createElement('p');
@@ -629,19 +940,11 @@ async function checkLoginStatus() {
 
 
 function updateUIForLogin(user) {
-
-    const authHeader = document.getElementById('auth-header');
-    if (authHeader) {
-        authHeader.innerHTML = `
-            <span style="margin-right: 10px; font-weight: bold;">${user.nickname}</span>
-            <button id="btn-logout" class="btn">Logout</button>
-        `;
-        document.getElementById('btn-logout').addEventListener('click', async () => {
-            await apiFetch('/auth/logout', { method: 'POST' });
-            window.location.reload();
-        });
-    }
-
+    currentUser = user;
+    updateUserChip(user);
+    updateSettingsAuth(user);
+    setHeaderAuthState(true);
+    persistThemePreference(getStoredThemeMode() || 'system');
 
     const userInfo = document.getElementById('user-info');
     const userDisplay = document.getElementById('user-nickname-display');
@@ -660,8 +963,6 @@ function updateUIForLogin(user) {
 
     const gameContainer = document.getElementById('game');
     const adminArea = document.getElementById('admin-area');
-
-    currentUser = user;
 
     if (user.nickname === 'lille08') {
 
@@ -692,6 +993,10 @@ function updateUIForLogin(user) {
 
 function updateUIForGuest() {
     currentUser = null;
+    updateUserChip(null);
+    updateSettingsAuth(null);
+    closeSettings();
+    setHeaderAuthState(false);
 
     adminEnabled = false;
 
@@ -725,6 +1030,9 @@ function updateUIForGuest() {
 
 
 async function initializeApp() {
+    initTheme();
+    setupSettingsPanel();
+    setupLegalModal();
     createRankSlots();
     await checkLoginStatus();
     await refreshHottakes();

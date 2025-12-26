@@ -28,6 +28,10 @@ const loginSchema = z.object({
     password: z.string() // Passwort wird gehasht und verglichen
 });
 
+const prefsSchema = z.object({
+    themeMode: z.enum(['light', 'dark', 'system'])
+});
+
 // Wird aufgerufen, wenn man auf registrieren klickt
 router.post('/register', async (req, res, next) => {
     try {
@@ -125,6 +129,35 @@ router.post('/logout', (req, res) => {
 router.get('/me', requireAuth, (req, res) => {
     const user = (req as AuthRequest).user;
     res.json({ user });
+});
+
+router.patch('/prefs', requireAuth, async (req, res, next) => {
+    try {
+        const { themeMode } = prefsSchema.parse(req.body);
+        const authUser = (req as AuthRequest).user;
+
+        const existing = await prisma.user.findUnique({
+            where: { id: authUser.id },
+            select: { prefs: true }
+        });
+
+        let prefs: Record<string, unknown> = {};
+        if (existing?.prefs && typeof existing.prefs === 'object' && !Array.isArray(existing.prefs)) {
+            prefs = existing.prefs as Record<string, unknown>;
+        }
+
+        const nextPrefs = { ...prefs, themeMode };
+
+        const updated = await prisma.user.update({
+            where: { id: authUser.id },
+            data: { prefs: nextPrefs },
+            select: { id: true, nickname: true, email: true, prefs: true }
+        });
+
+        res.json({ user: { id: updated.id, nickname: updated.nickname, email: updated.email }, prefs: updated.prefs });
+    } catch (error) {
+        next(error);
+    }
 });
 
 export default router;
