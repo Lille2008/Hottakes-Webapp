@@ -6,6 +6,8 @@
     --gradient-start: #00D9FF;
     --gradient-end: #0066FF;
     --gradient-primary: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+    --accent-green: #1fe0a2;
+    --glow-green: 0 0 18px rgba(31, 224, 162, 0.35);
     
     /* Dark mode backgrounds */
     --bg-dark: #0f1629;
@@ -79,8 +81,39 @@ header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 0;
-    margin-bottom: 30px;
+    padding: 10px 20px;
+    margin: 0 auto 30px;
+    max-width: 1200px;
+    width: 100%;
+    gap: 16px;
+}
+
+.brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+}
+
+.brand-logo {
+    width: 52px;
+    height: 52px;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+    display: block;
+}
+
+.brand-name {
+    color: var(--gradient-start); /* Fallback for browsers without background-clip support */
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-size: 2.1rem;
+    font-weight: 800;
+    letter-spacing: -0.4px;
+    line-height: 1.1;
 }
 
 h1 {
@@ -112,9 +145,15 @@ h3 {
 /* ============================================
    AUTH AREA & BUTTONS
    ============================================ */
-#auth-header {
+#auth-header,
+.header-actions {
     display: flex;
     gap: 10px;
+    align-items: center;
+}
+
+.auth-pending {
+    visibility: hidden;
 }
 
 .btn, a.btn {
@@ -132,7 +171,7 @@ h3 {
 }
 
 .btn:hover, a.btn:hover {
-    box-shadow: var(--glow-cyan);
+    box-shadow: var(--glow-cyan), var(--glow-green);
     transform: translateY(-2px);
 }
 
@@ -174,7 +213,20 @@ h3 {
     grid-template-columns: 1fr 1fr;
     gap: 30px;
     max-width: 1200px;
+    width: 100%;
     margin: 20px auto;
+    padding: 0 20px;
+}
+
+.legal-container {
+    max-width: 900px;
+    width: calc(100% - 40px);
+    margin: 20px auto 40px;
+    padding: 24px;
+    background: var(--bg-card);
+    border-radius: 12px;
+    box-shadow: var(--shadow-card);
+    border: 1px solid rgba(31, 224, 162, 0.18);
 }
 
 #hottakes-container,
@@ -272,7 +324,7 @@ h3 {
 
 .rank:hover {
     border-color: var(--gradient-start);
-    box-shadow: var(--glow-cyan);
+    box-shadow: var(--glow-cyan), var(--glow-green);
 }
 
 .rank .hottake {
@@ -298,7 +350,7 @@ h3 {
 }
 
 #save-picks:hover {
-    box-shadow: var(--glow-cyan-strong);
+    box-shadow: var(--glow-cyan-strong), var(--glow-green);
     transform: translateY(-3px);
 }
 
@@ -309,13 +361,43 @@ h3 {
 /* ============================================
    LEADERBOARD - Uniform Styling for All
    ============================================ */
+#welcome-banner {
+    max-width: 900px;
+    width: calc(100% - 40px);
+    margin: 10px auto 20px;
+    padding: 18px 24px;
+    background: var(--bg-card);
+    border-radius: 12px;
+    box-shadow: var(--shadow-card);
+    border: 1px solid rgba(31, 224, 162, 0.18);
+    text-align: center;
+}
+
+.welcome-kicker {
+    margin: 0 0 8px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--accent-green);
+    font-size: 0.95rem;
+}
+
+.welcome-body {
+    margin: 0;
+    color: var(--text-primary);
+    font-weight: 600;
+    line-height: 1.5;
+}
+
 #leaderboard-container {
-    max-width: 800px;
-    margin: 40px auto;
+    max-width: 900px;
+    width: calc(100% - 40px);
+    margin: 30px auto 60px;
     background: var(--bg-card);
     border-radius: 12px;
     padding: 30px;
     box-shadow: var(--shadow-card);
+    border: 1px solid rgba(31, 224, 162, 0.16);
 }
 
 #leaderboard-container h2 {
@@ -344,13 +426,13 @@ h3 {
 
 .leaderboard-entry:hover {
     background: rgba(0, 217, 255, 0.05);
-    border-color: var(--gradient-start);
-    box-shadow: var(--glow-cyan);
+    border-color: var(--accent-green);
+    box-shadow: var(--glow-cyan), var(--glow-green);
     transform: translateX(5px);
 }
 
 .leaderboard-rank {
-    background: var(--gradient-primary);
+    background: linear-gradient(135deg, var(--gradient-start), var(--accent-green), var(--gradient-end));
     color: var(--text-primary);
     width: 40px;
     height: 40px;
@@ -384,8 +466,9 @@ h3 {
     flex-direction: column;
     gap: 20px;
     align-items: stretch;
-    padding: 30px;
+    padding: 30px 20px;
     max-width: 1200px;
+    width: 100%;
     margin: 40px auto 50px;
     background: var(--bg-card);
     border-radius: 12px;
@@ -459,8 +542,8 @@ h3 {
 }
 
 .admin-hottake-item:hover {
-    border-color: var(--gradient-start);
-    box-shadow: var(--glow-cyan);
+    border-color: var(--accent-green);
+    box-shadow: var(--glow-cyan), var(--glow-green);
 }
 
 .admin-hottake-text {
@@ -572,7 +655,7 @@ h3 {
 }
 
 .admin-form button:hover {
-    box-shadow: var(--glow-cyan);
+    box-shadow: var(--glow-cyan), var(--glow-green);
     transform: translateY(-2px);
 }
 

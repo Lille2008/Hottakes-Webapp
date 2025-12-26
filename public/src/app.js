@@ -654,6 +654,9 @@ function updateUIForLogin(user) {
     const guestArea = document.getElementById('guest-nickname-area');
     if (guestArea) guestArea.style.display = 'none';
 
+    const welcomeBanner = document.getElementById('welcome-banner');
+    if (welcomeBanner) welcomeBanner.style.display = 'none';
+
 
     const gameContainer = document.getElementById('game');
     const adminArea = document.getElementById('admin-area');
@@ -693,15 +696,14 @@ function updateUIForGuest() {
     adminEnabled = false;
 
 
-    const authHeader = document.getElementById('auth-header');
-
-
-
     const guestArea = document.getElementById('guest-nickname-area');
     if (guestArea) {
-        guestArea.innerHTML = '<p>Bitte <a href="login.html">einloggen</a> um mitzuspielen.</p>';
-        guestArea.style.display = 'block';
+        guestArea.innerHTML = '';
+        guestArea.style.display = 'none';
     }
+
+    const welcomeBanner = document.getElementById('welcome-banner');
+    if (welcomeBanner) welcomeBanner.style.display = 'block';
 
 
     const userInfo = document.getElementById('user-info');
@@ -717,7 +719,7 @@ function updateUIForGuest() {
 
     if (savePicksButton) {
         savePicksButton.disabled = true;
-        savePicksButton.textContent = 'Einloggen zum Speichern';
+        savePicksButton.style.display = 'none';
     }
 }
 

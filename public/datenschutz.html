@@ -8,7 +8,18 @@
 </head>
 
 <body>
-    <div style="max-width: 800px; margin: 0 auto; padding: 20px;">
+    <header>
+        <a class="brand" href="index.html">
+            <img src="hottakes_favicons/Hottakes.icon-192x192.png" alt="Hottakes Logo" class="brand-logo">
+            <span class="brand-name">Hottakes</span>
+        </a>
+        <div class="header-actions auth-pending" id="auth-header">
+            <a href="login.html" class="btn">Login</a>
+            <a href="register.html" class="btn">Register</a>
+        </div>
+    </header>
+
+    <main class="legal-container">
         <h1>Datenschutzerklärung</h1>
         <h2>Allgemeines</h2>
         <p>Die Nutzung unserer Webseite ist in der Regel ohne Angabe personenbezogener Daten möglich. Soweit auf unseren
@@ -24,7 +35,44 @@
             Ihr Browser automatisch an uns übermittelt.</p>
 
         <p><a href="index.html">Zurück zur Startseite</a></p>
-    </div>
+    </main>
+
+    <script>
+        (async () => {
+            const header = document.getElementById('auth-header');
+            if (!header) return;
+
+            try {
+                const res = await fetch('/api/auth/me', { credentials: 'include' });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.user) {
+                        header.innerHTML = `
+                            <span style="margin-right: 10px; font-weight: bold;">${data.user.nickname}</span>
+                            <button id="btn-logout" class="btn">Logout</button>
+                        `;
+                        const logoutBtn = document.getElementById('btn-logout');
+                        if (logoutBtn) {
+                            logoutBtn.addEventListener('click', async () => {
+                                await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+                                window.location.href = 'index.html';
+                            });
+                        }
+                        header.classList.remove('auth-pending');
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.warn('Auth check skipped on legal page', error);
+            }
+
+            header.innerHTML = `
+                <a href="login.html" class="btn">Login</a>
+                <a href="register.html" class="btn">Register</a>
+            `;
+            header.classList.remove('auth-pending');
+        })();
+    </script>
 </body>
 
 </html>
