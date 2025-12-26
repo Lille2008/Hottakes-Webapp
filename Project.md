@@ -141,7 +141,7 @@ Langfristig soll das Projekt **portfolio-reif** werden: klare Struktur, sauberes
 
 ---
 
-## 🧩 Phase 10 – Game Day Features: Lock System, Email & Hot Takes Lifecycle
+## 🧩 Phase 10 – Game Day Features: Lock System, Email & Hottakes Lifecycle
 
 **Ziel:** Implementierung eines vollständigen Game-Day-Managements mit drei Kernfunktionen.
 
@@ -186,24 +186,24 @@ Langfristig soll das Projekt **portfolio-reif** werden: klare Struktur, sauberes
 - ✅ E-Mail-Service konfiguriert (Resend/Brevo Free Tier)
 - ✅ `.env` enthält: `RESEND_API_KEY`, `EMAIL_FROM`, `APP_URL`
 
-#### 3️⃣ **Hot-Takes-Lifecycle-Management**
-**Problem:** Nach Game Day müssen alte Takes archiviert, aber sichtbar bleiben; neue Takes für nächsten Spieltag bereitstellen.
+#### 3️⃣ **Hottakes-Lifecycle-Management**
+**Problem:** Nach Game Day müssen alte Hottakes archiviert, aber sichtbar bleiben; neue Hottakes für nächsten Spieltag bereitstellen.
 
 **Aufgaben:**
 - **Strategie:** Status-basierte Filterung (OFFEN = aktiv, WAHR/FALSCH = archiviert)
 - Optional: Hottake-Relation zu `game_day_id` hinzufügen (empfohlen für bessere Organisation)
-- `GET /api/hottakes?archived=false` (Standard): zeigt nur offene Takes
-- `GET /api/hottakes?archived=true`: zeigt abgeschlossene Takes (History)
+- `GET /api/hottakes?archived=false` (Standard): zeigt nur offene Hottakes
+- `GET /api/hottakes?archived=true`: zeigt abgeschlossene Hottakes nach Gamedays sortiert(History)
 - Admin-Endpunkt: `POST /api/admin/game-days/:id/finalize` (setzt `activeFlag=false`)
 - Frontend: Zwei Tabs/Views:
-  - **"Aktive Picks"** → offene Takes, Submission-Form
-  - **"Historie"** → abgeschlossene Takes, Leaderboard-Snapshot
+  - **"Aktive Picks"** → offene Hottakes, Submission-Form
+  - **"Historie"** → abgeschlossene Hottakes, Leaderboard-Snapshot
 
 **Abschlusskriterien:**
-- ✅ Alte Hot Takes bleiben zur Punkteanzeige erhalten (nicht gelöscht)
-- ✅ Frontend zeigt nur aktive/offene Takes standardmäßig an
-- ✅ History-View zeigt vergangene Takes mit Ergebnissen
-- ✅ Admin kann Game Day finalisieren (Status-Wechsel aller Takes)
+- ✅ Alte Hottakes bleiben zur Punkteanzeige erhalten (nicht gelöscht)
+- ✅ Frontend zeigt nur aktive/offene Hottakes standardmäßig an
+- ✅ History-View zeigt vergangene Hottakes mit Ergebnissen
+- ✅ Admin kann Game Day finalisieren (Status-Wechsel aller Hottakes)
 
 ---
 

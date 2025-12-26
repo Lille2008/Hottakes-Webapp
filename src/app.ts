@@ -10,6 +10,7 @@ import submissionsRouter from './routes/submissions';
 import leaderboardRouter from './routes/leaderboard';
 import authRouter from './routes/auth';
 import healthRouter from './routes/health';
+import gameDaysRouter from './routes/admin/gameDays';
 
 const app = express();
 
@@ -23,6 +24,7 @@ app.use('/api/submissions', submissionsRouter);
 app.use('/api/leaderboard', leaderboardRouter);
 app.use('/api/health', healthRouter);
 app.use('/health', healthRouter);
+app.use('/api/admin/game-days', gameDaysRouter);
 
 app.use('/api', (_req, res) => {
   res.status(404).json({ message: 'Not Found' });

@@ -25,9 +25,15 @@ const STATUS_VALUES = ['OFFEN', 'WAHR', 'FALSCH'];
 
 let allHottakes = [];
 let openHottakes = [];
+let archivedHottakes = [];
 let picks = Array(RANK_COUNT).fill(null);
+let lastSubmissionPicks = [];
 let currentUser = null;
 let adminEnabled = false;
+let viewMode = 'active';
+let activeGameDay = null;
+let lockCountdownTimer = null;
+let isLocked = false;
 
 const hottakesContainer = document.getElementById('hottakes-container');
 const ranksContainer = document.getElementById('ranks-container');
@@ -36,6 +42,7 @@ const savePicksButton = document.getElementById('save-picks');
 const adminArea = document.getElementById('admin-area');
 const adminList = document.getElementById('hottake-list');
 const adminAdd = document.getElementById('add-hottakes');
+const adminGameDay = document.getElementById('game-day-config');
 const settingsToggle = document.getElementById('settings-toggle');
 const settingsClose = document.getElementById('settings-close');
 const settingsPanel = document.getElementById('settings-panel');
@@ -52,6 +59,10 @@ const legalContent = document.getElementById('legal-content');
 const legalClose = document.getElementById('legal-close');
 const guestActions = document.getElementById('guest-actions');
 const authedActions = document.getElementById('authed-actions');
+const lockStatus = document.getElementById('lock-status');
+const lockCountdown = document.getElementById('lock-countdown');
+const viewToggleActive = document.getElementById('view-active');
+const viewToggleHistory = document.getElementById('view-history');
 
 
 if (
@@ -71,6 +82,9 @@ let systemMediaQuery = null;
 
 adminList.classList.add('admin-card');
 adminAdd.classList.add('admin-card');
+if (adminGameDay) {
+    adminGameDay.classList.add('admin-card');
+}
 
 const adminFeedback = document.createElement('div');
 adminFeedback.id = 'admin-feedback';
@@ -403,6 +417,9 @@ hottakesList.addEventListener('dragover', (event) => {
 
 hottakesList.addEventListener('drop', (event) => {
     event.preventDefault();
+    if (viewMode !== 'active' || isLocked) {
+        return;
+    }
     const hottakeId = Number.parseInt(event.dataTransfer.getData('text/plain'), 10);
     if (Number.isNaN(hottakeId)) {
         return;
@@ -455,6 +472,9 @@ function createRankSlots() {
 
 function handleRankDrop(event) {
     event.preventDefault();
+    if (viewMode !== 'active' || isLocked) {
+        return;
+    }
     const rankDiv = event.currentTarget;
     const hottakeId = Number.parseInt(event.dataTransfer.getData('text/plain'), 10);
 
@@ -519,6 +539,199 @@ function handleRankDrop(event) {
 }
 
 
+function formatDateTime(value) {
+    const date = typeof value === 'string' ? new Date(value) : value;
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+        return '';
+    }
+
+    return date.toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+
+function toLocalInputValue(value) {
+    if (!value) {
+        return '';
+    }
+
+    const date = typeof value === 'string' ? new Date(value) : value;
+    if (Number.isNaN(date.getTime())) {
+        return '';
+    }
+
+    const pad = (num) => String(num).padStart(2, '0');
+    const year = date.getFullYear();
+    const month = pad(date.getMonth() + 1);
+    const day = pad(date.getDate());
+    const hours = pad(date.getHours());
+    const minutes = pad(date.getMinutes());
+
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+
+function formatDuration(ms) {
+    if (ms <= 0) {
+        return '0s';
+    }
+
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    if (hours > 0) {
+        return `${hours}h ${minutes}m`;
+    }
+
+    if (minutes > 0) {
+        return `${minutes}m ${seconds}s`;
+    }
+
+    return `${seconds}s`;
+}
+
+
+function stopLockCountdown() {
+    if (lockCountdownTimer) {
+        clearInterval(lockCountdownTimer);
+        lockCountdownTimer = null;
+    }
+}
+
+
+function applyLockStateUI() {
+    const isHistory = viewMode !== 'active';
+    const hasMinimumOpen = openHottakes.length >= MIN_OPEN_HOTTAKES;
+    const blocked = isLocked || isHistory || (adminEnabled && !hasMinimumOpen);
+
+    if (savePicksButton) {
+        savePicksButton.disabled = blocked;
+        if (isHistory) {
+            savePicksButton.textContent = 'Historie ansehen';
+        } else if (isLocked) {
+            savePicksButton.textContent = 'Picks gesperrt';
+        } else {
+            savePicksButton.textContent = 'Picks Speichern';
+        }
+    }
+
+    if (hottakesNotice) {
+        if (isLocked) {
+            hottakesNotice.textContent = 'Die Picks sind gesperrt. Der Spieltag läuft bereits.';
+            hottakesNotice.classList.add('is-visible');
+        } else if (!adminEnabled || hasMinimumOpen) {
+            hottakesNotice.textContent = '';
+            hottakesNotice.classList.remove('is-visible');
+        }
+    }
+}
+
+
+function updateLockBanner(lockTime, diffMs) {
+    if (!lockStatus || !lockCountdown) {
+        return;
+    }
+
+    if (!lockTime) {
+        lockStatus.textContent = 'Kein aktiver Spieltag';
+        lockCountdown.textContent = 'Countdown inaktiv';
+        lockCountdown.dataset.state = 'idle';
+        return;
+    }
+
+    const formattedLock = formatDateTime(lockTime);
+
+    if (diffMs !== null && diffMs <= 0) {
+        lockStatus.textContent = `Gesperrt seit ${formattedLock}`;
+        lockCountdown.textContent = 'Submission gesperrt';
+        lockCountdown.dataset.state = 'locked';
+    } else {
+        lockStatus.textContent = `Sperre um ${formattedLock}`;
+        lockCountdown.textContent = diffMs === null ? 'Countdown inaktiv' : `Noch ${formatDuration(diffMs)}`;
+        lockCountdown.dataset.state = 'open';
+    }
+}
+
+
+function refreshLockState() {
+    stopLockCountdown();
+
+    if (!activeGameDay || !activeGameDay.lockTime) {
+        isLocked = false;
+        updateLockBanner(null, null);
+        applyLockStateUI();
+        return;
+    }
+
+    const lockTime = new Date(activeGameDay.lockTime);
+
+    const update = () => {
+        const diffMs = lockTime.getTime() - Date.now();
+        isLocked = diffMs <= 0;
+        updateLockBanner(lockTime, diffMs);
+        applyLockStateUI();
+
+        if (isLocked) {
+            stopLockCountdown();
+        }
+    };
+
+    update();
+
+    if (!isLocked) {
+        lockCountdownTimer = window.setInterval(update, 1000);
+    }
+}
+
+
+async function loadActiveGameDay() {
+    try {
+        const data = await apiFetch('/admin/game-days/active', {}, { allowNotFound: true });
+        activeGameDay = data || null;
+    } catch (error) {
+        activeGameDay = null;
+        console.warn('Aktueller Spieltag konnte nicht geladen werden.', error.message || error);
+    }
+
+    refreshLockState();
+}
+
+
+function setViewMode(mode) {
+    viewMode = mode === 'history' ? 'history' : 'active';
+
+    if (viewToggleActive) {
+        viewToggleActive.classList.toggle('is-active', viewMode === 'active');
+    }
+
+    if (viewToggleHistory) {
+        viewToggleHistory.classList.toggle('is-active', viewMode === 'history');
+    }
+
+    renderHottakes();
+}
+
+
+function setupViewToggle() {
+    if (viewToggleActive) {
+        viewToggleActive.addEventListener('click', () => setViewMode('active'));
+    }
+
+    if (viewToggleHistory) {
+        viewToggleHistory.addEventListener('click', () => setViewMode('history'));
+    }
+
+    if (viewToggleActive) {
+        viewToggleActive.classList.toggle('is-active', viewMode === 'active');
+    }
+
+    if (viewToggleHistory) {
+        viewToggleHistory.classList.toggle('is-active', viewMode === 'history');
+    }
+}
+
+
 async function apiFetch(path, options = {}, { allowNotFound = false } = {}) {
     const url = `${API_BASE}${path}`;
     const headers = new Headers(options.headers || {});
@@ -577,58 +790,75 @@ async function apiFetch(path, options = {}, { allowNotFound = false } = {}) {
 }
 
 
-function sanitizePicks() {
-    const validIds = new Set(openHottakes.map((hot) => hot.id));
+function sanitizePicks(allowedHottakes = openHottakes) {
+    const validIds = new Set(allowedHottakes.map((hot) => hot.id));
     picks = picks.map((id) => (typeof id === 'number' && validIds.has(id) ? id : null));
 }
 
 
-function createHottakeElement(hottake) {
+function createHottakeElement(hottake, { readonly = false, picked = false } = {}) {
     const element = document.createElement('p');
-    element.textContent = hottake.text;
     element.textContent = hottake.text;
 
     const statusClass = STATUS_BADGE_CLASS[hottake.status] || 'is-open';
     element.className = `hottake ${statusClass}`;
-    element.draggable = true;
+    if (readonly) {
+        element.classList.add('is-readonly');
+    }
+
+    if (picked) {
+        element.classList.add('is-picked');
+    }
+
+    element.draggable = !readonly && !isLocked;
     element.dataset.hottakeId = String(hottake.id);
-    element.addEventListener('dragstart', (event) => {
-        event.dataTransfer.setData('text/plain', String(hottake.id));
-        event.dataTransfer.effectAllowed = 'move';
-    });
+    if (!readonly && !isLocked) {
+        element.addEventListener('dragstart', (event) => {
+            event.dataTransfer.setData('text/plain', String(hottake.id));
+            event.dataTransfer.effectAllowed = 'move';
+        });
+    }
     return element;
 }
 
 
 function renderHottakes() {
-    sanitizePicks();
+    const availableHottakes = viewMode === 'history' ? archivedHottakes : openHottakes;
+    const sanitizeSource = viewMode === 'history' ? allHottakes : openHottakes;
+    const isReadOnly = viewMode !== 'active' || isLocked;
+    const referencePicks = viewMode === 'history' ? lastSubmissionPicks : picks;
+
+    sanitizePicks(sanitizeSource);
     hottakesList.innerHTML = '';
     rankSlots.forEach((slot) => {
         slot.innerHTML = '';
     });
 
-    const availableHottakes = openHottakes;
-    const hasMinimumOpen = availableHottakes.length >= MIN_OPEN_HOTTAKES;
+    const hasMinimumOpen = openHottakes.length >= MIN_OPEN_HOTTAKES;
 
-    if (adminEnabled) {
+    if (adminEnabled && viewMode === 'active') {
         if (hasMinimumOpen) {
             hottakesNotice.textContent = '';
             hottakesNotice.classList.remove('is-visible');
         } else {
-            hottakesNotice.textContent = `Es müssen mindestens ${MIN_OPEN_HOTTAKES} Hottakes offen sein. Aktuell verfügbar: ${availableHottakes.length}.`;
+            hottakesNotice.textContent = `Es müssen mindestens ${MIN_OPEN_HOTTAKES} Hottakes offen sein. Aktuell verfügbar: ${openHottakes.length}.`;
             hottakesNotice.classList.add('is-visible');
         }
 
-        savePicksButton.disabled = !hasMinimumOpen;
-    } else {
+        if (savePicksButton) {
+            savePicksButton.disabled = !hasMinimumOpen;
+        }
+    } else if (!isLocked) {
         hottakesNotice.textContent = '';
         hottakesNotice.classList.remove('is-visible');
-        savePicksButton.disabled = false;
     }
 
     availableHottakes.forEach((hottake) => {
-        const element = createHottakeElement(hottake);
-        const rankIndex = picks.indexOf(hottake.id);
+        const element = createHottakeElement(hottake, {
+            readonly: isReadOnly,
+            picked: referencePicks.includes(hottake.id)
+        });
+        const rankIndex = referencePicks.indexOf(hottake.id);
         if (rankIndex !== -1) {
             rankSlots[rankIndex].appendChild(element);
         } else {
@@ -639,16 +869,21 @@ function renderHottakes() {
     if (adminEnabled) {
         renderAdminOverview();
     }
+
+    applyLockStateUI();
 }
 
 
 async function refreshHottakes() {
     try {
-        const data = await apiFetch('/hottakes');
-        allHottakes = Array.isArray(data) ? data : [];
-        allHottakes = Array.isArray(data) ? data : [];
+        const [openData, archivedData] = await Promise.all([
+            apiFetch('/hottakes'),
+            apiFetch('/hottakes?archived=true')
+        ]);
 
-        openHottakes = allHottakes;
+        openHottakes = Array.isArray(openData) ? openData : [];
+        archivedHottakes = Array.isArray(archivedData) ? archivedData : [];
+        allHottakes = [...openHottakes, ...archivedHottakes];
         renderHottakes();
     } catch (error) {
         console.error(error);
@@ -693,6 +928,10 @@ async function loadSubmissionForCurrentUser() {
         const submission = await apiFetch(`/submissions/${encodeURIComponent(currentUser.nickname)}`, {}, { allowNotFound: true });
         const nextPicks = Array(RANK_COUNT).fill(null);
 
+        lastSubmissionPicks = submission && Array.isArray(submission.picks)
+            ? submission.picks.slice(0, RANK_COUNT)
+            : [];
+
         if (submission && Array.isArray(submission.picks)) {
             submission.picks.slice(0, RANK_COUNT).forEach((id, index) => {
                 if (typeof id === 'number') {
@@ -710,6 +949,16 @@ async function loadSubmissionForCurrentUser() {
 
 
 async function saveSubmission() {
+    if (viewMode !== 'active') {
+        alert('Historie ist schreibgeschützt. Wechsle zur aktiven Ansicht.');
+        return;
+    }
+
+    if (isLocked) {
+        alert('Die Picks sind gesperrt. Der Spieltag hat bereits begonnen.');
+        return;
+    }
+
     if (picks.some((entry) => entry === null)) {
         alert('Bitte wähle alle 5 Hottakes aus, bevor du speicherst.');
         return;
@@ -728,6 +977,8 @@ async function saveSubmission() {
             },
             body: JSON.stringify({ picks })
         });
+
+        lastSubmissionPicks = picks.slice(0, RANK_COUNT);
 
         alert('Deine Picks wurden gespeichert.');
         await drawLeaderboard();
@@ -885,11 +1136,127 @@ function renderAdminForm() {
 }
 
 
+function renderGameDayAdmin() {
+    if (!adminGameDay) {
+        return;
+    }
+
+    adminGameDay.innerHTML = '<h3 class="admin-section-title">Spieltag & Sperre</h3>';
+
+    const status = document.createElement('div');
+    status.className = 'admin-game-status';
+
+    if (activeGameDay) {
+        const title = document.createElement('p');
+        title.className = 'admin-status-line';
+        title.innerHTML = `<strong>Aktiv:</strong> ${activeGameDay.description}`;
+
+        const lockInfo = document.createElement('p');
+        lockInfo.className = 'admin-status-line';
+        lockInfo.textContent = `Lock: ${formatDateTime(activeGameDay.lockTime) || 'keine Zeit gesetzt'}`;
+
+        status.append(title, lockInfo);
+    } else {
+        const empty = document.createElement('p');
+        empty.className = 'admin-status-line';
+        empty.textContent = 'Kein aktiver Spieltag definiert.';
+        status.appendChild(empty);
+    }
+
+    const form = document.createElement('form');
+    form.className = 'admin-form admin-form--stacked';
+
+    const descLabel = document.createElement('label');
+    descLabel.className = 'admin-form-label';
+    descLabel.textContent = 'Beschreibung';
+    const descInput = document.createElement('input');
+    descInput.type = 'text';
+    descInput.required = true;
+    descInput.name = 'description';
+    descInput.placeholder = 'z. B. Spieltag 5';
+    descInput.value = activeGameDay ? activeGameDay.description : '';
+    descLabel.appendChild(descInput);
+
+    const lockLabel = document.createElement('label');
+    lockLabel.className = 'admin-form-label';
+    lockLabel.textContent = 'Lock Time (Datum & Uhrzeit)';
+    const lockInput = document.createElement('input');
+    lockInput.type = 'datetime-local';
+    lockInput.name = 'lockTime';
+    lockInput.required = true;
+    lockInput.value = toLocalInputValue(activeGameDay?.lockTime || null);
+    lockLabel.appendChild(lockInput);
+
+    const submit = document.createElement('button');
+    submit.type = 'submit';
+    submit.textContent = activeGameDay ? 'Neuen Spieltag anlegen' : 'Spieltag erstellen';
+
+    const finalize = document.createElement('button');
+    finalize.type = 'button';
+    finalize.textContent = 'Aktiven Spieltag abschließen';
+    finalize.className = 'admin-finalize';
+    finalize.disabled = !activeGameDay;
+
+    finalize.addEventListener('click', async () => {
+        if (!activeGameDay) return;
+        finalize.disabled = true;
+
+        try {
+            await apiFetch(`/admin/game-days/${activeGameDay.id}/finalize`, { method: 'POST' });
+            showAdminMessage('Spieltag wurde beendet.', 'success');
+                await loadActiveGameDay();
+                renderGameDayAdmin();
+        } catch (error) {
+            showAdminMessage(error.message, 'error');
+        } finally {
+            finalize.disabled = false;
+        }
+    });
+
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        const description = descInput.value.trim();
+        const lockTimeValue = lockInput.value ? new Date(lockInput.value).toISOString() : null;
+
+        if (!description || !lockTimeValue) {
+            showAdminMessage('Bitte Beschreibung und Lock-Zeit angeben.', 'error');
+            return;
+        }
+
+        submit.disabled = true;
+        submit.textContent = 'Wird gespeichert...';
+
+        try {
+            const payload = { description, lockTime: lockTimeValue };
+            const created = await apiFetch('/admin/game-days', {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+
+            activeGameDay = created;
+            showAdminMessage('Spieltag gespeichert.', 'success');
+            refreshLockState();
+            renderGameDayAdmin();
+        } catch (error) {
+            showAdminMessage(error.message, 'error');
+        } finally {
+            submit.disabled = false;
+            submit.textContent = activeGameDay ? 'Neuen Spieltag anlegen' : 'Spieltag erstellen';
+        }
+    });
+
+    form.append(descLabel, lockLabel, submit, finalize);
+    adminGameDay.append(status, form);
+}
+
+
 function enableAdminArea() {
     adminEnabled = true;
     adminArea.style.display = 'flex';
     renderAdminOverview();
     renderAdminForm();
+    renderGameDayAdmin();
     renderHottakes();
     showAdminMessage('Admin-Modus aktiv. Du kannst neue Hottakes speichern.', 'info');
     setTimeout(() => {
@@ -997,6 +1364,7 @@ function updateUIForGuest() {
     updateSettingsAuth(null);
     closeSettings();
     setHeaderAuthState(false);
+    setViewMode('active');
 
     adminEnabled = false;
 
@@ -1033,7 +1401,9 @@ async function initializeApp() {
     initTheme();
     setupSettingsPanel();
     setupLegalModal();
+    setupViewToggle();
     createRankSlots();
+    await loadActiveGameDay();
     await checkLoginStatus();
     await refreshHottakes();
     await drawLeaderboard();

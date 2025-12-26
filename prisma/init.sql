@@ -5,7 +5,7 @@ CREATE TABLE "hottakes" (
     "text" TEXT NOT NULL,
     "status" "HottakeStatus" NOT NULL DEFAULT 'OFFEN',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "hottakes_pkey" PRIMARY KEY ("id")
 );
@@ -13,6 +13,11 @@ CREATE TABLE "hottakes" (
 CREATE TABLE "users" (
     "id" SERIAL NOT NULL,
     "nickname" TEXT NOT NULL,
+    "email" TEXT,
+    "passwordHash" TEXT,
+    "resetToken" TEXT,
+    "resetTokenExpiry" TIMESTAMP(3),
+    "prefs" JSONB DEFAULT '{}'::jsonb,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "users_pkey" PRIMARY KEY ("id")
@@ -21,7 +26,7 @@ CREATE TABLE "users" (
 CREATE TABLE "submissions" (
     "id" SERIAL NOT NULL,
     "userId" INTEGER NOT NULL,
-    "picks" INTEGER[],
+    "picks" INTEGER[] NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -52,6 +57,8 @@ CREATE TABLE "admin_events" (
 );
 
 CREATE UNIQUE INDEX "users_nickname_key" ON "users"("nickname");
+CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
+CREATE UNIQUE INDEX "users_resetToken_key" ON "users"("resetToken");
 
 CREATE UNIQUE INDEX "submissions_userId_key" ON "submissions"("userId");
 

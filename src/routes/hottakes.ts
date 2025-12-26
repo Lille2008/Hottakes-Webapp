@@ -1,8 +1,9 @@
-import { Router, type Response, type NextFunction } from 'express';
+import { Router } from 'express';
 import { z } from 'zod';
 
 import prisma from '../lib/db';
-import { optionalAuth, type AuthRequest } from '../middleware/auth';
+import { optionalAuth } from '../middleware/auth';
+import { requireAdmin } from '../middleware/admin';
 
 const STATUS_VALUES = ['OFFEN', 'WAHR', 'FALSCH'] as const;
 
@@ -17,11 +18,16 @@ const updateStatusSchema = z.object({
 
 const router = Router();
 
-const ADMIN_NICKNAME = process.env.ADMIN_NICKNAME || 'lille08';
-
-router.get('/', async (_req, res, next) => {
+router.get('/', async (req, res, next) => {
+  const archived = req.query.archived;
   try {
     const hottakes = await prisma.hottake.findMany({
+      where:
+        archived === 'all'
+          ? undefined
+          : archived === 'true'
+            ? { status: { not: 'OFFEN' } }
+            : { status: 'OFFEN' },
       orderBy: { createdAt: 'asc' }
     });
     res.json(hottakes);
@@ -29,32 +35,6 @@ router.get('/', async (_req, res, next) => {
     next(error);
   }
 });
-
-function isAdminFromHeader(req: { header: (name: string) => string | undefined }) {
-  const adminPassword = process.env.ADMIN_PASSWORD;
-  if (!adminPassword) {
-    return false;
-  }
-
-  const providedPassword = req.header('x-admin-password');
-  return providedPassword === adminPassword;
-}
-
-function isAdminUser(req: AuthRequest) {
-  return req.user?.nickname === ADMIN_NICKNAME;
-}
-
-function requireAdmin(req: AuthRequest, res: Response, next: NextFunction) {
-  if (isAdminFromHeader(req)) {
-    return next();
-  }
-
-  if (isAdminUser(req)) {
-    return next();
-  }
-
-  return res.status(401).json({ message: 'Unauthorized' });
-}
 
 router.use(optionalAuth);
 

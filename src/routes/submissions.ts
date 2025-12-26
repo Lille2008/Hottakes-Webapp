@@ -4,6 +4,7 @@ import { z } from 'zod';
 import prisma from '../lib/db';
 import { calculateScore, type HottakeOutcome } from '../lib/scoring';
 import { requireAuth, type AuthRequest } from '../middleware/auth';
+import { checkGameDayLock } from '../middleware/checkGameDayLock';
 
 type HottakeWithStatus = { id: number; status: HottakeOutcome['status'] };
 
@@ -130,7 +131,7 @@ router.get('/:nickname', requireAuth, async (req, res, next) => {
   }
 });
 
-router.post('/', requireAuth, async (req, res, next) => {
+router.post('/', requireAuth, checkGameDayLock, async (req, res, next) => {
   try {
     const payload = submissionSchema.parse(req.body);
     const currentUser = (req as AuthRequest).user;

@@ -127,4 +127,62 @@ describe('Hottakes API', () => {
     const health = await request(app).get('/api/health').expect(200);
     expect(health.body).toEqual({ ok: true });
   });
+
+  it('blocks submissions after lock time is reached', async () => {
+    const agent = request.agent(app);
+
+    await agent
+      .post('/api/auth/register')
+      .send({ nickname: 'PlayerOne', email: 'player1@example.com', password: 'password123' })
+      .expect(201);
+
+    const hottakeIds = await Promise.all(
+      Array.from({ length: 5 }).map((_, index) =>
+        prisma.hottake.create({ data: { text: `Locked Pick ${index + 1}`, status: 'OFFEN' } })
+      )
+    );
+
+    await prisma.adminEvent.create({
+      data: {
+        description: 'Test lock',
+        lockTime: new Date(Date.now() - 60_000),
+        activeFlag: true
+      }
+    });
+
+    await agent
+      .post('/api/submissions')
+      .send({ picks: hottakeIds.map((hot) => hot.id) })
+      .expect(403);
+  });
+
+  it('handles password reset flow', async () => {
+    const agent = request.agent(app);
+    const email = 'resetme@example.com';
+
+    await agent
+      .post('/api/auth/register')
+      .send({ nickname: 'ResetUser', email, password: 'oldpassword123' })
+      .expect(201);
+
+    await request(app)
+      .post('/api/auth/forgot-password')
+      .send({ email })
+      .expect(200);
+
+    const userWithToken = await prisma.user.findUnique({ where: { email } });
+    expect(userWithToken?.resetToken).toBeTruthy();
+
+    const token = userWithToken?.resetToken as string;
+
+    await request(app)
+      .post('/api/auth/reset-password')
+      .send({ token, newPassword: 'newpassword123' })
+      .expect(200);
+
+    await agent
+      .post('/api/auth/login')
+      .send({ login: email, password: 'newpassword123' })
+      .expect(200);
+  });
 });

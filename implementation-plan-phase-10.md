@@ -9,7 +9,7 @@ Phase 10 introduces three critical features to manage the game day workflow:
 
 1. **Time-Based Lock System** – Prevent users from submitting/editing picks after game starts
 2. **Email System** – Send reminders and handle password resets
-3. **Hot Takes Lifecycle** – Organize and archive hot takes after game day completion
+3. **Hottakes Lifecycle** – Organize and archive hot takes after game day completion
 
 ---
 
@@ -315,19 +315,19 @@ export async function sendReminderEmail(to: string, gameDay: AdminEvent) {
 
 ---
 
-## 3. Hot Takes Lifecycle Management
+## 3. Hottakes Lifecycle Management
 
 ### Problem
 After a game day ends:
-- Old hot takes become "useless" for future picks
+- Old hottakes become "useless" for future picks
 - Users need to see what gave them points (for transparency)
-- New hot takes must be created for the next game day
-- The UI should show only active/relevant hot takes by default
+- New hottakes must be created for the next game day
+- The UI should show only active/relevant hottakes by default
 
 ### Solution: Status-Based Filtering
 
 #### Approach
-Instead of deleting or moving hot takes to a separate table, use a **status-based lifecycle** with the existing database structure.
+Instead of deleting or moving hottakes to a separate table, use a **status-based lifecycle** with the existing database structure.
 
 #### Extend Hottake Relation (Optional Enhancement)
 Link each hottake to a game day for better organization:

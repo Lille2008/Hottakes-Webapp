@@ -33,6 +33,8 @@ model User {
   nickname     String       @unique
   email        String?      @unique // Optional vorerst, falls Alt-Daten existieren ohne Email
   passwordHash String?      // Optional für Übergang, aber Pflicht für neue Auth
+  resetToken   String?      @unique
+  resetTokenExpiry DateTime?
   prefs        Json?        @default("{}") // Für Dark Mode etc. (Phase 9)
   createdAt    DateTime     @default(now())
   submission   Submission?
