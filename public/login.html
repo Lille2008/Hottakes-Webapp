@@ -3,7 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hottakes - Login</title>
+    <title>Hottakes - Anmeldung</title>
+    <script>
+        (function setInitialTheme() {
+            const THEME_MODE_STORAGE_KEY = 'hottakes-theme-mode';
+            const stored = (() => {
+                try { return localStorage.getItem(THEME_MODE_STORAGE_KEY); } catch (_e) { return null; }
+            })();
+            const resolveSystem = () => window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+            const mode = ['light', 'dark'].includes(stored) ? stored : (stored === 'system' ? resolveSystem() : 'dark');
+            document.documentElement.setAttribute('data-theme', mode);
+        })();
+    </script>
     <link rel="stylesheet" href="src/styles.css">
 </head>
 <body>
