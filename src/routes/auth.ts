@@ -131,17 +131,22 @@ router.get('/me', requireAuth, (req, res) => {
     res.json({ user });
 });
 
+// Passt die Nutzerpräferenzen an
 router.patch('/prefs', requireAuth, async (req, res, next) => {
     try {
         const { themeMode } = prefsSchema.parse(req.body);
         const authUser = (req as AuthRequest).user;
 
+        if (!authUser) {
+            return res.status(401).json({ message: 'Authentication required' });
+        }
+
         const existing = await prisma.user.findUnique({
-            where: { id: authUser.id },
+            where: { id: authUser.id }, 
             select: { prefs: true }
         });
 
-        let prefs: Record<string, unknown> = {};
+        let prefs: Record<string, unknown> = {}; 
         if (existing?.prefs && typeof existing.prefs === 'object' && !Array.isArray(existing.prefs)) {
             prefs = existing.prefs as Record<string, unknown>;
         }
