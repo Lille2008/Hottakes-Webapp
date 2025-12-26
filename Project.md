@@ -141,21 +141,69 @@ Langfristig soll das Projekt **portfolio-reif** werden: klare Struktur, sauberes
 
 ---
 
-## 🧩 Phase 10 – Admin-Funktionen & Spieltags-Sperrlogik
+## 🧩 Phase 10 – Game Day Features: Lock System, Email & Hot Takes Lifecycle
 
-**Ziel:** Admin kann Spielzeiten verwalten und Einsendungen sperren.
+**Ziel:** Implementierung eines vollständigen Game-Day-Managements mit drei Kernfunktionen.
+
+**Detaillierte Implementierungsplanung:** Siehe `implementation-plan-phase-10.md`
+
+### **Kernanforderungen (3 Features erforderlich):**
+
+#### 1️⃣ **Zeit-basierte Spieltags-Sperre**
+**Problem:** Nutzer müssen daran gehindert werden, Picks nach Spielstart zu ändern.
 
 **Aufgaben:**
-1. Tabelle `admin_events` oder `game_rounds` mit:  
-   `id`, `start_time`, `lock_time`, `end_time`, `description`, `active_flag`.
-2. Admin-UI mit CRUD-Endpunkten (`POST/PUT/DELETE /api/admin/events`).  
-3. Validierung: vor `POST /api/submissions` prüfen, ob `now < lock_time`.  
-4. Optional: Scheduler oder Cronjob zur Sperrzeit-Steuerung.  
+- Tabelle `admin_events` nutzen mit: `id`, `start_time`, `lock_time`, `end_time`, `description`, `active_flag` (bereits vorhanden)
+- Admin-CRUD-Endpunkte für Game Days: `POST/GET/PATCH/DELETE /api/admin/game-days`
+- Middleware `checkGameDayLock`: vor `POST /api/submissions` prüfen, ob `now < lock_time`
+- Frontend: Countdown-Timer bis Lock-Zeit, Fehlermeldung bei gesperrter Abgabe
 
-**Abschlusskriterien:**  
-- Admin kann Sperrzeiten setzen.  
-- Submissions nach Sperrzeit werden abgelehnt.  
-- Admin-Endpunkte sind geschützt.
+**Abschlusskriterien:**
+- ✅ Admin kann Sperrzeiten für Game Days setzen
+- ✅ Submissions nach `lock_time` werden mit HTTP 403 abgelehnt
+- ✅ Admin-Endpunkte sind durch `requireAdmin` geschützt
+- ✅ Frontend zeigt Lock-Status deutlich an
+
+#### 2️⃣ **E-Mail-System (Passwort-Reset & Erinnerungen)**
+**Problem:** Nutzer brauchen Passwort-Wiederherstellung und Erinnerungen vor Deadline.
+
+**Aufgaben:**
+- **Dependencies:** `nodemailer`, `node-cron`, `resend` (oder alternative wie Brevo)
+- **Passwort-Reset-Flow:**
+  - User-Modell erweitern: `resetToken`, `resetTokenExpiry` (Prisma-Migration)
+  - Endpunkte: `POST /api/auth/forgot-password`, `POST /api/auth/reset-password`
+  - Sichere Token-Generierung mit `crypto.randomBytes(32)`, Ablauf nach 1 Stunde
+  - E-Mail mit Reset-Link senden via Resend/Brevo
+  - Frontend-Seiten: `public/forgot-password.html`, `public/reset-password.html`
+- **Game-Day-Erinnerungen:**
+  - Cron-Job (täglich 8:00 Uhr): findet Game Days in nächsten 24h
+  - Ermittelt User ohne Submission, sendet Erinnerungs-E-Mail
+  - Scheduler in `src/lib/scheduler.ts`, Start in `src/server.ts`
+
+**Abschlusskriterien:**
+- ✅ Nutzer können per E-Mail Passwort zurücksetzen (Token-basiert, sicher)
+- ✅ Automatische Erinnerungs-E-Mails vor Game-Day-Lock
+- ✅ E-Mail-Service konfiguriert (Resend/Brevo Free Tier)
+- ✅ `.env` enthält: `RESEND_API_KEY`, `EMAIL_FROM`, `APP_URL`
+
+#### 3️⃣ **Hot-Takes-Lifecycle-Management**
+**Problem:** Nach Game Day müssen alte Takes archiviert, aber sichtbar bleiben; neue Takes für nächsten Spieltag bereitstellen.
+
+**Aufgaben:**
+- **Strategie:** Status-basierte Filterung (OFFEN = aktiv, WAHR/FALSCH = archiviert)
+- Optional: Hottake-Relation zu `game_day_id` hinzufügen (empfohlen für bessere Organisation)
+- `GET /api/hottakes?archived=false` (Standard): zeigt nur offene Takes
+- `GET /api/hottakes?archived=true`: zeigt abgeschlossene Takes (History)
+- Admin-Endpunkt: `POST /api/admin/game-days/:id/finalize` (setzt `activeFlag=false`)
+- Frontend: Zwei Tabs/Views:
+  - **"Aktive Picks"** → offene Takes, Submission-Form
+  - **"Historie"** → abgeschlossene Takes, Leaderboard-Snapshot
+
+**Abschlusskriterien:**
+- ✅ Alte Hot Takes bleiben zur Punkteanzeige erhalten (nicht gelöscht)
+- ✅ Frontend zeigt nur aktive/offene Takes standardmäßig an
+- ✅ History-View zeigt vergangene Takes mit Ergebnissen
+- ✅ Admin kann Game Day finalisieren (Status-Wechsel aller Takes)
 
 ---
 
