@@ -66,6 +66,12 @@ body {
     box-shadow: var(--glow-cyan);
 }
 
+/* Firefox scrollbar support */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--gradient-start) var(--bg-card);
+}
+
 /* ============================================
    HEADER
    ============================================ */
@@ -78,6 +84,7 @@ header {
 }
 
 h1 {
+    color: var(--gradient-start); /* Fallback for browsers without background-clip support */
     background: var(--gradient-primary);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -388,6 +395,7 @@ h3 {
 #admin-area h2 {
     text-align: center;
     margin: 0 0 10px 0;
+    color: var(--gradient-start); /* Fallback for browsers without background-clip support */
     background: var(--gradient-primary);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
