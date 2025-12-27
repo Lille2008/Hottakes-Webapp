@@ -34,10 +34,10 @@ const basicAuth = (req: Request, res: Response, next: NextFunction) => {
   next();
 };
 
+const app = express();
 // Mount Basic Auth before everything else
 app.use(basicAuth);
 
-const app = express();
 
 app.use(cors());
 app.use(express.json());
