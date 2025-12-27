@@ -36,7 +36,20 @@ const basicAuth = (req: Request, res: Response, next: NextFunction) => {
 
 const app = express();
 // Mount Basic Auth before everything else
-app.use(basicAuth);
+// Nur für HTML oder "echte" Seiten schützen, nicht für Assets:
+app.use((req, res, next) => {
+  // Statische Assets (js, css, png, ico, svg, ...), Favicon, Manifest etc. überspringen:
+  if (
+      req.path.startsWith('/src/') ||
+      req.path.startsWith('/hottakes_favicons/') ||
+      req.path === '/favicon.ico' ||
+      /\.(js|css|png|jpg|gif|ico|svg|json|webmanifest|woff2?)$/.test(req.path)
+  ) {
+    return next();
+  }
+  // Alle anderen Requests mit Basic Auth schützen:
+  return basicAuth(req, res, next);
+});
 
 
 app.use(cors());
