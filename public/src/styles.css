@@ -264,8 +264,8 @@ h3 {
 
 .theme-choices {
     display: grid;
-    grid-template-columns: repeat(3, minmax(90px, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
     width: 100%;
 }
 
@@ -275,7 +275,7 @@ h3 {
     align-items: center;
     justify-content: center;
     width: 100%;
-    padding: 10px 12px;
+    padding: 8px 6px;
     border-radius: 12px;
     border: 1px solid rgba(0, 217, 255, 0.25);
     background: var(--bg-card);
@@ -284,7 +284,8 @@ h3 {
     box-shadow: var(--shadow-card);
     transition: var(--transition-smooth);
     font-weight: 700;
-    gap: 8px;
+    font-size: 0.85rem;
+    gap: 4px;
 }
 
 .theme-pill input {
@@ -1289,8 +1290,8 @@ footer a:hover {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
-    padding: 16px 18px;
+    gap: 12px;
+    padding: 14px 16px;
     border-radius: 14px;
     background: var(--bg-card-hover);
     border: 1px solid rgba(0, 217, 255, 0.2);
@@ -1317,9 +1318,10 @@ footer a:hover {
 .game-day-actions {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     flex-wrap: wrap;
-    justify-content: flex-end;
+    justify-content: flex-start;
+    flex: 1 1 100%;
 }
 
 .game-day-select-wrapper {
@@ -1331,6 +1333,8 @@ footer a:hover {
     border-radius: 10px;
     border: 1px solid rgba(0, 217, 255, 0.25);
     box-shadow: var(--shadow-card);
+    flex-wrap: wrap;
+    max-width: 100%;
 }
 
 .game-day-select-wrapper label {
@@ -1340,7 +1344,9 @@ footer a:hover {
 }
 
 .game-day-select {
-    min-width: 180px;
+    min-width: 0;
+    max-width: 100%;
+    width: auto;
     padding: 8px 12px;
     border-radius: 8px;
     border: 1px solid rgba(0, 217, 255, 0.32);
@@ -1432,13 +1438,16 @@ footer a:hover {
 }
 
 .admin-form--stacked input[type="text"],
-.admin-form--stacked input[type="datetime-local"] {
+.admin-form--stacked input[type="datetime-local"],
+.admin-select {
     width: 100%;
     padding: 10px 12px;
     border-radius: 10px;
     border: 1px solid rgba(0, 217, 255, 0.2);
     background: var(--bg-card);
     color: var(--text-primary);
+    box-sizing: border-box;
+    max-width: 100%;
 }
 
 .admin-finalize {
@@ -1508,9 +1517,19 @@ footer a:hover {
     }
     
     header {
-        flex-direction: column;
-        gap: 15px;
-        text-align: center;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 10px;
+        text-align: left;
+    }
+
+    .brand {
+        flex: 0 0 auto;
+    }
+
+    .header-actions {
+        flex: 0 0 auto;
     }
     
     #game {
@@ -1520,6 +1539,33 @@ footer a:hover {
     
     #admin-content {
         grid-template-columns: 1fr;
+    }
+
+    .game-day-banner {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .game-day-actions {
+        width: 100%;
+    }
+
+    .game-day-select-wrapper {
+        width: 100%;
+    }
+
+    .game-day-select {
+        width: 100%;
+        flex: 1;
+    }
+
+    .leaderboard-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .leaderboard-header .game-day-select-wrapper {
+        width: 100%;
     }
     
     .auth-container {
@@ -1535,6 +1581,25 @@ footer a:hover {
         width: 35px;
         height: 35px;
         font-size: 1rem;
+    }
+
+    .admin-form,
+    .admin-card {
+        max-width: 100%;
+        overflow: hidden;
+    }
+
+    .admin-form input,
+    .admin-form select,
+    .admin-form button,
+    .admin-select {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    .admin-finalize {
+        width: 100%;
     }
 }
 

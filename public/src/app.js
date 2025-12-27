@@ -645,15 +645,14 @@ function applyLockStateUI() {
     const hasExactOpen = openHottakes.length === MIN_OPEN_HOTTAKES;
     const blocked = isLocked || isHistory || finalized || !hasExactOpen;
 
-    document.body.classList.toggle('picks-locked', isLocked);
+    document.body.classList.toggle('picks-locked', isLocked || finalized);
 
     if (savePicksButton) {
         savePicksButton.disabled = blocked;
-        if (isHistory) {
-            savePicksButton.textContent = 'Historie ansehen';
-        } else if (isLocked) {
-            savePicksButton.textContent = 'Picks gesperrt';
+        if (isLocked || finalized) {
+            savePicksButton.style.display = 'none';
         } else {
+            savePicksButton.style.display = 'inline-block';
             savePicksButton.textContent = 'Picks Speichern';
         }
     }
@@ -689,7 +688,7 @@ function updateLockBanner(lockTime, diffMs) {
 
     if (diffMs !== null && diffMs <= 0) {
         lockStatus.textContent = `Gesperrt seit ${formattedLock}`;
-        lockCountdown.textContent = 'Submission gesperrt';
+        lockCountdown.textContent = '';
         lockCountdown.dataset.state = 'locked';
     } else {
         lockStatus.textContent = `Sperre um ${formattedLock}`;
@@ -1030,7 +1029,7 @@ function createHottakeElement(hottake, { readonly = false, picked = false } = {}
 
 
 function renderHottakes() {
-    const availableHottakes = viewMode === 'history' ? archivedHottakes : openHottakes;
+    const availableHottakes = viewMode === 'history' ? allHottakes : openHottakes;
     const sanitizeSource = viewMode === 'history' ? allHottakes : openHottakes;
     const isReadOnly = viewMode !== 'active' || isLocked;
     const referencePicks = viewMode === 'history' ? lastSubmissionPicks : picks;
@@ -1718,6 +1717,7 @@ function updateUIForLogin(user) {
 
         if (gameContainer) gameContainer.style.display = 'none';
         if (savePicksButton) savePicksButton.style.display = 'none';
+        if (gameDayShell) gameDayShell.style.display = 'none';
 
         if (adminArea) {
             adminArea.style.display = 'flex';
@@ -1726,7 +1726,8 @@ function updateUIForLogin(user) {
     } else {
         adminEnabled = false;
 
-        if (gameContainer) gameContainer.style.display = 'flex';
+        if (gameContainer) gameContainer.style.display = 'grid';
+        if (gameDayShell) gameDayShell.style.display = 'block';
         if (savePicksButton) {
             savePicksButton.style.display = 'inline-block';
             savePicksButton.disabled = false;
@@ -1771,6 +1772,7 @@ function updateUIForGuest() {
     const adminArea = document.getElementById('admin-area');
 
     if (gameContainer) gameContainer.style.display = 'none';
+    if (gameDayShell) gameDayShell.style.display = 'none';
     if (adminArea) adminArea.style.display = 'none';
 
     if (savePicksButton) {
