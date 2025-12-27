@@ -1,14 +1,18 @@
 import { Router } from 'express';
 import prisma from '../lib/db';
+import { findCurrentGameDayNumber } from '../lib/gameDay';
 
 const router = Router();
 
 router.get('/active', async (_req, res, next) => {
   try {
-    const active = await prisma.adminEvent.findFirst({
-      where: { activeFlag: true },
-      orderBy: { lockTime: 'desc' }
-    });
+    const currentGameDay = await findCurrentGameDayNumber();
+
+    if (currentGameDay === null) {
+      return res.status(404).json({ message: 'Kein aktiver Spieltag vorhanden.' });
+    }
+
+    const active = await prisma.adminEvent.findUnique({ where: { gameDay: currentGameDay } });
 
     if (!active) {
       return res.status(404).json({ message: 'Kein aktiver Spieltag vorhanden.' });

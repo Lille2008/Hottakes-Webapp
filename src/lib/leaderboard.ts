@@ -16,7 +16,8 @@ export async function buildLeaderboard(gameDay: number): Promise<LeaderboardEntr
 
   const submissions = await prisma.submission.findMany({
     where: { gameDay },
-    include: { user: true }
+    include: { user: true },
+    orderBy: { updatedAt: 'desc' }
   });
 
   const mappedHottakes: HottakeOutcome[] = hottakesRaw.map((hot: (typeof hottakesRaw)[number]): HottakeOutcome => ({
@@ -24,7 +25,7 @@ export async function buildLeaderboard(gameDay: number): Promise<LeaderboardEntr
     status: hot.status
   }));
 
-  const entries: LeaderboardEntry[] = [];
+  const perUser = new Map<number, LeaderboardEntry>();
 
   for (const submission of submissions) {
     const score = calculateScore(submission.picks, mappedHottakes);
@@ -37,13 +38,17 @@ export async function buildLeaderboard(gameDay: number): Promise<LeaderboardEntr
       });
     }
 
-    entries.push({
-      nickname,
-      score,
-      submittedAt: submission.updatedAt,
-      gameDay
-    });
+    if (!perUser.has(submission.userId)) {
+      perUser.set(submission.userId, {
+        nickname,
+        score,
+        submittedAt: submission.updatedAt,
+        gameDay
+      });
+    }
   }
+
+  const entries: LeaderboardEntry[] = Array.from(perUser.values());
 
   return entries.sort((a, b) => {
     if (b.score !== a.score) {
@@ -55,7 +60,18 @@ export async function buildLeaderboard(gameDay: number): Promise<LeaderboardEntr
 }
 
 export async function buildLeaderboardAll(): Promise<LeaderboardEntry[]> {
+  const finalizedGameDays = await prisma.adminEvent.findMany({
+    where: { activeFlag: false },
+    select: { gameDay: true }
+  });
+
+  const finalizedIds = finalizedGameDays.map((g) => g.gameDay);
+  if (finalizedIds.length === 0) {
+    return [];
+  }
+
   const hottakesRaw = await prisma.hottake.findMany({
+    where: { gameDay: { in: finalizedIds } },
     select: { id: true, status: true, gameDay: true }
   });
 
@@ -66,9 +82,13 @@ export async function buildLeaderboardAll(): Promise<LeaderboardEntry[]> {
     hottakesByGameDay.set(hot.gameDay, list);
   }
 
-  const submissions = await prisma.submission.findMany({ include: { user: true } });
+  const submissions = await prisma.submission.findMany({
+    where: { gameDay: { in: finalizedIds } },
+    include: { user: true },
+    orderBy: { updatedAt: 'desc' }
+  });
 
-  const totals = new Map<string, { score: number; submittedAt: Date }>();
+  const totals = new Map<number, { nickname: string; score: number; submittedAt: Date }>();
 
   for (const submission of submissions) {
     const mappedHottakes = hottakesByGameDay.get(submission.gameDay) ?? [];
@@ -82,17 +102,18 @@ export async function buildLeaderboardAll(): Promise<LeaderboardEntry[]> {
       });
     }
 
-    const existing = totals.get(nickname);
+    const existing = totals.get(submission.userId);
     const firstSubmittedAt = existing ? new Date(Math.min(existing.submittedAt.getTime(), submission.updatedAt.getTime())) : submission.updatedAt;
 
-    totals.set(nickname, {
+    totals.set(submission.userId, {
+      nickname,
       score: (existing?.score ?? 0) + score,
       submittedAt: firstSubmittedAt
     });
   }
 
-  const entries: LeaderboardEntry[] = Array.from(totals.entries()).map(([nickname, payload]) => ({
-    nickname,
+  const entries: LeaderboardEntry[] = Array.from(totals.entries()).map(([_, payload]) => ({
+    nickname: payload.nickname,
     score: payload.score,
     submittedAt: payload.submittedAt,
     gameDay: -1

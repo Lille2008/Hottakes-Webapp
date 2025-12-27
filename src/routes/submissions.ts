@@ -5,6 +5,7 @@ import prisma from '../lib/db';
 import { calculateScore, type HottakeOutcome } from '../lib/scoring';
 import { requireAuth, type AuthRequest } from '../middleware/auth';
 import { checkGameDayLock } from '../middleware/checkGameDayLock';
+import { getGameDayByNumber, resolveGameDayParam } from '../lib/gameDay';
 
 type HottakeWithStatus = { id: number; status: HottakeOutcome['status']; gameDay: number };
 
@@ -18,30 +19,6 @@ const submissionSchema = z.object({
 });
 
 const router = Router();
-
-async function resolveGameDay(raw: unknown) {
-  if (typeof raw === 'string' && raw.length > 0) {
-    if (raw === 'active') {
-      const active = await prisma.adminEvent.findFirst({ where: { activeFlag: true }, orderBy: { lockTime: 'desc' } });
-      if (!active) {
-        throw new Error('Kein aktiver Spieltag vorhanden.');
-      }
-      return active.gameDay;
-    }
-
-    const parsed = Number.parseInt(raw, 10);
-    if (Number.isNaN(parsed)) {
-      throw new Error('Ungültiger Spieltag-Parameter');
-    }
-    return parsed;
-  }
-
-  const active = await prisma.adminEvent.findFirst({ where: { activeFlag: true }, orderBy: { lockTime: 'desc' } });
-  if (!active) {
-    throw new Error('Kein aktiver Spieltag vorhanden.');
-  }
-  return active.gameDay;
-}
 
 async function buildSubmissionResponse(userId: number, nickname: string, gameDay: number) {
   const [submission, hottakes] = await Promise.all([
@@ -80,7 +57,7 @@ router.get('/', requireAuth, async (req, res, next) => {
   try {
     const { nickname, userId } = req.query;
     const currentUser = (req as AuthRequest).user;
-    const gameDay = await resolveGameDay(req.query.gameDay);
+    const gameDay = await resolveGameDayParam(req.query.gameDay);
 
     if (!currentUser) {
       return res.status(401).json({ message: 'Authentifizierung erforderlich.' });
@@ -141,7 +118,7 @@ router.get('/:nickname', requireAuth, async (req, res, next) => {
   try {
     const currentUser = (req as AuthRequest).user;
     const { nickname } = req.params;
-    const gameDay = await resolveGameDay(req.query.gameDay);
+    const gameDay = await resolveGameDayParam(req.query.gameDay);
 
     if (!currentUser || nickname !== currentUser.nickname) {
       return res.status(403).json({ message: 'Nicht erlaubt.' });
@@ -169,10 +146,20 @@ router.post('/', requireAuth, checkGameDayLock, async (req, res, next) => {
   try {
     const payload = submissionSchema.parse(req.body);
     const currentUser = (req as AuthRequest).user;
-    const gameDay = await resolveGameDay(req.query.gameDay);
+    const gameDay = await resolveGameDayParam(req.query.gameDay);
 
     if (!currentUser) {
       return res.status(401).json({ message: 'Authentifizierung erforderlich.' });
+    }
+
+    const gameDayEvent = await getGameDayByNumber(gameDay);
+    if (!gameDayEvent.activeFlag) {
+      return res.status(400).json({ message: 'Spieltag ist abgeschlossen. Keine Änderungen mehr möglich.' });
+    }
+
+    const openCount = await prisma.hottake.count({ where: { gameDay, status: 'OFFEN' } });
+    if (openCount !== 10) {
+      return res.status(400).json({ message: `Es müssen genau 10 offene Hottakes vorhanden sein. Aktuell: ${openCount}.` });
     }
 
     const selectedHottakes = await prisma.hottake.findMany({

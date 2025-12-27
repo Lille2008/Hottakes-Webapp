@@ -4,6 +4,7 @@ import { z } from 'zod';
 import prisma from '../../lib/db';
 import { optionalAuth } from '../../middleware/auth';
 import { requireAdmin } from '../../middleware/admin';
+import { findCurrentGameDayNumber } from '../../lib/gameDay';
 
 const router = Router();
 
@@ -29,10 +30,12 @@ const updateGameDaySchema = z.object({
 
 router.get('/active', async (_req, res, next) => {
   try {
-    const active = await prisma.adminEvent.findFirst({
-      where: { activeFlag: true },
-      orderBy: { lockTime: 'desc' }
-    });
+    const currentGameDay = await findCurrentGameDayNumber();
+    if (currentGameDay === null) {
+      return res.status(404).json({ message: 'Kein aktiver Spieltag vorhanden.' });
+    }
+
+    const active = await prisma.adminEvent.findUnique({ where: { gameDay: currentGameDay } });
 
     if (!active) {
       return res.status(404).json({ message: 'Kein aktiver Spieltag vorhanden.' });
@@ -50,7 +53,7 @@ router.use(requireAdmin);
 router.get('/', async (_req, res, next) => {
   try {
     const events = await prisma.adminEvent.findMany({
-      orderBy: { createdAt: 'desc' }
+      orderBy: { gameDay: 'asc' }
     });
 
     res.json(events);
@@ -67,19 +70,15 @@ router.post('/', async (req, res, next) => {
       payload.gameDay ??
       ((await prisma.adminEvent.aggregate({ _max: { gameDay: true } }))._max.gameDay ?? -1) + 1;
 
-    const created = await prisma.$transaction(async (tx) => {
-      await tx.adminEvent.updateMany({ where: { activeFlag: true }, data: { activeFlag: false } });
-
-      return tx.adminEvent.create({
-        data: {
-          description: payload.description,
-          startTime: payload.startTime ?? null,
-          lockTime: payload.lockTime ?? null,
-          endTime: payload.endTime ?? null,
-          activeFlag: payload.activeFlag ?? true,
-          gameDay: nextGameDay
-        }
-      });
+    const created = await prisma.adminEvent.create({
+      data: {
+        description: payload.description,
+        startTime: payload.startTime ?? null,
+        lockTime: payload.lockTime ?? null,
+        endTime: payload.endTime ?? null,
+        activeFlag: payload.activeFlag ?? true,
+        gameDay: nextGameDay
+      }
     });
 
     res.status(201).json(created);
@@ -93,6 +92,11 @@ router.patch('/:id', async (req, res, next) => {
     const id = Number.parseInt(req.params.id, 10);
     if (Number.isNaN(id)) {
       return res.status(400).json({ message: 'Ungültige Spieltag-ID' });
+    }
+
+    const existing = await prisma.adminEvent.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({ message: 'Spieltag nicht gefunden' });
     }
 
     const payload = updateGameDaySchema.parse(req.body);
@@ -122,15 +126,20 @@ router.patch('/:id', async (req, res, next) => {
       data.gameDay = payload.gameDay;
     }
 
-    const updated = await prisma.$transaction(async (tx) => {
-      if (data.activeFlag === true) {
-        await tx.adminEvent.updateMany({ where: { activeFlag: true, id: { not: id } }, data: { activeFlag: false } });
-      }
+    const now = new Date();
+    if (
+      existing.lockTime &&
+      existing.lockTime <= now &&
+      Object.prototype.hasOwnProperty.call(payload, 'lockTime') &&
+      payload.lockTime &&
+      payload.lockTime.getTime() !== existing.lockTime.getTime()
+    ) {
+      return res.status(400).json({ message: 'Lock-Time kann nach Eintritt nicht mehr geändert werden.' });
+    }
 
-      return tx.adminEvent.update({
-        where: { id },
-        data
-      });
+    const updated = await prisma.adminEvent.update({
+      where: { id },
+      data
     });
 
     res.json(updated);

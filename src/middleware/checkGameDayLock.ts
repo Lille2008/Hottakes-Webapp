@@ -1,26 +1,25 @@
 import { NextFunction, Request, Response } from 'express';
-import prisma from '../lib/db';
+import { getGameDayByNumber, resolveGameDayParam } from '../lib/gameDay';
 
 export async function checkGameDayLock(req: Request, res: Response, next: NextFunction) {
   try {
-    const activeGameDay = await prisma.adminEvent.findFirst({
-      where: {
-        activeFlag: true,
-        lockTime: { not: null }
-      },
-      orderBy: { lockTime: 'desc' }
-    });
+    const gameDay = await resolveGameDayParam(req.query.gameDay);
+    const event = await getGameDayByNumber(gameDay);
 
-    if (!activeGameDay || !activeGameDay.lockTime) {
+    if (!event.lockTime) {
       return next();
     }
 
     const now = new Date();
 
-    if (now >= activeGameDay.lockTime) {
+    if (!event.activeFlag) {
+      return res.status(403).json({ message: 'Picks sind gesperrt. Der Spieltag ist abgeschlossen.' });
+    }
+
+    if (now >= event.lockTime) {
       return res.status(403).json({
         message: 'Picks sind gesperrt. Der Spieltag hat begonnen.',
-        lockTime: activeGameDay.lockTime
+        lockTime: event.lockTime
       });
     }
 

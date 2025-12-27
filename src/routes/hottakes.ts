@@ -4,6 +4,7 @@ import { z } from 'zod';
 import prisma from '../lib/db';
 import { optionalAuth } from '../middleware/auth';
 import { requireAdmin } from '../middleware/admin';
+import { getGameDayByNumber, resolveGameDayParam } from '../lib/gameDay';
 
 const STATUS_VALUES = ['OFFEN', 'WAHR', 'FALSCH'] as const;
 
@@ -23,30 +24,7 @@ router.get('/', async (req, res, next) => {
   const archived = req.query.archived;
   const rawGameDay = req.query.gameDay;
   try {
-    let gameDayNumber: number | null = null;
-
-    if (typeof rawGameDay === 'string' && rawGameDay.length > 0) {
-      if (rawGameDay === 'active') {
-        const active = await prisma.adminEvent.findFirst({ where: { activeFlag: true }, orderBy: { lockTime: 'desc' } });
-        if (!active) {
-          return res.status(404).json({ message: 'Kein aktiver Spieltag vorhanden.' });
-        }
-        gameDayNumber = active.gameDay;
-      } else {
-        const parsed = Number.parseInt(rawGameDay, 10);
-        if (Number.isNaN(parsed)) {
-          return res.status(400).json({ message: 'Ungültiger Spieltag-Parameter' });
-        }
-        gameDayNumber = parsed;
-      }
-    } else {
-      const active = await prisma.adminEvent.findFirst({ where: { activeFlag: true }, orderBy: { lockTime: 'desc' } });
-      gameDayNumber = active?.gameDay ?? null;
-    }
-
-    if (gameDayNumber === null) {
-      return res.status(404).json({ message: 'Kein Spieltag gefunden.' });
-    }
+    const gameDayNumber = await resolveGameDayParam(rawGameDay);
 
     const hottakes = await prisma.hottake.findMany({
       where:
@@ -68,19 +46,16 @@ router.use(optionalAuth);
 router.post('/', requireAdmin, async (req, res, next) => {
   try {
     const payload = createHottakeSchema.parse(req.body);
+    const targetGameDay = typeof payload.gameDay === 'number' ? payload.gameDay : await resolveGameDayParam('active');
+    const gameDay = await getGameDayByNumber(targetGameDay);
 
-    let targetGameDay = payload.gameDay;
-    if (typeof targetGameDay !== 'number') {
-      const active = await prisma.adminEvent.findFirst({ where: { activeFlag: true }, orderBy: { lockTime: 'desc' } });
-      if (!active) {
-        return res.status(400).json({ message: 'Kein aktiver Spieltag vorhanden. Bitte lege zuerst einen Spieltag an.' });
-      }
-      targetGameDay = active.gameDay;
+    if (!gameDay.activeFlag) {
+      return res.status(400).json({ message: 'Spieltag ist abgeschlossen. Keine neuen Hottakes möglich.' });
     }
 
-    const gameDayExists = await prisma.adminEvent.findUnique({ where: { gameDay: targetGameDay } });
-    if (!gameDayExists) {
-      return res.status(400).json({ message: 'Angegebener Spieltag existiert nicht.' });
+    const existingCount = await prisma.hottake.count({ where: { gameDay: targetGameDay } });
+    if (existingCount >= 10) {
+      return res.status(400).json({ message: 'Maximal 10 Hottakes pro Spieltag erlaubt.' });
     }
 
     const hottake = await prisma.hottake.create({
@@ -106,12 +81,24 @@ router.patch('/:id', requireAdmin, async (req, res, next) => {
 
     const payload = updateStatusSchema.parse(req.body);
 
-    const hottake = await prisma.hottake.update({
-      where: { id },
-      data: { status: payload.status }
+    const updated = await prisma.$transaction(async (tx) => {
+      const hottake = await tx.hottake.update({
+        where: { id },
+        data: { status: payload.status }
+      });
+
+      const hottakes = await tx.hottake.findMany({ where: { gameDay: hottake.gameDay }, select: { status: true } });
+      const total = hottakes.length;
+      const openCount = hottakes.filter((entry) => entry.status === 'OFFEN').length;
+
+      if (total === 10 && openCount === 0) {
+        await tx.adminEvent.update({ where: { gameDay: hottake.gameDay }, data: { activeFlag: false, endTime: new Date() } });
+      }
+
+      return hottake;
     });
 
-    res.json(hottake);
+    res.json(updated);
   } catch (error) {
     if (
       typeof error === 'object' &&

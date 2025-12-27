@@ -34,6 +34,8 @@ let viewMode = 'active';
 let activeGameDay = null;
 let gameDays = [];
 let selectedHistoryGameDay = null;
+let selectedGameDay = null;
+let leaderboardSelection = 'all';
 let lockCountdownTimer = null;
 let isLocked = false;
 
@@ -67,6 +69,7 @@ const viewToggleActive = document.getElementById('view-active');
 const viewToggleHistory = document.getElementById('view-history');
 const gameDayBanner = document.getElementById('game-day-banner');
 let historySelect = null;
+let leaderboardSelect = null;
 
 
 if (
@@ -86,6 +89,7 @@ async function loadGameDays() {
         const data = await apiFetch('/game-days', {}, { allowNotFound: true });
         gameDays = Array.isArray(data) ? data : [];
         updateHistorySelect();
+        updateLeaderboardSelect();
     } catch (error) {
         console.warn('Spieltage konnten nicht geladen werden.', error.message || error);
     }
@@ -616,8 +620,10 @@ function stopLockCountdown() {
 
 function applyLockStateUI() {
     const isHistory = viewMode !== 'active';
-    const hasMinimumOpen = openHottakes.length >= MIN_OPEN_HOTTAKES;
-    const blocked = isLocked || isHistory || (adminEnabled && !hasMinimumOpen);
+    const selectedMeta = getSelectedGameDayMeta();
+    const finalized = selectedMeta ? !selectedMeta.activeFlag : false;
+    const hasExactOpen = openHottakes.length === MIN_OPEN_HOTTAKES;
+    const blocked = isLocked || isHistory || finalized || !hasExactOpen;
 
     if (savePicksButton) {
         savePicksButton.disabled = blocked;
@@ -632,9 +638,12 @@ function applyLockStateUI() {
 
     if (hottakesNotice) {
         if (isLocked) {
-            hottakesNotice.textContent = 'Die Picks sind gesperrt. Der Spieltag läuft bereits.';
+            hottakesNotice.textContent = 'Die Picks sind gesperrt. Der Spieltag läuft bereits oder ist abgeschlossen.';
             hottakesNotice.classList.add('is-visible');
-        } else if (!adminEnabled || hasMinimumOpen) {
+        } else if (!hasExactOpen) {
+            hottakesNotice.textContent = `Es müssen genau ${MIN_OPEN_HOTTAKES} Hottakes offen sein. Aktuell: ${openHottakes.length}.`;
+            hottakesNotice.classList.add('is-visible');
+        } else {
             hottakesNotice.textContent = '';
             hottakesNotice.classList.remove('is-visible');
         }
@@ -671,14 +680,30 @@ function updateLockBanner(lockTime, diffMs) {
 function refreshLockState() {
     stopLockCountdown();
 
-    if (!activeGameDay || !activeGameDay.lockTime) {
+    const selectedMeta = getSelectedGameDayMeta();
+
+    if (!selectedMeta) {
         isLocked = false;
         updateLockBanner(null, null);
         applyLockStateUI();
         return;
     }
 
-    const lockTime = new Date(activeGameDay.lockTime);
+    if (!selectedMeta.activeFlag) {
+        isLocked = true;
+        updateLockBanner(selectedMeta.lockTime || null, 0);
+        applyLockStateUI();
+        return;
+    }
+
+    if (!selectedMeta.lockTime) {
+        isLocked = false;
+        updateLockBanner(null, null);
+        applyLockStateUI();
+        return;
+    }
+
+    const lockTime = new Date(selectedMeta.lockTime);
 
     const update = () => {
         const diffMs = lockTime.getTime() - Date.now();
@@ -703,8 +728,9 @@ async function loadActiveGameDay() {
     try {
         const data = await apiFetch('/game-days/active', {}, { allowNotFound: true });
         activeGameDay = data || null;
-        if (activeGameDay && selectedHistoryGameDay === null) {
-            selectedHistoryGameDay = activeGameDay.gameDay;
+        if (activeGameDay && selectedGameDay === null) {
+            selectedGameDay = activeGameDay.gameDay;
+            selectedHistoryGameDay = selectedGameDay;
             updateHistorySelect();
         }
     } catch (error) {
@@ -727,15 +753,10 @@ async function setViewMode(mode) {
         viewToggleHistory.classList.toggle('is-active', viewMode === 'history');
     }
 
-    if (viewMode === 'history') {
-        await refreshHottakes(selectedHistoryGameDay);
-        await loadSubmissionForCurrentUser(selectedHistoryGameDay, true);
-        await drawLeaderboard(selectedHistoryGameDay);
-    } else {
-        await refreshHottakes(activeGameDay?.gameDay);
-        await loadSubmissionForCurrentUser(activeGameDay?.gameDay, false);
-        await drawLeaderboard();
-    }
+    const target = selectedGameDay !== null ? selectedGameDay : activeGameDay?.gameDay;
+    await refreshHottakes(target);
+    await loadSubmissionForCurrentUser(target, viewMode === 'history');
+    await drawLeaderboard();
 
     renderHottakes();
 }
@@ -772,10 +793,12 @@ function ensureHistorySelect() {
         if (Number.isNaN(value)) {
             return;
         }
+        selectedGameDay = value;
         selectedHistoryGameDay = value;
         await refreshHottakes(value);
-        await loadSubmissionForCurrentUser(value, true);
-        await drawLeaderboard(value);
+        await loadSubmissionForCurrentUser(value, viewMode === 'history');
+        await drawLeaderboard();
+        refreshLockState();
         renderHottakes();
     });
 
@@ -813,19 +836,84 @@ function updateHistorySelect() {
     gameDays.forEach((day) => {
         const option = document.createElement('option');
         option.value = String(day.gameDay);
-        const suffix = day.activeFlag ? ' (aktiv)' : '';
+        const isCurrent = activeGameDay && activeGameDay.gameDay === day.gameDay;
+        const suffix = isCurrent ? ' (Aktueller Spieltag)' : day.activeFlag ? ' (aktiv)' : '';
         option.textContent = day.description ? `${day.description}${suffix}` : `Spieltag ${day.gameDay}${suffix}`;
         select.appendChild(option);
     });
 
-    if (selectedHistoryGameDay === null && gameDays.length > 0) {
-        const lastFinished = [...gameDays].reverse().find((day) => !day.activeFlag) || gameDays[gameDays.length - 1];
-        selectedHistoryGameDay = lastFinished?.gameDay ?? null;
+    if (selectedGameDay === null && gameDays.length > 0) {
+        const currentId = activeGameDay?.gameDay;
+        selectedGameDay = currentId ?? gameDays[0].gameDay;
+        selectedHistoryGameDay = selectedGameDay;
     }
 
-    if (selectedHistoryGameDay !== null) {
-        select.value = String(selectedHistoryGameDay);
+    if (selectedGameDay !== null) {
+        select.value = String(selectedGameDay);
     }
+}
+
+function getSelectedGameDayMeta() {
+    if (selectedGameDay !== null) {
+        const match = gameDays.find((day) => day.gameDay === selectedGameDay);
+        if (match) return match;
+    }
+    return activeGameDay;
+}
+
+function ensureLeaderboardSelect() {
+    if (leaderboardSelect) {
+        return leaderboardSelect;
+    }
+
+    leaderboardSelect = document.createElement('select');
+    leaderboardSelect.id = 'leaderboard-game-day';
+    leaderboardSelect.className = 'game-day-select leaderboard-select';
+    leaderboardSelect.addEventListener('change', async (event) => {
+        const value = event.target.value;
+        leaderboardSelection = value === 'all' ? 'all' : Number.parseInt(value, 10);
+        await drawLeaderboard();
+    });
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'game-day-select-wrapper';
+
+    const label = document.createElement('label');
+    label.htmlFor = leaderboardSelect.id;
+    label.textContent = 'Leaderboard Ansicht';
+
+    wrapper.append(label, leaderboardSelect);
+
+    if (gameDayBanner) {
+        gameDayBanner.appendChild(wrapper);
+    }
+
+    return leaderboardSelect;
+}
+
+function updateLeaderboardSelect() {
+    const select = ensureLeaderboardSelect();
+    select.innerHTML = '';
+
+    const globalOption = document.createElement('option');
+    globalOption.value = 'all';
+    globalOption.textContent = 'Global (alle abgeschlossenen)';
+    select.appendChild(globalOption);
+
+    const finalizedDays = gameDays.filter((day) => !day.activeFlag);
+
+    finalizedDays.forEach((day) => {
+        const option = document.createElement('option');
+        option.value = String(day.gameDay);
+        option.textContent = day.description ? `${day.description} (abgeschlossen)` : `Spieltag ${day.gameDay} (abgeschlossen)`;
+        select.appendChild(option);
+    });
+
+    if (leaderboardSelection === null) {
+        leaderboardSelection = 'all';
+    }
+
+    select.value = leaderboardSelection === 'all' ? 'all' : String(leaderboardSelection);
 }
 
 
@@ -932,19 +1020,9 @@ function renderHottakes() {
     });
 
     const hasMinimumOpen = openHottakes.length >= MIN_OPEN_HOTTAKES;
-
-    if (adminEnabled && viewMode === 'active') {
-        if (hasMinimumOpen) {
-            hottakesNotice.textContent = '';
-            hottakesNotice.classList.remove('is-visible');
-        } else {
-            hottakesNotice.textContent = `Es müssen mindestens ${MIN_OPEN_HOTTAKES} Hottakes offen sein. Aktuell verfügbar: ${openHottakes.length}.`;
-            hottakesNotice.classList.add('is-visible');
-        }
-
-        if (savePicksButton) {
-            savePicksButton.disabled = !hasMinimumOpen;
-        }
+    if (viewMode === 'active' && !isLocked && !hasMinimumOpen) {
+        hottakesNotice.textContent = `Es müssen genau ${MIN_OPEN_HOTTAKES} Hottakes offen sein. Aktuell verfügbar: ${openHottakes.length}.`;
+        hottakesNotice.classList.add('is-visible');
     } else if (!isLocked) {
         hottakesNotice.textContent = '';
         hottakesNotice.classList.remove('is-visible');
@@ -973,7 +1051,15 @@ function renderHottakes() {
 
 async function refreshHottakes(targetGameDay = null) {
     try {
-        const gameDay = targetGameDay !== null ? targetGameDay : viewMode === 'history' ? selectedHistoryGameDay : activeGameDay?.gameDay;
+        const fallback = selectedGameDay !== null ? selectedGameDay : activeGameDay?.gameDay;
+        const gameDay = targetGameDay !== null ? targetGameDay : fallback;
+        const meta = gameDay !== null && gameDay !== undefined ? getSelectedGameDayMeta() : null;
+
+        if (meta && !meta.activeFlag) {
+            viewMode = 'history';
+        } else {
+            viewMode = 'active';
+        }
 
         if (gameDay === null || gameDay === undefined) {
             hottakesList.innerHTML = '<p>Kein Spieltag ausgewählt.</p>';
@@ -1001,7 +1087,8 @@ async function refreshHottakes(targetGameDay = null) {
 
 async function drawLeaderboard(targetGameDay = null) {
     leaderboardContainer.innerHTML = '<h2>Leaderboard</h2>';
-    const gameDayParam = targetGameDay !== null ? targetGameDay : viewMode === 'history' ? selectedHistoryGameDay : 'all';
+    const selection = leaderboardSelection === null ? 'all' : leaderboardSelection;
+    const gameDayParam = targetGameDay !== null ? targetGameDay : selection;
 
     if (gameDayParam === null || gameDayParam === undefined) {
         const row = document.createElement('p');
@@ -1041,7 +1128,8 @@ async function loadSubmissionForCurrentUser(gameDay = null, isHistory = false) {
         return;
     }
 
-    const targetGameDay = gameDay !== null ? gameDay : activeGameDay?.gameDay;
+    const fallback = selectedGameDay !== null ? selectedGameDay : activeGameDay?.gameDay;
+    const targetGameDay = gameDay !== null ? gameDay : fallback;
     if (targetGameDay === null || targetGameDay === undefined) {
         return;
     }
@@ -1080,13 +1168,18 @@ async function saveSubmission() {
         return;
     }
 
-    if (!activeGameDay || typeof activeGameDay.gameDay !== 'number') {
-        alert('Es gibt keinen aktiven Spieltag. Bitte warte, bis ein Spieltag erstellt wurde.');
+    if (selectedGameDay === null) {
+        alert('Es ist kein Spieltag ausgewählt.');
         return;
     }
 
     if (isLocked) {
         alert('Die Picks sind gesperrt. Der Spieltag hat bereits begonnen.');
+        return;
+    }
+
+    if (openHottakes.length !== MIN_OPEN_HOTTAKES) {
+        alert(`Es müssen genau ${MIN_OPEN_HOTTAKES} Hottakes offen sein, um zu tippen.`);
         return;
     }
 
@@ -1101,7 +1194,7 @@ async function saveSubmission() {
     }
 
     try {
-        await apiFetch(`/submissions?gameDay=${encodeURIComponent(activeGameDay.gameDay)}`, {
+        await apiFetch(`/submissions?gameDay=${encodeURIComponent(selectedGameDay)}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1223,11 +1316,39 @@ function renderAdminForm() {
     statusHint.className = 'admin-form-hint';
     statusHint.textContent = 'Neue Hottakes starten immer mit dem Status Offen.';
 
+    const gameDayLabel = document.createElement('label');
+    gameDayLabel.className = 'admin-form-label';
+    gameDayLabel.textContent = 'Spieltag wählen';
+
+    const gameDaySelect = document.createElement('select');
+    gameDaySelect.name = 'gameDay';
+    gameDaySelect.required = true;
+
+    const openDays = gameDays.filter((day) => day.activeFlag);
+    if (openDays.length === 0) {
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = 'Kein offener Spieltag vorhanden';
+        gameDaySelect.appendChild(option);
+        gameDaySelect.disabled = true;
+    } else {
+        openDays.forEach((day) => {
+            const option = document.createElement('option');
+            option.value = String(day.gameDay);
+            option.textContent = day.description || `Spieltag ${day.gameDay}`;
+            gameDaySelect.appendChild(option);
+        });
+        if (selectedGameDay !== null) {
+            gameDaySelect.value = String(selectedGameDay);
+        }
+    }
+    gameDayLabel.appendChild(gameDaySelect);
+
     const submitButton = document.createElement('button');
     submitButton.type = 'submit';
     submitButton.textContent = 'Hottake speichern';
 
-    form.append(textLabel, statusHint, submitButton);
+    form.append(textLabel, statusHint, gameDayLabel, submitButton);
 
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
@@ -1239,7 +1360,8 @@ function renderAdminForm() {
             return;
         }
 
-        const payload = { text };
+        const selectedGameDayNumber = Number.parseInt(gameDaySelect.value, 10);
+        const payload = Number.isNaN(selectedGameDayNumber) ? { text } : { text, gameDay: selectedGameDayNumber };
 
         submitButton.disabled = true;
         submitButton.textContent = 'Speichern...';
@@ -1276,25 +1398,27 @@ function renderGameDayAdmin() {
 
     const status = document.createElement('div');
     status.className = 'admin-game-status';
+    const selectedMeta = getSelectedGameDayMeta();
 
-    if (activeGameDay) {
+    if (selectedMeta) {
         const title = document.createElement('p');
         title.className = 'admin-status-line';
-        title.innerHTML = `<strong>Aktiv:</strong> ${activeGameDay.description}`;
+        const stateLabel = selectedMeta.activeFlag ? '(offen)' : '(abgeschlossen)';
+        title.innerHTML = `<strong>Aktuell gewählt:</strong> ${selectedMeta.description} ${stateLabel}`;
 
         const lockInfo = document.createElement('p');
         lockInfo.className = 'admin-status-line';
-        lockInfo.textContent = `Lock: ${formatDateTime(activeGameDay.lockTime) || 'keine Zeit gesetzt'}`;
+        lockInfo.textContent = `Lock: ${formatDateTime(selectedMeta.lockTime) || 'keine Zeit gesetzt'}`;
 
         const dayInfo = document.createElement('p');
         dayInfo.className = 'admin-status-line';
-        dayInfo.textContent = `Spieltag-Nr.: ${activeGameDay.gameDay}`;
+        dayInfo.textContent = `Spieltag-Nr.: ${selectedMeta.gameDay}`;
 
         status.append(title, lockInfo, dayInfo);
     } else {
         const empty = document.createElement('p');
         empty.className = 'admin-status-line';
-        empty.textContent = 'Kein aktiver Spieltag definiert.';
+        empty.textContent = 'Kein Spieltag gewählt.';
         status.appendChild(empty);
     }
 
@@ -1309,7 +1433,7 @@ function renderGameDayAdmin() {
     descInput.required = true;
     descInput.name = 'description';
     descInput.placeholder = 'z. B. Spieltag 5';
-    descInput.value = activeGameDay ? activeGameDay.description : '';
+    descInput.value = selectedMeta ? selectedMeta.description : '';
     descLabel.appendChild(descInput);
 
     const lockLabel = document.createElement('label');
@@ -1319,7 +1443,7 @@ function renderGameDayAdmin() {
     lockInput.type = 'datetime-local';
     lockInput.name = 'lockTime';
     lockInput.required = true;
-    lockInput.value = toLocalInputValue(activeGameDay?.lockTime || null);
+    lockInput.value = toLocalInputValue(selectedMeta?.lockTime || null);
     lockLabel.appendChild(lockInput);
 
     const submit = document.createElement('button');
@@ -1330,14 +1454,14 @@ function renderGameDayAdmin() {
     finalize.type = 'button';
     finalize.textContent = 'Aktiven Spieltag abschließen';
     finalize.className = 'admin-finalize';
-    finalize.disabled = !activeGameDay;
+    finalize.disabled = !selectedMeta || !selectedMeta.activeFlag;
 
     finalize.addEventListener('click', async () => {
-        if (!activeGameDay) return;
+        if (!selectedMeta) return;
         finalize.disabled = true;
 
         try {
-            await apiFetch(`/admin/game-days/${activeGameDay.id}/finalize`, { method: 'POST' });
+            await apiFetch(`/admin/game-days/${selectedMeta.id}/finalize`, { method: 'POST' });
             showAdminMessage('Spieltag wurde beendet.', 'success');
                 await loadGameDays();
                 await loadActiveGameDay();
@@ -1371,6 +1495,7 @@ function renderGameDayAdmin() {
             });
 
             activeGameDay = created;
+            selectedGameDay = created.gameDay;
             showAdminMessage('Spieltag gespeichert.', 'success');
             refreshLockState();
             await loadGameDays();
