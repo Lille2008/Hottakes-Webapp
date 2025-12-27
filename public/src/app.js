@@ -74,6 +74,8 @@ const legalContent = document.getElementById('legal-content');
 const legalClose = document.getElementById('legal-close');
 const guestActions = document.getElementById('guest-actions');
 const authedActions = document.getElementById('authed-actions');
+
+const lockCountdown = document.getElementById('lock-countdown');
 const lockStatus = document.getElementById('lock-status');
 
 const viewToggleActive = document.getElementById('view-active');
