@@ -1,10 +1,9 @@
+
 import path from 'node:path';
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { ZodError } from 'zod';
-
 import cookieParser from 'cookie-parser';
-
 import hottakesRouter from './routes/hottakes';
 import submissionsRouter from './routes/submissions';
 import leaderboardRouter from './routes/leaderboard';
@@ -12,6 +11,31 @@ import authRouter from './routes/auth';
 import healthRouter from './routes/health';
 import gameDaysRouter from './routes/admin/gameDays';
 import publicGameDaysRouter from './routes/gameDays';
+
+// --- Basic Auth Middleware (global, before all routes/static) ---
+const APP_PASSWORD = process.env.APP_PASSWORD;
+const basicAuth = (req: Request, res: Response, next: NextFunction) => {
+  if (!APP_PASSWORD) return next(); // No password set, app is public
+  const auth = req.headers['authorization'];
+  if (!auth || !auth.startsWith('Basic ')) {
+    res.setHeader('WWW-Authenticate', 'Basic realm="Hottakes"');
+    return res.status(401).send('Passwort benötigt');
+  }
+  // Decode base64
+  const b64 = auth.split(' ')[1];
+  let userpass = Buffer.from(b64, 'base64').toString('utf8');
+  // userpass is "user:pass"; allow any user, only check pass
+  const idx = userpass.indexOf(':');
+  const pass = idx >= 0 ? userpass.slice(idx + 1) : '';
+  if (pass !== APP_PASSWORD) {
+    res.setHeader('WWW-Authenticate', 'Basic realm="Hottakes"');
+    return res.status(401).send('Falsches Passwort');
+  }
+  next();
+};
+
+// Mount Basic Auth before everything else
+app.use(basicAuth);
 
 const app = express();
 
