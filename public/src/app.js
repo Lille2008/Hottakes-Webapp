@@ -75,7 +75,7 @@ const legalClose = document.getElementById('legal-close');
 const guestActions = document.getElementById('guest-actions');
 const authedActions = document.getElementById('authed-actions');
 const lockStatus = document.getElementById('lock-status');
-const lockCountdown = document.getElementById('lock-countdown');
+
 const viewToggleActive = document.getElementById('view-active');
 const viewToggleHistory = document.getElementById('view-history');
 const gameDayBanner = document.getElementById('game-day-banner');
@@ -1129,14 +1129,17 @@ async function drawLeaderboard(targetGameDay = null) {
         const response = await apiFetch(`/leaderboard?gameDay=${param}`);
         const entries = Array.isArray(response) ? response : [];
 
-        const byNickname = new Map();
-        entries.forEach((entry) => {
-            const existing = byNickname.get(entry.nickname);
-            if (!existing || entry.score > existing.score) {
-                byNickname.set(entry.nickname, entry);
+        // Deduplicate by nickname and score (robust against API duplicates)
+        const seen = new Set();
+        const deduped = [];
+        for (const entry of entries) {
+            const key = `${entry.nickname}|${entry.score}`;
+            if (!seen.has(key)) {
+                seen.add(key);
+                deduped.push(entry);
             }
-        });
-        const deduped = Array.from(byNickname.values()).sort((a, b) => b.score - a.score);
+        }
+        deduped.sort((a, b) => b.score - a.score);
 
         if (deduped.length === 0) {
             const emptyRow = document.createElement('p');
