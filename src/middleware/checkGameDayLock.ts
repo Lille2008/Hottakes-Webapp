@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
-import { getGameDayByNumber, resolveGameDayParam } from '../lib/gameDay';
+import { GAME_DAY_STATUS, getGameDayByNumber, resolveGameDayParam } from '../lib/gameDay';
 
 export async function checkGameDayLock(req: Request, res: Response, next: NextFunction) {
   try {
@@ -12,7 +12,7 @@ export async function checkGameDayLock(req: Request, res: Response, next: NextFu
 
     const now = new Date();
 
-    if (!event.activeFlag) {
+    if (event.status !== GAME_DAY_STATUS.ACTIVE) {
       return res.status(403).json({ message: 'Picks sind gesperrt. Der Spieltag ist abgeschlossen.' });
     }
 

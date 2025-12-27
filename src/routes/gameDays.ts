@@ -12,7 +12,7 @@ router.get('/active', async (_req, res, next) => {
       return res.status(404).json({ message: 'Kein aktiver Spieltag vorhanden.' });
     }
 
-    const active = await prisma.adminEvent.findUnique({ where: { gameDay: currentGameDay } });
+    const active = await prisma.gameDay.findUnique({ where: { gameDay: currentGameDay } });
 
     if (!active) {
       return res.status(404).json({ message: 'Kein aktiver Spieltag vorhanden.' });
@@ -26,7 +26,7 @@ router.get('/active', async (_req, res, next) => {
 
 router.get('/', async (_req, res, next) => {
   try {
-    const events = await prisma.adminEvent.findMany({
+    const events = await prisma.gameDay.findMany({
       orderBy: { gameDay: 'asc' }
     });
 

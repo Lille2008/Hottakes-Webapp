@@ -1,4 +1,5 @@
 import prisma from './db';
+import { GAME_DAY_STATUS } from './gameDay';
 import { calculateScore, type HottakeOutcome } from './scoring';
 
 export type LeaderboardEntry = {
@@ -60,8 +61,8 @@ export async function buildLeaderboard(gameDay: number): Promise<LeaderboardEntr
 }
 
 export async function buildLeaderboardAll(): Promise<LeaderboardEntry[]> {
-  const finalizedGameDays = await prisma.adminEvent.findMany({
-    where: { activeFlag: false },
+  const finalizedGameDays = await prisma.gameDay.findMany({
+    where: { status: { in: [GAME_DAY_STATUS.FINALIZED, GAME_DAY_STATUS.ARCHIVED] } },
     select: { gameDay: true }
   });
 

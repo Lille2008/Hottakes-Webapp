@@ -1,10 +1,19 @@
 import prisma from './db';
 
+export const GAME_DAY_STATUS = {
+  PENDING: 'PENDING',
+  ACTIVE: 'ACTIVE',
+  FINALIZED: 'FINALIZED',
+  ARCHIVED: 'ARCHIVED'
+} as const;
+
+export type GameDayStatus = (typeof GAME_DAY_STATUS)[keyof typeof GAME_DAY_STATUS];
+
 export async function findCurrentGameDayNumber(): Promise<number | null> {
   const now = new Date();
 
-  const upcoming = await prisma.adminEvent.findFirst({
-    where: { activeFlag: true, lockTime: { not: null, gt: now } },
+  const upcoming = await prisma.gameDay.findFirst({
+    where: { status: GAME_DAY_STATUS.ACTIVE, lockTime: { not: null, gt: now } },
     orderBy: { lockTime: 'asc' }
   });
 
@@ -12,8 +21,8 @@ export async function findCurrentGameDayNumber(): Promise<number | null> {
     return upcoming.gameDay;
   }
 
-  const fallback = await prisma.adminEvent.findFirst({
-    where: { activeFlag: true },
+  const fallback = await prisma.gameDay.findFirst({
+    where: { status: GAME_DAY_STATUS.ACTIVE },
     orderBy: [{ lockTime: 'asc' }, { createdAt: 'asc' }]
   });
 
@@ -46,7 +55,7 @@ export async function resolveGameDayParam(raw: unknown): Promise<number> {
 }
 
 export async function getGameDayByNumber(gameDay: number) {
-  const event = await prisma.adminEvent.findUnique({ where: { gameDay } });
+  const event = await prisma.gameDay.findUnique({ where: { gameDay } });
   if (!event) {
     throw new Error('Spieltag nicht gefunden.');
   }

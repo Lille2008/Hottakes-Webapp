@@ -136,19 +136,20 @@ describe('Hottakes API', () => {
       .send({ nickname: 'PlayerOne', email: 'player1@example.com', password: 'password123' })
       .expect(201);
 
-    const hottakeIds = await Promise.all(
-      Array.from({ length: 5 }).map((_, index) =>
-        prisma.hottake.create({ data: { text: `Locked Pick ${index + 1}`, status: 'OFFEN' } })
-      )
-    );
-
-    await prisma.adminEvent.create({
+    await prisma.gameDay.create({
       data: {
         description: 'Test lock',
         lockTime: new Date(Date.now() - 60_000),
-        activeFlag: true
+        status: 'ACTIVE',
+        gameDay: 0
       }
     });
+
+    const hottakeIds = await Promise.all(
+      Array.from({ length: 5 }).map((_, index) =>
+        prisma.hottake.create({ data: { text: `Locked Pick ${index + 1}`, status: 'OFFEN', gameDay: 0 } })
+      )
+    );
 
     await agent
       .post('/api/submissions')

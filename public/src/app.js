@@ -22,6 +22,13 @@ const STATUS_BADGE_CLASS = {
 
 const STATUS_VALUES = ['OFFEN', 'WAHR', 'FALSCH'];
 
+const GAME_DAY_STATUS = {
+    PENDING: 'PENDING',
+    ACTIVE: 'ACTIVE',
+    FINALIZED: 'FINALIZED',
+    ARCHIVED: 'ARCHIVED'
+};
+
 
 let allHottakes = [];
 let openHottakes = [];
@@ -621,7 +628,7 @@ function stopLockCountdown() {
 function applyLockStateUI() {
     const isHistory = viewMode !== 'active';
     const selectedMeta = getSelectedGameDayMeta();
-    const finalized = selectedMeta ? !selectedMeta.activeFlag : false;
+    const finalized = selectedMeta ? selectedMeta.status !== GAME_DAY_STATUS.ACTIVE : false;
     const hasExactOpen = openHottakes.length === MIN_OPEN_HOTTAKES;
     const blocked = isLocked || isHistory || finalized || !hasExactOpen;
 
@@ -689,7 +696,7 @@ function refreshLockState() {
         return;
     }
 
-    if (!selectedMeta.activeFlag) {
+    if (selectedMeta.status !== GAME_DAY_STATUS.ACTIVE) {
         isLocked = true;
         updateLockBanner(selectedMeta.lockTime || null, 0);
         applyLockStateUI();
@@ -837,7 +844,15 @@ function updateHistorySelect() {
         const option = document.createElement('option');
         option.value = String(day.gameDay);
         const isCurrent = activeGameDay && activeGameDay.gameDay === day.gameDay;
-        const suffix = isCurrent ? ' (Aktueller Spieltag)' : day.activeFlag ? ' (aktiv)' : '';
+        const isActive = day.status === GAME_DAY_STATUS.ACTIVE;
+        const isFinal = day.status === GAME_DAY_STATUS.FINALIZED || day.status === GAME_DAY_STATUS.ARCHIVED;
+        const suffix = isCurrent
+            ? ' (Aktueller Spieltag)'
+            : isActive
+                ? ' (aktiv)'
+                : isFinal
+                    ? ' (abgeschlossen)'
+                    : ' (geplant)';
         option.textContent = day.description ? `${day.description}${suffix}` : `Spieltag ${day.gameDay}${suffix}`;
         select.appendChild(option);
     });
@@ -900,7 +915,7 @@ function updateLeaderboardSelect() {
     globalOption.textContent = 'Global (alle abgeschlossenen)';
     select.appendChild(globalOption);
 
-    const finalizedDays = gameDays.filter((day) => !day.activeFlag);
+    const finalizedDays = gameDays.filter((day) => day.status !== GAME_DAY_STATUS.ACTIVE);
 
     finalizedDays.forEach((day) => {
         const option = document.createElement('option');
@@ -1055,7 +1070,7 @@ async function refreshHottakes(targetGameDay = null) {
         const gameDay = targetGameDay !== null ? targetGameDay : fallback;
         const meta = gameDay !== null && gameDay !== undefined ? getSelectedGameDayMeta() : null;
 
-        if (meta && !meta.activeFlag) {
+        if (meta && meta.status !== GAME_DAY_STATUS.ACTIVE) {
             viewMode = 'history';
         } else {
             viewMode = 'active';
@@ -1303,52 +1318,36 @@ function renderAdminForm() {
 
     const textLabel = document.createElement('label');
     textLabel.className = 'admin-form-label';
-    textLabel.textContent = 'Titel & Beschreibung';
+    textLabel.textContent = 'Beschreibung';
 
-    const textInput = document.createElement('textarea');
+    const textInput = document.createElement('input');
+    textInput.type = 'text';
     textInput.name = 'text';
     textInput.placeholder = 'Beschreibe deinen Hottake...';
     textInput.required = true;
-    textInput.rows = 4;
+    textInput.maxLength = 280;
     textLabel.appendChild(textInput);
 
     const statusHint = document.createElement('p');
     statusHint.className = 'admin-form-hint';
     statusHint.textContent = 'Neue Hottakes starten immer mit dem Status Offen.';
 
-    const gameDayLabel = document.createElement('label');
-    gameDayLabel.className = 'admin-form-label';
-    gameDayLabel.textContent = 'Spieltag wählen';
-
-    const gameDaySelect = document.createElement('select');
-    gameDaySelect.name = 'gameDay';
-    gameDaySelect.required = true;
-
-    const openDays = gameDays.filter((day) => day.activeFlag);
-    if (openDays.length === 0) {
-        const option = document.createElement('option');
-        option.value = '';
-        option.textContent = 'Kein offener Spieltag vorhanden';
-        gameDaySelect.appendChild(option);
-        gameDaySelect.disabled = true;
-    } else {
-        openDays.forEach((day) => {
-            const option = document.createElement('option');
-            option.value = String(day.gameDay);
-            option.textContent = day.description || `Spieltag ${day.gameDay}`;
-            gameDaySelect.appendChild(option);
-        });
-        if (selectedGameDay !== null) {
-            gameDaySelect.value = String(selectedGameDay);
-        }
-    }
-    gameDayLabel.appendChild(gameDaySelect);
-
     const submitButton = document.createElement('button');
     submitButton.type = 'submit';
     submitButton.textContent = 'Hottake speichern';
 
-    form.append(textLabel, statusHint, gameDayLabel, submitButton);
+    const targetMeta = getSelectedGameDayMeta();
+    const targetInactive = !targetMeta || targetMeta.status !== GAME_DAY_STATUS.ACTIVE;
+    if (targetInactive) {
+        const warn = document.createElement('p');
+        warn.className = 'admin-form-hint';
+        warn.textContent = 'Wähle einen aktiven Spieltag, um Hottakes anzulegen.';
+        form.appendChild(warn);
+    }
+
+    submitButton.disabled = targetInactive;
+
+    form.append(textLabel, statusHint, submitButton);
 
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
@@ -1360,8 +1359,12 @@ function renderAdminForm() {
             return;
         }
 
-        const selectedGameDayNumber = Number.parseInt(gameDaySelect.value, 10);
-        const payload = Number.isNaN(selectedGameDayNumber) ? { text } : { text, gameDay: selectedGameDayNumber };
+        if (selectedGameDay === null) {
+            showAdminMessage('Bitte wähle zuerst einen Spieltag.', 'error');
+            return;
+        }
+
+        const payload = { text, gameDay: selectedGameDay };
 
         submitButton.disabled = true;
         submitButton.textContent = 'Speichern...';
@@ -1396,96 +1399,198 @@ function renderGameDayAdmin() {
 
     adminGameDay.innerHTML = '<h3 class="admin-section-title">Spieltag & Sperre</h3>';
 
-    const status = document.createElement('div');
-    status.className = 'admin-game-status';
-    const selectedMeta = getSelectedGameDayMeta();
+    const selectorWrap = document.createElement('div');
+    selectorWrap.className = 'admin-form admin-form--stacked';
 
-    if (selectedMeta) {
-        const title = document.createElement('p');
-        title.className = 'admin-status-line';
-        const stateLabel = selectedMeta.activeFlag ? '(offen)' : '(abgeschlossen)';
-        title.innerHTML = `<strong>Aktuell gewählt:</strong> ${selectedMeta.description} ${stateLabel}`;
+    const selectLabel = document.createElement('label');
+    selectLabel.className = 'admin-form-label';
+    selectLabel.textContent = 'Spieltag wählen';
 
-        const lockInfo = document.createElement('p');
-        lockInfo.className = 'admin-status-line';
-        lockInfo.textContent = `Lock: ${formatDateTime(selectedMeta.lockTime) || 'keine Zeit gesetzt'}`;
+    const select = document.createElement('select');
+    select.className = 'admin-select';
+    select.name = 'selectedGameDay';
 
-        const dayInfo = document.createElement('p');
-        dayInfo.className = 'admin-status-line';
-        dayInfo.textContent = `Spieltag-Nr.: ${selectedMeta.gameDay}`;
-
-        status.append(title, lockInfo, dayInfo);
+    if (!Array.isArray(gameDays) || gameDays.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = 'Kein Spieltag vorhanden';
+        select.appendChild(opt);
+        select.disabled = true;
     } else {
-        const empty = document.createElement('p');
-        empty.className = 'admin-status-line';
-        empty.textContent = 'Kein Spieltag gewählt.';
-        status.appendChild(empty);
+        gameDays.forEach((day) => {
+            const option = document.createElement('option');
+            option.value = String(day.gameDay);
+            const statusLabel =
+                day.status === GAME_DAY_STATUS.ACTIVE
+                    ? ' (aktiv)'
+                    : day.status === GAME_DAY_STATUS.FINALIZED || day.status === GAME_DAY_STATUS.ARCHIVED
+                        ? ' (abgeschlossen)'
+                        : ' (geplant)';
+            option.textContent = day.description ? `${day.description}${statusLabel}` : `Spieltag ${day.gameDay}${statusLabel}`;
+            select.appendChild(option);
+        });
+
+        if (selectedGameDay !== null) {
+            select.value = String(selectedGameDay);
+        }
     }
 
-    const form = document.createElement('form');
-    form.className = 'admin-form admin-form--stacked';
-
-    const descLabel = document.createElement('label');
-    descLabel.className = 'admin-form-label';
-    descLabel.textContent = 'Beschreibung';
-    const descInput = document.createElement('input');
-    descInput.type = 'text';
-    descInput.required = true;
-    descInput.name = 'description';
-    descInput.placeholder = 'z. B. Spieltag 5';
-    descInput.value = selectedMeta ? selectedMeta.description : '';
-    descLabel.appendChild(descInput);
-
-    const lockLabel = document.createElement('label');
-    lockLabel.className = 'admin-form-label';
-    lockLabel.textContent = 'Lock Time (Datum & Uhrzeit)';
-    const lockInput = document.createElement('input');
-    lockInput.type = 'datetime-local';
-    lockInput.name = 'lockTime';
-    lockInput.required = true;
-    lockInput.value = toLocalInputValue(selectedMeta?.lockTime || null);
-    lockLabel.appendChild(lockInput);
-
-    const submit = document.createElement('button');
-    submit.type = 'submit';
-    submit.textContent = activeGameDay ? 'Neuen Spieltag anlegen' : 'Spieltag erstellen';
-
-    const finalize = document.createElement('button');
-    finalize.type = 'button';
-    finalize.textContent = 'Aktiven Spieltag abschließen';
-    finalize.className = 'admin-finalize';
-    finalize.disabled = !selectedMeta || !selectedMeta.activeFlag;
-
-    finalize.addEventListener('click', async () => {
-        if (!selectedMeta) return;
-        finalize.disabled = true;
-
-        try {
-            await apiFetch(`/admin/game-days/${selectedMeta.id}/finalize`, { method: 'POST' });
-            showAdminMessage('Spieltag wurde beendet.', 'success');
-                await loadGameDays();
-                await loadActiveGameDay();
-                renderGameDayAdmin();
-        } catch (error) {
-            showAdminMessage(error.message, 'error');
-        } finally {
-            finalize.disabled = false;
+    select.addEventListener('change', async (event) => {
+        const value = Number.parseInt(event.target.value, 10);
+        if (Number.isNaN(value)) {
+            return;
         }
+        selectedGameDay = value;
+        selectedHistoryGameDay = value;
+        await refreshHottakes(value);
+        await loadSubmissionForCurrentUser(value, viewMode === 'history');
+        await drawLeaderboard(value);
+        refreshLockState();
+        updateHistorySelect();
+        renderHottakes();
+        renderGameDayAdmin();
     });
 
-    form.addEventListener('submit', async (event) => {
+    selectLabel.appendChild(select);
+    selectorWrap.appendChild(selectLabel);
+    adminGameDay.appendChild(selectorWrap);
+
+    const selectedMeta = getSelectedGameDayMeta();
+
+    const editForm = document.createElement('form');
+    editForm.className = 'admin-form admin-form--stacked';
+
+    if (selectedMeta) {
+        const descLabel = document.createElement('label');
+        descLabel.className = 'admin-form-label';
+        descLabel.textContent = 'Beschreibung bearbeiten';
+        const descInput = document.createElement('input');
+        descInput.type = 'text';
+        descInput.required = true;
+        descInput.name = 'description';
+        descInput.placeholder = 'z. B. Spieltag 5';
+        descInput.value = selectedMeta.description || '';
+        descLabel.appendChild(descInput);
+
+        const lockLabel = document.createElement('label');
+        lockLabel.className = 'admin-form-label';
+        lockLabel.textContent = 'Lock Time (Datum & Uhrzeit)';
+        const lockInput = document.createElement('input');
+        lockInput.type = 'datetime-local';
+        lockInput.name = 'lockTime';
+        lockInput.required = true;
+        lockInput.value = toLocalInputValue(selectedMeta.lockTime || null);
+        lockLabel.appendChild(lockInput);
+
+        const save = document.createElement('button');
+        save.type = 'submit';
+        save.textContent = 'Änderungen speichern';
+
+        const finalize = document.createElement('button');
+        finalize.type = 'button';
+        finalize.textContent = 'Spieltag abschließen';
+        finalize.className = 'admin-finalize';
+        const isActive = selectedMeta.status === GAME_DAY_STATUS.ACTIVE;
+        finalize.disabled = !isActive;
+
+        finalize.addEventListener('click', async () => {
+            finalize.disabled = true;
+            try {
+                await apiFetch(`/admin/game-days/${selectedMeta.id}/finalize`, { method: 'POST' });
+                showAdminMessage('Spieltag wurde abgeschlossen.', 'success');
+                await loadGameDays();
+                await loadActiveGameDay();
+                refreshLockState();
+                renderGameDayAdmin();
+            } catch (error) {
+                showAdminMessage(error.message, 'error');
+            } finally {
+                finalize.disabled = false;
+            }
+        });
+
+        editForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const description = descInput.value.trim();
+            const lockTimeValue = lockInput.value ? new Date(lockInput.value).toISOString() : null;
+
+            if (!description || !lockTimeValue) {
+                showAdminMessage('Bitte Beschreibung und Lock-Zeit angeben.', 'error');
+                return;
+            }
+
+            save.disabled = true;
+            save.textContent = 'Wird gespeichert...';
+
+            try {
+                await apiFetch(`/admin/game-days/${selectedMeta.id}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ description, lockTime: lockTimeValue })
+                });
+
+                showAdminMessage('Spieltag aktualisiert.', 'success');
+                await loadGameDays();
+                await loadActiveGameDay();
+                refreshLockState();
+                renderGameDayAdmin();
+            } catch (error) {
+                showAdminMessage(error.message, 'error');
+            } finally {
+                save.disabled = false;
+                save.textContent = 'Änderungen speichern';
+            }
+        });
+
+        editForm.append(descLabel, lockLabel, save, finalize);
+    } else {
+        const note = document.createElement('p');
+        note.className = 'admin-status-line';
+        note.textContent = 'Kein Spieltag ausgewählt.';
+        editForm.appendChild(note);
+    }
+
+    adminGameDay.appendChild(editForm);
+
+    const createForm = document.createElement('form');
+    createForm.className = 'admin-form admin-form--stacked';
+
+    const createDescLabel = document.createElement('label');
+    createDescLabel.className = 'admin-form-label';
+    createDescLabel.textContent = 'Neuen Spieltag anlegen';
+    const createDesc = document.createElement('input');
+    createDesc.type = 'text';
+    createDesc.name = 'description';
+    createDesc.placeholder = 'Beschreibung';
+    createDesc.required = true;
+    createDescLabel.appendChild(createDesc);
+
+    const createLockLabel = document.createElement('label');
+    createLockLabel.className = 'admin-form-label';
+    createLockLabel.textContent = 'Lock Time (Datum & Uhrzeit)';
+    const createLock = document.createElement('input');
+    createLock.type = 'datetime-local';
+    createLock.name = 'lockTime';
+    createLock.required = true;
+    createLockLabel.appendChild(createLock);
+
+    const createSubmit = document.createElement('button');
+    createSubmit.type = 'submit';
+    createSubmit.textContent = 'Spieltag speichern';
+
+    createForm.addEventListener('submit', async (event) => {
         event.preventDefault();
 
-        const description = descInput.value.trim();
-        const lockTimeValue = lockInput.value ? new Date(lockInput.value).toISOString() : null;
+        const description = createDesc.value.trim();
+        const lockTimeValue = createLock.value ? new Date(createLock.value).toISOString() : null;
 
         if (!description || !lockTimeValue) {
             showAdminMessage('Bitte Beschreibung und Lock-Zeit angeben.', 'error');
             return;
         }
 
-        submit.disabled = true;
-        submit.textContent = 'Wird gespeichert...';
+        createSubmit.disabled = true;
+        createSubmit.textContent = 'Wird gespeichert...';
 
         try {
             const payload = { description, lockTime: lockTimeValue };
@@ -1496,20 +1601,25 @@ function renderGameDayAdmin() {
 
             activeGameDay = created;
             selectedGameDay = created.gameDay;
+            selectedHistoryGameDay = created.gameDay;
             showAdminMessage('Spieltag gespeichert.', 'success');
+            await refreshHottakes(created.gameDay);
             refreshLockState();
             await loadGameDays();
+            await loadActiveGameDay();
+            updateHistorySelect();
+            renderHottakes();
             renderGameDayAdmin();
         } catch (error) {
             showAdminMessage(error.message, 'error');
         } finally {
-            submit.disabled = false;
-            submit.textContent = activeGameDay ? 'Neuen Spieltag anlegen' : 'Spieltag erstellen';
+            createSubmit.disabled = false;
+            createSubmit.textContent = 'Spieltag speichern';
         }
     });
 
-    form.append(descLabel, lockLabel, submit, finalize);
-    adminGameDay.append(status, form);
+    createForm.append(createDescLabel, createLockLabel, createSubmit);
+    adminGameDay.appendChild(createForm);
 }
 
 

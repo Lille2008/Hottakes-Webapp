@@ -17,13 +17,21 @@ enum HottakeStatus {
   FALSCH
 }
 
+// Status eines Spieltags
+enum GameDayStatus {
+  PENDING
+  ACTIVE
+  FINALIZED
+  ARCHIVED
+}
+
 // Kernmodell: ein einzelner Hottake mit Text und Status
 model Hottake {
   id        Int            @id @default(autoincrement())
   text      String
   status    HottakeStatus  @default(OFFEN)
   gameDay   Int            @default(0)
-  gameDayRef AdminEvent?   @relation("AdminEventHottakes", fields: [gameDay], references: [gameDay])
+  gameDayRef GameDay?      @relation("GameDayHottakes", fields: [gameDay], references: [gameDay])
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
   @@map("hottakes")
@@ -50,7 +58,7 @@ model Submission {
   userId    Int
   user      User     @relation(fields: [userId], references: [id])
   gameDay   Int
-  gameDayRef AdminEvent? @relation("AdminEventSubmissions", fields: [gameDay], references: [gameDay])
+  gameDayRef GameDay? @relation("GameDaySubmissions", fields: [gameDay], references: [gameDay])
   picks     Int[]
   score     Int      @default(0)
   createdAt DateTime @default(now())
@@ -69,18 +77,18 @@ model Setting {
   @@map("settings")
 }
 
-// Optional: Admin-Events für Zeitsteuerung (Start/Lock/Ende) eines Spiels/Ereignisses
-model AdminEvent {
-  id          Int      @id @default(autoincrement())
-  gameDay     Int      @unique
+// Spieltage mit explizitem Status
+model GameDay {
+  id          Int           @id @default(autoincrement())
+  gameDay     Int           @unique
   description String
   startTime   DateTime?
   lockTime    DateTime?
-  endTime     DateTime?
-  activeFlag  Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  hottakes    Hottake[]     @relation("AdminEventHottakes")
-  submissions Submission[]  @relation("AdminEventSubmissions")
-  @@map("admin_events")
+  finalizedAt DateTime?
+  status      GameDayStatus @default(ACTIVE)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  hottakes    Hottake[]     @relation("GameDayHottakes")
+  submissions Submission[]  @relation("GameDaySubmissions")
+  @@map("gamedays")
 }

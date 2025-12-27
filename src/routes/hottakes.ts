@@ -4,7 +4,7 @@ import { z } from 'zod';
 import prisma from '../lib/db';
 import { optionalAuth } from '../middleware/auth';
 import { requireAdmin } from '../middleware/admin';
-import { getGameDayByNumber, resolveGameDayParam } from '../lib/gameDay';
+import { GAME_DAY_STATUS, getGameDayByNumber, resolveGameDayParam } from '../lib/gameDay';
 
 const STATUS_VALUES = ['OFFEN', 'WAHR', 'FALSCH'] as const;
 
@@ -49,7 +49,7 @@ router.post('/', requireAdmin, async (req, res, next) => {
     const targetGameDay = typeof payload.gameDay === 'number' ? payload.gameDay : await resolveGameDayParam('active');
     const gameDay = await getGameDayByNumber(targetGameDay);
 
-    if (!gameDay.activeFlag) {
+    if (gameDay.status !== GAME_DAY_STATUS.ACTIVE) {
       return res.status(400).json({ message: 'Spieltag ist abgeschlossen. Keine neuen Hottakes möglich.' });
     }
 
@@ -92,7 +92,10 @@ router.patch('/:id', requireAdmin, async (req, res, next) => {
       const openCount = hottakes.filter((entry) => entry.status === 'OFFEN').length;
 
       if (total === 10 && openCount === 0) {
-        await tx.adminEvent.update({ where: { gameDay: hottake.gameDay }, data: { activeFlag: false, endTime: new Date() } });
+        await tx.gameDay.update({
+          where: { gameDay: hottake.gameDay },
+          data: { status: GAME_DAY_STATUS.FINALIZED, finalizedAt: new Date() }
+        });
       }
 
       return hottake;

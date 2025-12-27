@@ -5,7 +5,7 @@ import prisma from '../lib/db';
 import { calculateScore, type HottakeOutcome } from '../lib/scoring';
 import { requireAuth, type AuthRequest } from '../middleware/auth';
 import { checkGameDayLock } from '../middleware/checkGameDayLock';
-import { getGameDayByNumber, resolveGameDayParam } from '../lib/gameDay';
+import { GAME_DAY_STATUS, getGameDayByNumber, resolveGameDayParam } from '../lib/gameDay';
 
 type HottakeWithStatus = { id: number; status: HottakeOutcome['status']; gameDay: number };
 
@@ -153,7 +153,7 @@ router.post('/', requireAuth, checkGameDayLock, async (req, res, next) => {
     }
 
     const gameDayEvent = await getGameDayByNumber(gameDay);
-    if (!gameDayEvent.activeFlag) {
+    if (gameDayEvent.status !== GAME_DAY_STATUS.ACTIVE) {
       return res.status(400).json({ message: 'Spieltag ist abgeschlossen. Keine Änderungen mehr möglich.' });
     }
 

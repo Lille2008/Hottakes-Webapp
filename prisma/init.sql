@@ -1,4 +1,5 @@
 CREATE TYPE "HottakeStatus" AS ENUM ('OFFEN', 'WAHR', 'FALSCH');
+CREATE TYPE "GameDayStatus" AS ENUM ('PENDING', 'ACTIVE', 'FINALIZED', 'ARCHIVED');
 
 CREATE TABLE "hottakes" (
     "id" SERIAL NOT NULL,
@@ -46,18 +47,18 @@ CREATE TABLE "settings" (
     CONSTRAINT "settings_pkey" PRIMARY KEY ("id")
 );
 
-CREATE TABLE "admin_events" (
+CREATE TABLE "gamedays" (
     "id" SERIAL NOT NULL,
     "gameDay" INTEGER NOT NULL,
     "description" TEXT NOT NULL,
     "startTime" TIMESTAMP(3),
     "lockTime" TIMESTAMP(3),
-    "endTime" TIMESTAMP(3),
-    "activeFlag" BOOLEAN NOT NULL DEFAULT true,
+    "finalizedAt" TIMESTAMP(3),
+    "status" "GameDayStatus" NOT NULL DEFAULT 'ACTIVE',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "admin_events_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "gamedays_pkey" PRIMARY KEY ("id")
 );
 
 CREATE UNIQUE INDEX "users_nickname_key" ON "users"("nickname");
@@ -67,11 +68,11 @@ CREATE UNIQUE INDEX "users_resetToken_key" ON "users"("resetToken");
 CREATE UNIQUE INDEX "submissions_userId_gameDay_key" ON "submissions"("userId", "gameDay");
 CREATE INDEX "hottakes_gameDay_idx" ON "hottakes"("gameDay");
 CREATE INDEX "submissions_gameDay_idx" ON "submissions"("gameDay");
-CREATE UNIQUE INDEX "admin_events_gameDay_key" ON "admin_events"("gameDay");
+CREATE UNIQUE INDEX "gamedays_gameDay_key" ON "gamedays"("gameDay");
 
 CREATE UNIQUE INDEX "settings_key_key" ON "settings"("key");
 
 ALTER TABLE "submissions" ADD CONSTRAINT "submissions_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "submissions" ADD CONSTRAINT "submissions_gameDay_fkey" FOREIGN KEY ("gameDay") REFERENCES "admin_events"("gameDay") ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "hottakes" ADD CONSTRAINT "hottakes_gameDay_fkey" FOREIGN KEY ("gameDay") REFERENCES "admin_events"("gameDay") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "submissions" ADD CONSTRAINT "submissions_gameDay_fkey" FOREIGN KEY ("gameDay") REFERENCES "gamedays"("gameDay") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "hottakes" ADD CONSTRAINT "hottakes_gameDay_fkey" FOREIGN KEY ("gameDay") REFERENCES "gamedays"("gameDay") ON DELETE RESTRICT ON UPDATE CASCADE;
 

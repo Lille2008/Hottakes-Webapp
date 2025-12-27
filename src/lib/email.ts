@@ -1,5 +1,5 @@
 import { Resend } from 'resend';
-import type { AdminEvent } from '@prisma/client';
+import type { GameDay } from '@prisma/client';
 
 const resendApiKey = process.env.RESEND_API_KEY;
 const emailFrom = process.env.EMAIL_FROM;
@@ -36,7 +36,7 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string) {
   await sendEmail(to, 'Reset Your Hottakes Password', html);
 }
 
-export async function sendReminderEmail(to: string, gameDay: AdminEvent) {
+export async function sendReminderEmail(to: string, gameDay: GameDay) {
   const lockTime = gameDay.lockTime ? gameDay.lockTime.toISOString() : 'soon';
 
   const html = `

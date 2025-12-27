@@ -1,5 +1,6 @@
 import cron from 'node-cron';
 import prisma from './db';
+import { GAME_DAY_STATUS } from './gameDay';
 import { sendReminderEmail } from './email';
 
 let started = false;
@@ -16,9 +17,9 @@ export function startReminderScheduler() {
       const now = new Date();
       const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
-      const upcomingGameDays = await prisma.adminEvent.findMany({
+      const upcomingGameDays = await prisma.gameDay.findMany({
         where: {
-          activeFlag: true,
+          status: GAME_DAY_STATUS.ACTIVE,
           lockTime: {
             gte: now,
             lte: tomorrow
