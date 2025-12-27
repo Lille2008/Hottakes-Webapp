@@ -49,6 +49,10 @@ let isLocked = false;
 const hottakesContainer = document.getElementById('hottakes-container');
 const ranksContainer = document.getElementById('ranks-container');
 const leaderboardContainer = document.getElementById('leaderboard-container');
+const gameDayShell = document.getElementById('game-day-shell');
+const leaderboardHeader = document.createElement('div');
+const leaderboardTitle = document.createElement('h2');
+const leaderboardList = document.createElement('div');
 const savePicksButton = document.getElementById('save-picks');
 const adminArea = document.getElementById('admin-area');
 const adminList = document.getElementById('hottake-list');
@@ -89,6 +93,15 @@ if (
     !adminAdd
 ) {
     throw new Error('Hottakes App Initialisierung fehlgeschlagen: DOM-Elemente nicht gefunden.');
+}
+
+leaderboardHeader.className = 'leaderboard-header';
+leaderboardTitle.textContent = 'Leaderboard';
+leaderboardHeader.appendChild(leaderboardTitle);
+leaderboardList.id = 'leaderboard-list';
+
+if (leaderboardContainer) {
+    leaderboardContainer.append(leaderboardHeader, leaderboardList);
 }
 
 async function loadGameDays() {
@@ -632,6 +645,8 @@ function applyLockStateUI() {
     const hasExactOpen = openHottakes.length === MIN_OPEN_HOTTAKES;
     const blocked = isLocked || isHistory || finalized || !hasExactOpen;
 
+    document.body.classList.toggle('picks-locked', isLocked);
+
     if (savePicksButton) {
         savePicksButton.disabled = blocked;
         if (isHistory) {
@@ -843,16 +858,8 @@ function updateHistorySelect() {
     gameDays.forEach((day) => {
         const option = document.createElement('option');
         option.value = String(day.gameDay);
-        const isCurrent = activeGameDay && activeGameDay.gameDay === day.gameDay;
         const isActive = day.status === GAME_DAY_STATUS.ACTIVE;
-        const isFinal = day.status === GAME_DAY_STATUS.FINALIZED || day.status === GAME_DAY_STATUS.ARCHIVED;
-        const suffix = isCurrent
-            ? ' (Aktueller Spieltag)'
-            : isActive
-                ? ' (aktiv)'
-                : isFinal
-                    ? ' (abgeschlossen)'
-                    : ' (geplant)';
+        const suffix = isActive ? ' (aktiv)' : '';
         option.textContent = day.description ? `${day.description}${suffix}` : `Spieltag ${day.gameDay}${suffix}`;
         select.appendChild(option);
     });
@@ -899,8 +906,8 @@ function ensureLeaderboardSelect() {
 
     wrapper.append(label, leaderboardSelect);
 
-    if (gameDayBanner) {
-        gameDayBanner.appendChild(wrapper);
+    if (leaderboardHeader) {
+        leaderboardHeader.appendChild(wrapper);
     }
 
     return leaderboardSelect;
@@ -912,7 +919,7 @@ function updateLeaderboardSelect() {
 
     const globalOption = document.createElement('option');
     globalOption.value = 'all';
-    globalOption.textContent = 'Global (alle abgeschlossenen)';
+    globalOption.textContent = 'Gesamtansicht';
     select.appendChild(globalOption);
 
     const finalizedDays = gameDays.filter((day) => day.status !== GAME_DAY_STATUS.ACTIVE);
@@ -920,7 +927,7 @@ function updateLeaderboardSelect() {
     finalizedDays.forEach((day) => {
         const option = document.createElement('option');
         option.value = String(day.gameDay);
-        option.textContent = day.description ? `${day.description} (abgeschlossen)` : `Spieltag ${day.gameDay} (abgeschlossen)`;
+        option.textContent = day.description ? `${day.description}` : `Spieltag ${day.gameDay}`;
         select.appendChild(option);
     });
 
@@ -1101,14 +1108,16 @@ async function refreshHottakes(targetGameDay = null) {
 
 
 async function drawLeaderboard(targetGameDay = null) {
-    leaderboardContainer.innerHTML = '<h2>Leaderboard</h2>';
+    if (leaderboardList) {
+        leaderboardList.innerHTML = '';
+    }
     const selection = leaderboardSelection === null ? 'all' : leaderboardSelection;
     const gameDayParam = targetGameDay !== null ? targetGameDay : selection;
 
     if (gameDayParam === null || gameDayParam === undefined) {
         const row = document.createElement('p');
         row.textContent = 'Kein Spieltag ausgewählt.';
-        leaderboardContainer.appendChild(row);
+        leaderboardList.appendChild(row);
         return;
     }
 
@@ -1120,20 +1129,20 @@ async function drawLeaderboard(targetGameDay = null) {
         if (entries.length === 0) {
             const emptyRow = document.createElement('p');
             emptyRow.textContent = 'Noch keine Scores.';
-            leaderboardContainer.appendChild(emptyRow);
+            leaderboardList.appendChild(emptyRow);
             return;
         }
 
         entries.forEach((entry, index) => {
             const row = document.createElement('p');
             row.textContent = `${index + 1}. ${entry.nickname}: ${entry.score} Punkte`;
-            leaderboardContainer.appendChild(row);
+            leaderboardList.appendChild(row);
         });
     } catch (error) {
         console.error(error);
         const row = document.createElement('p');
         row.textContent = 'Fehler beim Laden des Leaderboards.';
-        leaderboardContainer.appendChild(row);
+        leaderboardList.appendChild(row);
     }
 }
 

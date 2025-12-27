@@ -39,7 +39,10 @@ export async function buildLeaderboard(gameDay: number): Promise<LeaderboardEntr
       });
     }
 
-    if (!perUser.has(submission.userId)) {
+    const existing = perUser.get(submission.userId);
+    const isNewer = !existing || submission.updatedAt.getTime() >= existing.submittedAt.getTime();
+
+    if (isNewer) {
       perUser.set(submission.userId, {
         nickname,
         score,
@@ -104,7 +107,9 @@ export async function buildLeaderboardAll(): Promise<LeaderboardEntry[]> {
     }
 
     const existing = totals.get(submission.userId);
-    const firstSubmittedAt = existing ? new Date(Math.min(existing.submittedAt.getTime(), submission.updatedAt.getTime())) : submission.updatedAt;
+    const firstSubmittedAt = existing
+      ? new Date(Math.min(existing.submittedAt.getTime(), submission.updatedAt.getTime()))
+      : submission.updatedAt;
 
     totals.set(submission.userId, {
       nickname,

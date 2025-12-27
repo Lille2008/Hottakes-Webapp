@@ -644,13 +644,20 @@ h3 {
 /* ============================================
    GAME CONTAINER
    ============================================ */
+#game-day-shell {
+    max-width: 1200px;
+    width: min(1200px, calc(100% - 40px));
+    margin: 0 auto 18px;
+    padding: 0 10px;
+}
+
 #game {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 30px;
+    gap: 24px;
     max-width: 1200px;
     width: min(1200px, calc(100% - 40px));
-    margin: 20px auto;
+    margin: 0 auto 20px;
     padding: 0 10px;
     justify-content: center;
 }
@@ -690,6 +697,16 @@ h3 {
 
 .hottakes-notice.is-visible {
     display: block;
+}
+
+.picks-locked #hottakes-list,
+.picks-locked .rank-wrapper,
+.picks-locked #save-picks {
+    display: none;
+}
+
+.picks-locked #ranks-container {
+    pointer-events: none;
 }
 
 #hottakes-list {
@@ -839,6 +856,15 @@ h3 {
 
 #leaderboard-container h2 {
     margin-bottom: 25px;
+}
+
+.leaderboard-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
 }
 
 #leaderboard-list {
