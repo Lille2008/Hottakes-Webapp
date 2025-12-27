@@ -7,8 +7,37 @@ let prisma: PrismaClient;
 
 const truncateTables = async () => {
   await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE "submissions", "users", "hottakes", "settings", "admin_events" RESTART IDENTITY CASCADE;'
+    'TRUNCATE TABLE "submissions", "users", "hottakes", "settings", "gamedays" RESTART IDENTITY CASCADE;'
   );
+};
+
+const ensureGameDayZero = async (
+  overrides: Partial<{
+    lockTime: Date | null;
+    status: 'PENDING' | 'ACTIVE' | 'FINALIZED' | 'ARCHIVED';
+    description: string;
+    startTime: Date | null;
+    finalizedAt: Date | null;
+  }> = {}
+) => {
+  await prisma.gameDay.upsert({
+    where: { gameDay: 0 },
+    create: {
+      gameDay: 0,
+      description: overrides.description ?? 'Test Spieltag 0',
+      status: overrides.status ?? 'ACTIVE',
+      lockTime: overrides.lockTime ?? null,
+      startTime: overrides.startTime ?? null,
+      finalizedAt: overrides.finalizedAt ?? null
+    },
+    update: {
+      description: overrides.description ?? 'Test Spieltag 0',
+      status: overrides.status ?? 'ACTIVE',
+      lockTime: overrides.lockTime ?? null,
+      startTime: overrides.startTime ?? null,
+      finalizedAt: overrides.finalizedAt ?? null
+    }
+  });
 };
 
 beforeAll(async () => {
@@ -27,6 +56,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   await truncateTables();
+  await ensureGameDayZero();
 });
 
 afterAll(async () => {
@@ -96,7 +126,7 @@ describe('Hottakes API', () => {
     const byQuery = await agent.get('/api/submissions?nickname=Lille').expect(200);
     expect(byQuery.body.picks).toEqual(picks);
 
-    const leaderboard = await request(app).get('/api/leaderboard').expect(200);
+    const leaderboard = await request(app).get('/api/leaderboard?gameDay=0').expect(200);
     expect(Array.isArray(leaderboard.body)).toBe(true);
     expect(leaderboard.body[0]).toMatchObject({ nickname: 'Lille', score: 9 });
   });
@@ -136,14 +166,7 @@ describe('Hottakes API', () => {
       .send({ nickname: 'PlayerOne', email: 'player1@example.com', password: 'password123' })
       .expect(201);
 
-    await prisma.gameDay.create({
-      data: {
-        description: 'Test lock',
-        lockTime: new Date(Date.now() - 60_000),
-        status: 'ACTIVE',
-        gameDay: 0
-      }
-    });
+    await ensureGameDayZero({ lockTime: new Date(Date.now() - 60_000), status: 'ACTIVE', description: 'Test lock' });
 
     const hottakeIds = await Promise.all(
       Array.from({ length: 5 }).map((_, index) =>
