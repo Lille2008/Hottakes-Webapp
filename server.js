@@ -4,7 +4,29 @@ try {
   const express = require('express');
   const path = require('path');
   const app = express();
+// Einfache Basic Auth Middleware
+function basicAuth(req, res, next) {
+  const auth = req.headers.authorization;
 
+  if (!auth) {
+    res.setHeader('WWW-Authenticate', 'Basic');
+    return res.status(401).send('Authentication required');
+  }
+
+  const base64 = auth.split(' ')[1];
+  const decoded = Buffer.from(base64, 'base64').toString();
+  const [, password] = decoded.split(':');
+
+  if (password === process.env.APP_PASSWORD) {
+    return next();
+  }
+
+  res.setHeader('WWW-Authenticate', 'Basic');
+  return res.status(401).send('Wrong password');
+}
+
+  app.use(basicAuth); // Schutz durch Basic Auth vor Laden der Website
+  // Ende Basic Auth Middleware
   app.use(express.static(path.join(__dirname, 'public')));
   app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public/index.html'));
