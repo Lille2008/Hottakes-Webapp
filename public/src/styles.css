@@ -1,3 +1,6 @@
+.lock-countdown.is-hidden {
+    display: none !important;
+}
 /* ============================================
    CSS VARIABLES - Gradient Theme Based on Logo
    ============================================ */
