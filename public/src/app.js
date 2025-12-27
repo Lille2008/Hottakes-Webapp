@@ -79,6 +79,7 @@ const lockCountdown = document.getElementById('lock-countdown');
 const viewToggleActive = document.getElementById('view-active');
 const viewToggleHistory = document.getElementById('view-history');
 const gameDayBanner = document.getElementById('game-day-banner');
+const gameDayActions = document.querySelector('#game-day-banner .game-day-actions');
 let historySelect = null;
 let leaderboardSelect = null;
 
@@ -828,11 +829,13 @@ function ensureHistorySelect() {
 
     const label = document.createElement('label');
     label.htmlFor = historySelect.id;
-    label.textContent = 'Spieltag wählen';
+    label.textContent = 'Ansicht';
 
     wrapper.append(label, historySelect);
 
-    if (gameDayBanner) {
+    if (gameDayActions) {
+        gameDayActions.appendChild(wrapper);
+    } else if (gameDayBanner) {
         gameDayBanner.appendChild(wrapper);
     }
 
@@ -901,7 +904,7 @@ function ensureLeaderboardSelect() {
 
     const label = document.createElement('label');
     label.htmlFor = leaderboardSelect.id;
-    label.textContent = 'Leaderboard Ansicht';
+    label.textContent = 'Ansicht';
 
     wrapper.append(label, leaderboardSelect);
 
@@ -1029,10 +1032,11 @@ function createHottakeElement(hottake, { readonly = false, picked = false } = {}
 
 
 function renderHottakes() {
-    const availableHottakes = viewMode === 'history' ? allHottakes : openHottakes;
-    const sanitizeSource = viewMode === 'history' ? allHottakes : openHottakes;
+    const useHistoryView = viewMode !== 'active' || isLocked;
+    const availableHottakes = useHistoryView ? allHottakes : openHottakes;
+    const sanitizeSource = useHistoryView ? allHottakes : openHottakes;
     const isReadOnly = viewMode !== 'active' || isLocked;
-    const referencePicks = viewMode === 'history' ? lastSubmissionPicks : picks;
+    const referencePicks = useHistoryView ? lastSubmissionPicks : picks;
 
     sanitizePicks(sanitizeSource);
     hottakesList.innerHTML = '';
@@ -1125,14 +1129,23 @@ async function drawLeaderboard(targetGameDay = null) {
         const response = await apiFetch(`/leaderboard?gameDay=${param}`);
         const entries = Array.isArray(response) ? response : [];
 
-        if (entries.length === 0) {
+        const byNickname = new Map();
+        entries.forEach((entry) => {
+            const existing = byNickname.get(entry.nickname);
+            if (!existing || entry.score > existing.score) {
+                byNickname.set(entry.nickname, entry);
+            }
+        });
+        const deduped = Array.from(byNickname.values()).sort((a, b) => b.score - a.score);
+
+        if (deduped.length === 0) {
             const emptyRow = document.createElement('p');
             emptyRow.textContent = 'Noch keine Scores.';
             leaderboardList.appendChild(emptyRow);
             return;
         }
 
-        entries.forEach((entry, index) => {
+        deduped.forEach((entry, index) => {
             const row = document.createElement('p');
             row.textContent = `${index + 1}. ${entry.nickname}: ${entry.score} Punkte`;
             leaderboardList.appendChild(row);
@@ -1412,7 +1425,7 @@ function renderGameDayAdmin() {
 
     const selectLabel = document.createElement('label');
     selectLabel.className = 'admin-form-label';
-    selectLabel.textContent = 'Spieltag wählen';
+    selectLabel.textContent = 'Ansicht';
 
     const select = document.createElement('select');
     select.className = 'admin-select';
