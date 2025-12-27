@@ -8,12 +8,12 @@ try {
 function basicAuth(req, res, next) {
   const auth = req.headers.authorization;
 
-  if (!auth) {
+  if (!auth || !auth.startsWith('Basic ')) {
     res.setHeader('WWW-Authenticate', 'Basic');
     return res.status(401).send('Authentication required');
   }
 
-  const base64 = auth.split(' ')[1];
+  const base64 = auth.slice(6);
   const decoded = Buffer.from(base64, 'base64').toString();
   const [, password] = decoded.split(':');
 
@@ -25,7 +25,9 @@ function basicAuth(req, res, next) {
   return res.status(401).send('Wrong password');
 }
 
-  app.use(basicAuth); // Schutz durch Basic Auth vor Laden der Website
+if (process.env.APP_PASSWORD) {
+  app.use(basicAuth);
+} // Schutz durch Basic Auth vor Laden der Website nur wenn APP_PASSWORD gesetzt ist (kann ich ausschalten, sobald ich öffentlich werden möchte)
   // Ende Basic Auth Middleware
   app.use(express.static(path.join(__dirname, 'public')));
   app.get('/', (req, res) => {
