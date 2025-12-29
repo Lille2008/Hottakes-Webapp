@@ -40,7 +40,6 @@ export function startReminderScheduler() {
       const usersWithoutSubmissions = await prisma.user.findMany({
         where: {
           id: { notIn: Array.from(submittedUserIds) },
-          email: { not: null }
         }
       });
 
