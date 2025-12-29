@@ -16,7 +16,7 @@ if (!JWT_SECRET) {
     throw new Error('JWT_SECRET is not set. Please define it in the environment.');
 }
 
-function signUserToken(payload: { id: number; nickname: string; email: string | null }) {
+function signUserToken(payload: { id: number; nickname: string; email: string }) {
     return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' }); // Der Token ist 7 Tage gültig
 }
 

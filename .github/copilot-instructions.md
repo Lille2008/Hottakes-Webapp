@@ -11,7 +11,7 @@ This document gives AI coding agents the essential, repo-specific context to be 
 ## Data Model (Prisma)
 - Schema in `prisma/schema.prisma`. Key models:
   - `Hottake { id, text, status: OFFEN|WAHR|FALSCH, createdAt, updatedAt }`
-  - `User { id, nickname(unique), email?, passwordHash?, prefs Json? default "{}", submission? }`
+  - `User { id, nickname(unique), email, passwordHash, prefs Json? default "{}", submission? }`
   - `Submission { id, userId(unique), picks: Int[], createdAt, updatedAt }`
   - `Setting` and `AdminEvent` exist for future features.
 - Raw SQL bootstrap exists in `prisma/init.sql` and mirrors the schema.

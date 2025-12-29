@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken';
 export interface UserPayload {
     id: number;
     nickname: string;
-    email: string | null;
+    email: string;
 }
 
 // Hier wird die Request erweitert, damit der payload-Typ (gibt an was im payload erwartet wird (z.B. id, nickname, email)) bekannt ist
