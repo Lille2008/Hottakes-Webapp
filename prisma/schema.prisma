@@ -1,23 +1,24 @@
-// Prisma-Konfiguration: aus diesem Schema generiert Prisma den TypeScript-Client
+// Vorlage für die SQL-Datenbank wird erstellt
+// Prisma-Konfiguration: aus diesem Schema generiert Prisma den TypeScript-Client (Bibliothek mit wichtigen Befehlen für Datenbanken)
 generator client {
   provider = "prisma-client-js"
 }
 
-// Datenquelle: PostgreSQL – URLs kommen aus Umgebungsvariablen
+// Datenquelle: PostgreSQL; URLs kommen aus Umgebungsvariablen (.env)
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
   directUrl = env("DIRECT_DATABASE_URL") // nutzt den direkten 5432-Endpoint (oder notfalls denselben Pooler)
 }
 
-// Enum für den Status eines Hottakes (OFFEN/WAHR/FALSCH)
+// Neuer Typ
 enum HottakeStatus {
   OFFEN
   WAHR
   FALSCH
 }
 
-// Status eines Spieltags
+// Neuer Typ
 enum GameDayStatus {
   PENDING
   ACTIVE
@@ -25,49 +26,46 @@ enum GameDayStatus {
   ARCHIVED
 }
 
-// Kernmodell: ein einzelner Hottake mit Text und Status
+//@ gibt Prisma zusätzliche Informationen zu Feldern in der Datenbank (Attribute)
 model Hottake {
-  id        Int            @id @default(autoincrement())
+  id        Int            @id @default(autoincrement()) // Wert wird automatisch hochgezählt
   text      String
-  status    HottakeStatus  @default(OFFEN)
+  status    HottakeStatus  @default(OFFEN) 
   gameDay   Int            @default(0)
   gameDayRef GameDay?      @relation("GameDayHottakes", fields: [gameDay], references: [gameDay])
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
-  @@map("hottakes")
+  @@map("hottakes") //@@"..." gibt Tabellennamen an
 }
 
-// User mit eindeutigem Nickname (1:n zu Submissions ist hier als 1:1 modelliert)
 model User {
   id           Int          @id @default(autoincrement())
   nickname     String       @unique
-  email        String?      @unique // Optional vorerst, falls Alt-Daten existieren ohne Email
-  passwordHash String?      // Optional für Übergang, aber Pflicht für neue Auth
+  email        String      @unique 
+  passwordHash String      
   resetToken   String?      @unique
   resetTokenExpiry DateTime?
-  prefs        Json?        @default("{}") // Für Dark Mode etc. (Phase 9)
+  prefs        Json?        @default("{}") 
   createdAt    DateTime     @default(now())
   submissions  Submission[]
 
   @@map("users")
 }
 
-// Eine Abgabe (Submission) pro User: enthält die Picks als Integer-Array
 model Submission {
   id        Int      @id @default(autoincrement())
   userId    Int
   user      User     @relation(fields: [userId], references: [id])
   gameDay   Int
   gameDayRef GameDay? @relation("GameDaySubmissions", fields: [gameDay], references: [gameDay])
-  picks     Int[]
+  picks     Int[]    // [] heißt, dass es sich um eine Liste von diesem Datentyp handelt
   score     Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  @@unique([userId, gameDay])
+  @@unique([userId, gameDay]) // Es darf nur eine Submission für jeden User pro Spieltag geben (Nicht mehrere Picks)
   @@map("submissions")
 }
 
-// Schlüssel-Wert-Einstellungen, z. B. für Konfigurationen zur Laufzeit
 model Setting {
   id        Int      @id @default(autoincrement())
   key       String   @unique
@@ -77,7 +75,6 @@ model Setting {
   @@map("settings")
 }
 
-// Spieltage mit explizitem Status
 model GameDay {
   id          Int           @id @default(autoincrement())
   gameDay     Int           @unique

@@ -1,3 +1,6 @@
+// Hier werden die SQL-Befehle zur Initialisierung der Datenbank definiert (Braucht man um die Datenbank lokal zu erstellen)
+
+// Typen, die es sonst nicht in SQL gibt, werden hier definiert
 CREATE TYPE "HottakeStatus" AS ENUM ('OFFEN', 'WAHR', 'FALSCH');
 CREATE TYPE "GameDayStatus" AS ENUM ('PENDING', 'ACTIVE', 'FINALIZED', 'ARCHIVED');
 
@@ -61,17 +64,19 @@ CREATE TABLE "gamedays" (
     CONSTRAINT "gamedays_pkey" PRIMARY KEY ("id")
 );
 
+// Stellen sicher, dass bestimmte Felder außer den Primärschlüsseln eindeutig sind
 CREATE UNIQUE INDEX "users_nickname_key" ON "users"("nickname");
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 CREATE UNIQUE INDEX "users_resetToken_key" ON "users"("resetToken");
 
 CREATE UNIQUE INDEX "submissions_userId_gameDay_key" ON "submissions"("userId", "gameDay");
-CREATE INDEX "hottakes_gameDay_idx" ON "hottakes"("gameDay");
+CREATE INDEX "hottakes_gameDay_idx" ON "hottakes"("gameDay"); // Index macht Abfragen schneller, weil Datenbank nicht alle Zeilen durchgehen muss
 CREATE INDEX "submissions_gameDay_idx" ON "submissions"("gameDay");
 CREATE UNIQUE INDEX "gamedays_gameDay_key" ON "gamedays"("gameDay");
 
 CREATE UNIQUE INDEX "settings_key_key" ON "settings"("key");
 
+// Fremdschlüssel werden jetzt erst angelegt, weil ja alle Tabellen erst erstellt werden müssen
 ALTER TABLE "submissions" ADD CONSTRAINT "submissions_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "submissions" ADD CONSTRAINT "submissions_gameDay_fkey" FOREIGN KEY ("gameDay") REFERENCES "gamedays"("gameDay") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "hottakes" ADD CONSTRAINT "hottakes_gameDay_fkey" FOREIGN KEY ("gameDay") REFERENCES "gamedays"("gameDay") ON DELETE RESTRICT ON UPDATE CASCADE;
