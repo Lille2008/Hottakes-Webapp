@@ -34,8 +34,8 @@ const basicAuth = (req: Request, res: Response, next: NextFunction) => {
 };
 
 const app = express();
-// Basic Auth wirklich NUR für den initialen Seitenaufruf (HTML-Seiten), NICHT für API oder Assets!
-app.get(/^\/($|index\.html$|[a-zA-Z0-9\-_]+\.html$)/, basicAuth);
+// Basic Auth wirklich nur für den initialen Seitenaufruf der Startseite
+app.get(/^\/($|index\.html$)/, basicAuth);
 
 
 app.use(cors());
