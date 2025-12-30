@@ -11,30 +11,43 @@ import healthRouter from './routes/health';
 import gameDaysRouter from './routes/admin/gameDays';
 import publicGameDaysRouter from './routes/gameDays';
 
-// --- Basic Auth Middleware (global, before all routes/static) ---
+// Basic Auth Middleware (global, vor öffnentlichem Zugriff)
 const APP_PASSWORD = process.env.APP_PASSWORD;
+const BASIC_AUTH_COOKIE = 'hottakes_basic_auth'; // Cookie für Basic Auth
+
 const basicAuth = (req: Request, res: Response, next: NextFunction) => {
-  if (!APP_PASSWORD) return next(); // No password set, app is public
+  if (!APP_PASSWORD) return next(); // Wenn es kein Passwort gibt, ist die App öffentlich
+
+  // Wenn Cookie schon gesetzt, Auth überspringen
+  if (req.cookies && req.cookies[BASIC_AUTH_COOKIE] === '1') {
+    return next();
+  }
+
   const auth = req.headers['authorization'];
   if (!auth || !auth.startsWith('Basic ')) {
     res.setHeader('WWW-Authenticate', 'Basic realm="Hottakes"');
     return res.status(401).send('Passwort benötigt');
   }
-  // Decode base64
+  // Decode base64, wobei nur das Passwort geprüft wird
   const b64 = auth.split(' ')[1];
   let userpass = Buffer.from(b64, 'base64').toString('utf8');
-  // userpass is "user:pass"; allow any user, only check pass
   const idx = userpass.indexOf(':');
   const pass = idx >= 0 ? userpass.slice(idx + 1) : '';
   if (pass !== APP_PASSWORD) {
     res.setHeader('WWW-Authenticate', 'Basic realm="Hottakes"');
     return res.status(401).send('Falsches Passwort');
   }
+  // Nach erfolgreicher Auth: Cookie setzen für eine Woche
+  res.cookie(BASIC_AUTH_COOKIE, '1', {
+    httpOnly: true,
+    sameSite: 'lax',
+    maxAge: 1000 * 60 * 60 * 24 * 7
+  });
   next();
 };
 
 const app = express();
-// Basic Auth wirklich nur für den initialen Seitenaufruf der Startseite
+// Basic Auth wirklich nur für den initialen Seitenaufruf der Startseite durch Cookie
 app.get(/^\/($|index\.html$)/, basicAuth);
 
 

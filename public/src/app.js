@@ -1,7 +1,3 @@
-
-
-
-
 const API_BASE = window.APP_API_BASE || '/api';
 const RANK_COUNT = 5;
 const MIN_OPEN_HOTTAKES = 10;
@@ -67,7 +63,7 @@ const settingsAuthGuest = document.getElementById('settings-auth-guest');
 const settingsAuthUser = document.getElementById('settings-auth-user');
 const settingsUsername = document.getElementById('settings-username');
 const settingsLogout = document.getElementById('settings-logout');
-const userChip = document.getElementById('user-chip');
+const userChip = document.getElementById('user-chip'); //Benutzernickname im Header
 const legalBackdrop = document.getElementById('legal-backdrop');
 const legalModal = document.getElementById('legal-modal');
 const legalContent = document.getElementById('legal-content');
@@ -85,7 +81,7 @@ const gameDayActions = document.querySelector('#game-day-banner .game-day-action
 let historySelect = null;
 let leaderboardSelect = null;
 
-
+// Sicherstellen, dass alle notwendigen DOM-Elemente vorhanden sind
 if (
     !hottakesContainer ||
     !ranksContainer ||
@@ -147,7 +143,7 @@ function showAdminMessage(message, tone = 'info') {
     adminFeedback.classList.add('is-visible');
 }
 
-
+// Ermittelt das aktuelle System-Theme (light/dark)
 function resolveSystemTheme() {
     if (window.matchMedia) {
         const prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
@@ -156,7 +152,7 @@ function resolveSystemTheme() {
     return 'dark';
 }
 
-
+// Wenn Theme auf dark/light gesetzt ist, wird der Listener entfernt
 function detachSystemListener() {
     if (systemMediaQuery && typeof systemMediaQuery.removeEventListener === 'function') {
         systemMediaQuery.removeEventListener('change', handleSystemThemeChange);
@@ -164,7 +160,7 @@ function detachSystemListener() {
     systemMediaQuery = null;
 }
 
-
+// Reagiert auf Änderungen des System-Themes
 function handleSystemThemeChange() {
     const mode = getStoredThemeMode() || 'system';
     if (mode === 'system') {
@@ -173,24 +169,28 @@ function handleSystemThemeChange() {
     }
 }
 
-
+// Theme-Auswahl wird gespeichert (nur wenn User eingeloggt)
+// async macht die Funktion asynchron, sodass sie ein Promise zurückgibt.
+// await kann dann innerhalb der Funktion verwendet werden, um auf das Ergebnis von Promises zu warten.
+// Promises sind Objekte, die einen Wert jetzt, in der Zukunft oder nie liefern (z.B. bei Serveranfragen).
+// fetch (bzw. apiFetch) ist eine Funktion, die asynchron Daten vom Server holt und ein Promise zurückgibt.
 async function persistThemePreference(mode) {
     if (!currentUser) {
         return;
     }
 
     try {
-        await apiFetch('/auth/prefs', {
+        await apiFetch('/auth/prefs', { // await pausiert die Funktion, bis das Promise von apiFetch erfüllt ist (Antwort vom Server kommt)
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ themeMode: mode })
         });
     } catch (error) {
-        console.warn('Theme konnte nicht gespeichert werden:', error.message || error);
+        console.warn('Theme konnte nicht gespeichert werden:', error.message || error); // Fehler beim Speichern werden hier abgefangen
     }
 }
 
-
+// Wendet das ausgewählte Theme an
 function applyThemeMode(mode) {
     const normalizedMode = ['light', 'dark', 'system'].includes(mode) ? mode : 'system';
 
@@ -215,13 +215,13 @@ function applyThemeMode(mode) {
     try {
         localStorage.setItem(THEME_MODE_STORAGE_KEY, normalizedMode);
     } catch (_error) {
-        // Ignore storage issues (private mode, etc.)
+        // Ignoriert Probleme beim Speichern
     }
 
     persistThemePreference(normalizedMode);
 }
 
-
+// Liest das gespeicherte Theme aus dem Local Storage
 function getStoredThemeMode() {
     try {
         const stored = localStorage.getItem(THEME_MODE_STORAGE_KEY);
@@ -234,7 +234,7 @@ function getStoredThemeMode() {
     return null;
 }
 
-
+// Initialisiert das Theme basierend auf gespeicherter Einstellung oder System-Theme
 function initTheme() {
     const initialMode = getStoredThemeMode() || 'system';
     applyThemeMode(initialMode);
