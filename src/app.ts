@@ -47,9 +47,17 @@ const basicAuth = (req: Request, res: Response, next: NextFunction) => {
 };
 
 const app = express();
-// Basic Auth wirklich nur für den initialen Seitenaufruf der Startseite durch Cookie
-app.get(/^\/($|index\.html$)/, basicAuth);
 
+// Basic Auth nur für / und /index.html, aber vor express.static mit Cookie
+app.use((req, res, next) => {
+  if (
+    (req.path === '/' || req.path === '/index.html') &&
+    (!req.cookies || req.cookies[BASIC_AUTH_COOKIE] !== '1')
+  ) {
+    return basicAuth(req, res, next);
+  }
+  next();
+});
 
 app.use(cors());
 app.use(express.json());
