@@ -16,10 +16,10 @@ const APP_PASSWORD = process.env.APP_PASSWORD;
 const BASIC_AUTH_COOKIE = 'hottakes_basic_auth'; // Cookie für Basic Auth
 
 const basicAuth = (req: Request, res: Response, next: NextFunction) => {
-  if (!APP_PASSWORD) return next(); // Wenn es kein Passwort gibt, ist die App öffentlich
+  if (!APP_PASSWORD) return next();
+  if (req.path.startsWith('/api')) return next();
 
-  // Wenn Cookie schon gesetzt, Auth überspringen
-  if (req.cookies && req.cookies[BASIC_AUTH_COOKIE] === '1') {
+  if (req.cookies?.[BASIC_AUTH_COOKIE] === '1') {
     return next();
   }
 
@@ -28,40 +28,33 @@ const basicAuth = (req: Request, res: Response, next: NextFunction) => {
     res.setHeader('WWW-Authenticate', 'Basic realm="Hottakes"');
     return res.status(401).send('Passwort benötigt');
   }
-  // Decode base64, wobei nur das Passwort geprüft wird
+
   const b64 = auth.split(' ')[1];
-  let userpass = Buffer.from(b64, 'base64').toString('utf8');
+  const userpass = Buffer.from(b64, 'base64').toString('utf8');
   const idx = userpass.indexOf(':');
   const pass = idx >= 0 ? userpass.slice(idx + 1) : '';
+
   if (pass !== APP_PASSWORD) {
     res.setHeader('WWW-Authenticate', 'Basic realm="Hottakes"');
     return res.status(401).send('Falsches Passwort');
   }
-  // Nach erfolgreicher Auth: Cookie setzen für eine Woche
+
   res.cookie(BASIC_AUTH_COOKIE, '1', {
     httpOnly: true,
     sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
     maxAge: 1000 * 60 * 60 * 24 * 7
   });
+
   next();
 };
 
 const app = express();
 
-// Basic Auth nur für / und /index.html, aber vor express.static mit Cookie
-app.use((req, res, next) => {
-  if (
-    (req.path === '/' || req.path === '/index.html') &&
-    (!req.cookies || req.cookies[BASIC_AUTH_COOKIE] !== '1')
-  ) {
-    return basicAuth(req, res, next);
-  }
-  next();
-});
-
+app.use(cookieParser());
+app.use(basicAuth);
 app.use(cors());
 app.use(express.json());
-app.use(cookieParser());
 
 app.use('/api/auth', authRouter);
 app.use('/api/hottakes', hottakesRouter);
