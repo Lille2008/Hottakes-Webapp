@@ -39,6 +39,7 @@ let gameDays = [];
 let selectedHistoryGameDay = null;
 let selectedGameDay = null;
 let leaderboardSelection = 'all';
+let leaderboardRequestToken = 0;
 let lockCountdownTimer = null;
 let isLocked = false;
 
@@ -1113,6 +1114,7 @@ async function refreshHottakes(targetGameDay = null) {
 
 
 async function drawLeaderboard(targetGameDay = null) {
+    const requestToken = ++leaderboardRequestToken;
     if (leaderboardList) {
         leaderboardList.innerHTML = '';
     }
@@ -1130,6 +1132,10 @@ async function drawLeaderboard(targetGameDay = null) {
         const param = gameDayParam === 'all' ? 'all' : encodeURIComponent(gameDayParam);
         const response = await apiFetch(`/leaderboard?gameDay=${param}`);
         const entries = Array.isArray(response) ? response : [];
+
+        if (requestToken !== leaderboardRequestToken) {
+            return;
+        }
 
         // Deduplicate by nickname and score (robust against API duplicates)
         const seen = new Set();
@@ -1685,7 +1691,7 @@ async function checkLoginStatus() {
         } else {
 
             console.log('User is guest (no session found)');
-            updateUIForGuest();
+            await updateUIForGuest();
         }
     } catch (error) {
 
@@ -1695,13 +1701,13 @@ async function checkLoginStatus() {
 
         if (isAuthError) {
             console.log('User is guest (Unauthorized)');
-            updateUIForGuest();
+            await updateUIForGuest();
             return;
         }
 
         console.warn('Auth check failed:', error);
 
-        updateUIForGuest();
+        await updateUIForGuest();
     }
 }
 
@@ -1760,13 +1766,13 @@ function updateUIForLogin(user) {
 }
 
 
-function updateUIForGuest() {
+async function updateUIForGuest() {
     currentUser = null;
     updateUserChip(null);
     updateSettingsAuth(null);
     closeSettings();
     setHeaderAuthState(false);
-    setViewMode('active');
+    await setViewMode('active');
 
     adminEnabled = false;
 
@@ -1808,6 +1814,11 @@ async function initializeApp() {
     createRankSlots();
     await loadGameDays();
     await loadActiveGameDay();
+    if (activeGameDay) {
+        selectedGameDay = activeGameDay.gameDay;
+        selectedHistoryGameDay = selectedGameDay;
+        updateHistorySelect();
+    }
     await checkLoginStatus();
     await refreshHottakes();
     await drawLeaderboard();
