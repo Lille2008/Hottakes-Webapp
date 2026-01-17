@@ -105,7 +105,9 @@ async function ensureCompositeConstraint() {
   console.log('Ensuring composite unique constraint on [userId, gameDay]...');
   
   try {
-    // Check if the composite constraint exists
+    // Check if the composite constraint/index exists
+    // In PostgreSQL, Prisma's @@unique creates a UNIQUE INDEX, not a constraint
+    // So we check for both constraints and indexes
     const compositeConstraints = await prisma.$queryRaw<Array<{ constraint_name: string }>>`
       SELECT con.conname as constraint_name
       FROM pg_constraint con
@@ -118,8 +120,21 @@ async function ensureCompositeConstraint() {
       ORDER BY con.conname;
     `;
     
+    const compositeIndexes = await prisma.$queryRaw<Array<{ indexname: string }>>`
+      SELECT indexname
+      FROM pg_indexes
+      WHERE tablename = 'submissions'
+        AND schemaname = 'public'
+        AND indexdef LIKE '%UNIQUE%'
+        AND indexdef LIKE '%userId%'
+        AND indexdef LIKE '%gameDay%'
+      ORDER BY indexname;
+    `;
+    
     if (compositeConstraints.length > 0) {
       console.log('✓ Composite unique constraint exists:', compositeConstraints[0].constraint_name);
+    } else if (compositeIndexes.length > 0) {
+      console.log('✓ Composite unique index exists:', compositeIndexes[0].indexname);
     } else {
       console.log('Creating composite unique index on [userId, gameDay]...');
       await prisma.$executeRaw`
