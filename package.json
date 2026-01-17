@@ -8,7 +8,8 @@
     "build": "npx tsc && node scripts/copy-static.js",
     "start": "node dist/server.js",
     "test": "jest --runInBand",
-    "backfill:game-days": "ts-node scripts/backfill-game-days.ts"
+    "backfill:game-days": "ts-node scripts/backfill-game-days.ts",
+    "fix:submission-constraint": "ts-node scripts/fix-submission-constraint.ts"
   },
   "keywords": [],
   "author": "",
