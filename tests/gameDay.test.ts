@@ -46,32 +46,32 @@ describe('findCurrentGameDayNumber', () => {
     expect(result).toBe(1);
   });
 
-  it('should not return a game day with past lock time when another active game day exists', async () => {
+  it('should return game day that is in progress (locked but not finalized)', async () => {
     const pastDate = new Date(Date.now() - 24 * 60 * 60 * 1000); // yesterday
     const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000); // tomorrow
 
-    // Create game day 1 with lock time in the past (should be considered locked)
+    // Create game day 1 with lock time in the past (in progress)
     await prisma.gameDay.create({
       data: {
         gameDay: 1,
-        description: 'Past Game Day',
-        status: GAME_DAY_STATUS.ACTIVE,
+        description: 'In Progress Game Day',
+        status: GAME_DAY_STATUS.PENDING, // Status doesn't matter, will be updated
         lockTime: pastDate
       }
     });
 
-    // Create game day 2 with lock time in the future (should be the active one)
+    // Create game day 2 with lock time in the future (upcoming)
     await prisma.gameDay.create({
       data: {
         gameDay: 2,
         description: 'Future Game Day',
-        status: GAME_DAY_STATUS.ACTIVE,
+        status: GAME_DAY_STATUS.PENDING,
         lockTime: futureDate
       }
     });
 
     const result = await findCurrentGameDayNumber();
-    expect(result).toBe(2); // Should return game day 2, not game day 1
+    expect(result).toBe(1); // Should return game day 1 (in progress)
   });
 
   it('should return the earliest active game day when multiple have future lock times', async () => {
@@ -126,15 +126,55 @@ describe('findCurrentGameDayNumber', () => {
     expect(result).toBe(2);
   });
 
-  it('should return null when all active game days have past lock times', async () => {
+  it('should return upcoming game day when all past game days are finalized', async () => {
+    const pastDate1 = new Date(Date.now() - 48 * 60 * 60 * 1000);
+    const pastDate2 = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    // Create finalized past game days
+    await prisma.gameDay.create({
+      data: {
+        gameDay: 1,
+        description: 'Finalized Game Day 1',
+        status: GAME_DAY_STATUS.FINALIZED,
+        lockTime: pastDate1,
+        finalizedAt: pastDate1
+      }
+    });
+
+    await prisma.gameDay.create({
+      data: {
+        gameDay: 2,
+        description: 'Finalized Game Day 2',
+        status: GAME_DAY_STATUS.FINALIZED,
+        lockTime: pastDate2,
+        finalizedAt: pastDate2
+      }
+    });
+
+    // Create upcoming game day
+    await prisma.gameDay.create({
+      data: {
+        gameDay: 3,
+        description: 'Upcoming Game Day',
+        status: GAME_DAY_STATUS.PENDING,
+        lockTime: futureDate
+      }
+    });
+
+    const result = await findCurrentGameDayNumber();
+    expect(result).toBe(3); // Should return the upcoming game day
+  });
+
+  it('should return the most recent locked game day that is not finalized', async () => {
     const pastDate1 = new Date(Date.now() - 48 * 60 * 60 * 1000);
     const pastDate2 = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
     await prisma.gameDay.create({
       data: {
         gameDay: 1,
-        description: 'Past Game Day 1',
-        status: GAME_DAY_STATUS.ACTIVE,
+        description: 'Older Locked Game Day',
+        status: GAME_DAY_STATUS.PENDING,
         lockTime: pastDate1
       }
     });
@@ -142,14 +182,14 @@ describe('findCurrentGameDayNumber', () => {
     await prisma.gameDay.create({
       data: {
         gameDay: 2,
-        description: 'Past Game Day 2',
-        status: GAME_DAY_STATUS.ACTIVE,
+        description: 'Recent Locked Game Day',
+        status: GAME_DAY_STATUS.PENDING,
         lockTime: pastDate2
       }
     });
 
     const result = await findCurrentGameDayNumber();
-    expect(result).toBeNull(); // No valid active game day
+    expect(result).toBe(1); // Should return the first locked game day (in progress)
   });
 
   it('should return active game day with null lock time', async () => {
