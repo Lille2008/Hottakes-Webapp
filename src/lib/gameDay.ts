@@ -10,7 +10,7 @@ export const GAME_DAY_STATUS = {
 export type GameDayStatus = (typeof GAME_DAY_STATUS)[keyof typeof GAME_DAY_STATUS];
 
 /**
- * Finds the currently active game day number based on time-based logic.
+ * Finds the current game day number based on time-based logic.
  * Does NOT modify game day statuses in the database.
  * 
  * Logic determines the "current" game day as:
