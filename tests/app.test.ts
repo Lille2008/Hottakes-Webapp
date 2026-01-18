@@ -175,7 +175,7 @@ describe('Hottakes API', () => {
     );
 
     await agent
-      .post('/api/submissions')
+      .post('/api/submissions?gameDay=0')
       .send({ picks: hottakeIds.map((hot) => hot.id) })
       .expect(403);
   });

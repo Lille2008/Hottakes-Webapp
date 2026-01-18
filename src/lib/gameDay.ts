@@ -12,21 +12,23 @@ export type GameDayStatus = (typeof GAME_DAY_STATUS)[keyof typeof GAME_DAY_STATU
 export async function findCurrentGameDayNumber(): Promise<number | null> {
   const now = new Date();
 
-  const upcoming = await prisma.gameDay.findFirst({
-    where: { status: GAME_DAY_STATUS.ACTIVE, lockTime: { not: null, gt: now } },
-    orderBy: { lockTime: 'asc' }
+  // Find ACTIVE game days that haven't locked yet
+  // Either lockTime is null or lockTime is in the future
+  const activeGameDay = await prisma.gameDay.findFirst({
+    where: {
+      status: GAME_DAY_STATUS.ACTIVE,
+      OR: [
+        { lockTime: null },
+        { lockTime: { gt: now } }
+      ]
+    },
+    orderBy: [
+      { lockTime: { sort: 'asc', nulls: 'last' } },
+      { createdAt: 'asc' }
+    ]
   });
 
-  if (upcoming) {
-    return upcoming.gameDay;
-  }
-
-  const fallback = await prisma.gameDay.findFirst({
-    where: { status: GAME_DAY_STATUS.ACTIVE },
-    orderBy: [{ lockTime: 'asc' }, { createdAt: 'asc' }]
-  });
-
-  return fallback?.gameDay ?? null;
+  return activeGameDay?.gameDay ?? null;
 }
 
 export async function resolveGameDayParam(raw: unknown): Promise<number> {
