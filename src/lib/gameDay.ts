@@ -23,7 +23,7 @@ export async function findCurrentGameDayNumber(): Promise<number | null> {
       ]
     },
     orderBy: [
-      { lockTime: { sort: 'asc', nulls: 'last' } },
+      { lockTime: 'asc' },
       { createdAt: 'asc' }
     ]
   });
