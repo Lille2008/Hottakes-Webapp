@@ -44,6 +44,7 @@ export async function updateGameDayStatuses(): Promise<void> {
   // Find the game day that should be ACTIVE
   
   // Priority 1: A game day that is locked but not finalized (currently in progress)
+  // If multiple exist, take the first one (earliest lock time) as it started first
   let targetActiveGameDay = gameDays.find(
     (gd) => gd.lockTime && gd.lockTime <= now && !gd.finalizedAt
   );

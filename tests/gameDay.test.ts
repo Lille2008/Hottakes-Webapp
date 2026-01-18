@@ -166,7 +166,7 @@ describe('findCurrentGameDayNumber', () => {
     expect(result).toBe(3); // Should return the upcoming game day
   });
 
-  it('should return the most recent locked game day that is not finalized', async () => {
+  it('should return the earliest locked game day that is not finalized', async () => {
     const pastDate1 = new Date(Date.now() - 48 * 60 * 60 * 1000);
     const pastDate2 = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
@@ -182,14 +182,14 @@ describe('findCurrentGameDayNumber', () => {
     await prisma.gameDay.create({
       data: {
         gameDay: 2,
-        description: 'Recent Locked Game Day',
+        description: 'More Recent Locked Game Day',
         status: GAME_DAY_STATUS.PENDING,
         lockTime: pastDate2
       }
     });
 
     const result = await findCurrentGameDayNumber();
-    expect(result).toBe(1); // Should return the first locked game day (in progress)
+    expect(result).toBe(1); // Should return the earliest locked game day (first in progress)
   });
 
   it('should return active game day with null lock time', async () => {
