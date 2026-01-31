@@ -20,38 +20,21 @@ export type GameDayStatus = (typeof GAME_DAY_STATUS)[keyof typeof GAME_DAY_STATU
 export async function findCurrentGameDayNumber(): Promise<number | null> {
   const now = new Date();
 
-  // Get all game days that are not already finalized or archived
-  const gameDays = await prisma.gameDay.findMany({
-    where: {
-      status: {
-        notIn: [GAME_DAY_STATUS.FINALIZED, GAME_DAY_STATUS.ARCHIVED]
-      }
-    },
-    orderBy: [
-      { lockTime: 'asc' },
-      { createdAt: 'asc' }
-    ]
+  const upcoming = await prisma.gameDay.findFirst({
+    where: { status: GAME_DAY_STATUS.ACTIVE, lockTime: { not: null, gt: now } },
+    orderBy: { lockTime: 'asc' }
   });
 
-  if (gameDays.length === 0) {
-    return null;
+  if (upcoming) {
+    return upcoming.gameDay;
   }
 
-  // Priority 1: A game day that is locked but not finalized (currently in progress)
-  // If multiple exist, take the first one (earliest lock time) as it started first
-  let currentGameDay = gameDays.find(
-    (gd) => gd.lockTime && gd.lockTime <= now && !gd.finalizedAt
-  );
+  const fallback = await prisma.gameDay.findFirst({
+    where: { status: GAME_DAY_STATUS.ACTIVE },
+    orderBy: [{ lockTime: 'asc' }, { createdAt: 'asc' }]
+  });
 
-  // Priority 2: If no in-progress game day, use the next upcoming game day
-  if (!currentGameDay) {
-    // Find the earliest game day with future lock time or no lock time
-    currentGameDay = gameDays.find(
-      (gd) => !gd.lockTime || gd.lockTime > now
-    );
-  }
-
-  return currentGameDay?.gameDay ?? null;
+  return fallback?.gameDay ?? null;
 }
 
 export async function resolveGameDayParam(raw: unknown): Promise<number> {
