@@ -640,11 +640,18 @@ function stopLockCountdown() {
 
 
 function applyLockStateUI() {
-    const isHistory = viewMode !== 'active';
+    // Internal UI state:
+    // - active: user can edit picks (if not locked and rules allow)
+    // - readonly: UI is read-only (finished game days)
+    const isReadOnlyMode = viewMode !== 'active';
     const selectedMeta = getSelectedGameDayMeta();
-    const finalized = selectedMeta ? selectedMeta.status !== GAME_DAY_STATUS.ACTIVE : false;
+    // Only FINALIZED/ARCHIVED should behave like a finished day (read-only + locked).
+    // PENDING is a future day and should still allow picks (as long as lockTime not reached).
+    const finalized = selectedMeta
+        ? [GAME_DAY_STATUS.FINALIZED, GAME_DAY_STATUS.ARCHIVED].includes(selectedMeta.status)
+        : false;
     const hasExactOpen = openHottakes.length === MIN_OPEN_HOTTAKES;
-    const blocked = isLocked || isHistory || finalized || !hasExactOpen;
+    const blocked = isLocked || isReadOnlyMode || finalized || !hasExactOpen;
 
     // Prüfe, ob es ein zukünftiger Spieltag ohne Hottakes ist
     const isFutureWithoutHottakes = selectedMeta && 
@@ -656,9 +663,9 @@ function applyLockStateUI() {
 
     if (savePicksButton) {
         savePicksButton.disabled = blocked;
-        // Hide the save button whenever picks must not be editable (history view / locked / finalized).
+        // Hide the save button whenever picks must not be editable (readonly / locked / finalized).
         // The server also enforces rules, but UI should make the allowed actions obvious.
-        if (isLocked || finalized || isHistory) {
+        if (isLocked || finalized || isReadOnlyMode) {
             savePicksButton.style.display = 'none';
         } else {
             savePicksButton.style.display = 'inline-block';
@@ -735,12 +742,16 @@ function refreshLockState() {
         return;
     }
 
-    if (selectedMeta.status !== GAME_DAY_STATUS.ACTIVE) {
+    // FINALIZED/ARCHIVED: always locked.
+    if ([GAME_DAY_STATUS.FINALIZED, GAME_DAY_STATUS.ARCHIVED].includes(selectedMeta.status)) {
         isLocked = true;
         updateLockBanner(selectedMeta.lockTime || null, 0, openHottakes.length);
         applyLockStateUI();
         return;
     }
+
+    // ACTIVE and PENDING behave the same for locking: locked only after lockTime.
+    // (PENDING is in the future; before lockTime it must NOT show as locked.)
 
     if (!selectedMeta.lockTime) {
         isLocked = false;
@@ -788,8 +799,8 @@ async function loadActiveGameDay() {
 }
 
 
-// Note: "active" vs "history" is now derived from the selected game day's status.
-// Older UI toggles (#view-active / #view-history) were removed from the HTML.
+// Note: "active" vs "readonly" is derived from the selected game day's status.
+// Older UI toggles were removed from the HTML.
 
 function ensureHistorySelect() {
     if (historySelect) {
@@ -807,7 +818,7 @@ function ensureHistorySelect() {
         selectedGameDay = value;
         selectedHistoryGameDay = value;
         await refreshHottakes(value);
-        await loadSubmissionForCurrentUser(value, viewMode === 'history');
+        await loadSubmissionForCurrentUser(value, viewMode === 'readonly');
         await drawLeaderboard();
         refreshLockState();
         renderHottakes();
@@ -1025,11 +1036,11 @@ function createHottakeElement(hottake, { readonly = false, picked = false } = {}
 
 
 function renderHottakes() {
-    const useHistoryView = viewMode !== 'active' || isLocked;
-    const availableHottakes = useHistoryView ? allHottakes : openHottakes;
-    const sanitizeSource = useHistoryView ? allHottakes : openHottakes;
+    const useReadOnlyView = viewMode !== 'active' || isLocked;
+    const availableHottakes = useReadOnlyView ? allHottakes : openHottakes;
+    const sanitizeSource = useReadOnlyView ? allHottakes : openHottakes;
     const isReadOnly = viewMode !== 'active' || isLocked;
-    const referencePicks = useHistoryView ? lastSubmissionPicks : picks;
+    const referencePicks = useReadOnlyView ? lastSubmissionPicks : picks;
 
     sanitizePicks(sanitizeSource);
     hottakesList.innerHTML = '';
@@ -1073,8 +1084,9 @@ async function refreshHottakes(targetGameDay = null) {
         const gameDay = targetGameDay !== null ? targetGameDay : fallback;
         const meta = gameDay !== null && gameDay !== undefined ? getSelectedGameDayMeta() : null;
 
-        if (meta && meta.status !== GAME_DAY_STATUS.ACTIVE) {
-            viewMode = 'history';
+        // Only finished days should force readonly. Future (PENDING) days are still editable.
+        if (meta && [GAME_DAY_STATUS.FINALIZED, GAME_DAY_STATUS.ARCHIVED].includes(meta.status)) {
+            viewMode = 'readonly';
         } else {
             viewMode = 'active';
         }
@@ -1160,7 +1172,7 @@ async function drawLeaderboard(targetGameDay = null) {
 }
 
 
-async function loadSubmissionForCurrentUser(gameDay = null, isHistory = false) {
+async function loadSubmissionForCurrentUser(gameDay = null, isReadOnly = false) {
     if (!currentUser) {
         return;
     }
@@ -1187,7 +1199,7 @@ async function loadSubmissionForCurrentUser(gameDay = null, isHistory = false) {
             });
         }
 
-        if (isHistory) {
+        if (isReadOnly) {
             renderHottakes();
         } else {
             picks = nextPicks;
@@ -1200,7 +1212,7 @@ async function loadSubmissionForCurrentUser(gameDay = null, isHistory = false) {
 
 
 async function saveSubmission() {
-    // Safety guard: In the current UI, the save button should not be visible/clickable in history.
+    // Safety guard: In the current UI, the save button should not be visible/clickable in readonly mode.
     if (viewMode !== 'active') return;
 
     if (selectedGameDay === null) {
@@ -1463,7 +1475,7 @@ function renderGameDayAdmin() {
         selectedGameDay = value;
         selectedHistoryGameDay = value;
         await refreshHottakes(value);
-        await loadSubmissionForCurrentUser(value, viewMode === 'history');
+        await loadSubmissionForCurrentUser(value, viewMode === 'readonly');
         await drawLeaderboard(value);
         refreshLockState();
         updateHistorySelect();
