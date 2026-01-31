@@ -1455,9 +1455,7 @@ function renderGameDayAdmin() {
             const statusLabel =
                 day.status === GAME_DAY_STATUS.ACTIVE
                     ? ' (aktiv)'
-                    : day.status === GAME_DAY_STATUS.FINALIZED || day.status === GAME_DAY_STATUS.ARCHIVED
-                        ? ' (abgeschlossen)'
-                        : ' (geplant)';
+                    : '';
             option.textContent = day.description ? `${day.description}${statusLabel}` : `Spieltag ${day.gameDay}${statusLabel}`;
             select.appendChild(option);
         });
