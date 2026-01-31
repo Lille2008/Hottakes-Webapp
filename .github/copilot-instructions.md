@@ -21,9 +21,27 @@ Dieses Dokument gibt dir alle repo-spezifischen Hinweise, die du brauchst, um hi
 - Schema liegt in `prisma/schema.prisma`. Wichtigste Modelle:
   - `Hottake { id, text, status: OFFEN|WAHR|FALSCH, createdAt, updatedAt }`
   - `User { id, nickname(unique), email, passwordHash, prefs Json? default "{}", submission? }`
-  - `Submission { id, userId(unique), picks: Int[], createdAt, updatedAt }`
+  - `Submission { id, userId, gameDay, picks: Int[], createdAt, updatedAt }` (Unique: `@@unique([userId, gameDay])`)
   - `Setting` und `AdminEvent` sind für später vorgesehen.
 - Rohes SQL-Bootstrap in `prisma/init.sql` (spiegelt das Schema).
+
+## Deployment (Render + Supabase)
+- Hosting: Die App wird auf **Render** deployed.
+- Datenbank: PostgreSQL läuft auf **Supabase**.
+- Wichtig für Bugs/Support: Wenn Prisma-Fehler wie "Unique constraint failed on (`userId`)" auftreten, liegt das häufig an einer *alten* DB-Constraint/Index-Struktur auf Supabase (siehe Abschnitt unten).
+
+**Praktische Hinweise (für Einsteiger):**
+- Render braucht die Env Vars wie lokal: `DATABASE_URL`, `JWT_SECRET`, optional `ADMIN_NICKNAME`, `ADMIN_PASSWORD`.
+- Supabase hat oft mehrere Connection Strings (Pooler vs Direct).
+  - Für normale App-Queries reicht meistens der Pooler.
+  - Für Schema-Fixes/Migrations ist der **Direct connection** String oft die sicherste Wahl.
+
+## Bekannter DB-Fix: Legacy Unique-Constraint auf Submissions
+- Symptom: `Invalid prisma.submission.upsert()` + `Unique constraint failed on the fields: (userId)`.
+- Ursache: In der DB existiert noch eine alte `UNIQUE(userId)`-Constraint/Index, obwohl das Prisma-Schema korrekt `@@unique([userId, gameDay])` erwartet.
+- Fix:
+  - Script: `npm run fix:submission-constraint` (nutzt die Env `DATABASE_URL`)
+  - Doku: `docs/fix-submission-constraint.md`
 
 ## API-Oberfläche
 - Routen-Registrierung: `src/app.ts`

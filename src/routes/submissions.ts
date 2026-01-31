@@ -20,6 +20,15 @@ const submissionSchema = z.object({
 
 const router = Router();
 
+function isPrismaUniqueConstraintError(error: unknown): error is { code: string; meta?: unknown } {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    typeof (error as { code?: unknown }).code === 'string'
+  );
+}
+
 async function buildSubmissionResponse(userId: number, nickname: string, gameDay: number) {
   const [submission, hottakes] = await Promise.all([
     prisma.submission.findUnique({ where: { userId_gameDay: { userId, gameDay } } }),
@@ -183,11 +192,26 @@ router.post('/', requireAuth, checkGameDayLock, async (req, res, next) => {
       return res.status(404).json({ message: 'User nicht gefunden.' });
     }
 
-    const submission = await prisma.submission.upsert({
-      where: { userId_gameDay: { userId: user.id, gameDay } },
-      update: { picks: payload.picks },
-      create: { picks: payload.picks, userId: user.id, gameDay }
-    });
+    let submission;
+    try {
+      submission = await prisma.submission.upsert({
+        where: { userId_gameDay: { userId: user.id, gameDay } },
+        update: { picks: payload.picks },
+        create: { picks: payload.picks, userId: user.id, gameDay }
+      });
+    } catch (error) {
+      // If the DB still has a legacy UNIQUE(userId) constraint/index,
+      // a user cannot store submissions for multiple game days.
+      // We return a clear error so the fix is actionable in production.
+      if (isPrismaUniqueConstraintError(error) && error.code === 'P2002') {
+        return res.status(409).json({
+          message:
+            'Datenbank-Constraint blockiert das Speichern. Vermutlich existiert noch eine alte UNIQUE-Constraint nur auf submissions.userId. Bitte entferne UNIQUE(userId) und stelle UNIQUE(userId, gameDay) sicher.'
+        });
+      }
+
+      throw error;
+    }
 
     const mappedHottakes: HottakeOutcome[] = selectedHottakes.map(
       (hot: HottakeWithStatus): HottakeOutcome => ({
