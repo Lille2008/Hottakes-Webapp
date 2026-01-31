@@ -49,8 +49,10 @@ router.post('/', requireAdmin, async (req, res, next) => {
     const targetGameDay = typeof payload.gameDay === 'number' ? payload.gameDay : await resolveGameDayParam('active');
     const gameDay = await getGameDayByNumber(targetGameDay);
 
-    if (gameDay.status !== GAME_DAY_STATUS.ACTIVE) {
-      return res.status(400).json({ message: 'Spieltag ist abgeschlossen. Keine neuen Hottakes möglich.' });
+    // Hottakes can be created for upcoming (PENDING) and current (ACTIVE) game days.
+    // Finished days must be immutable to keep history consistent.
+    if (gameDay.status !== GAME_DAY_STATUS.PENDING && gameDay.status !== GAME_DAY_STATUS.ACTIVE) {
+      return res.status(400).json({ message: 'Spieltag ist abgeschlossen oder archiviert. Keine neuen Hottakes möglich.' });
     }
 
     const existingCount = await prisma.hottake.count({ where: { gameDay: targetGameDay } });

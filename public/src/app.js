@@ -913,7 +913,11 @@ function updateLeaderboardSelect() {
     globalOption.textContent = 'Gesamtansicht';
     select.appendChild(globalOption);
 
-    const finalizedDays = gameDays.filter((day) => day.status !== GAME_DAY_STATUS.ACTIVE);
+    // Leaderboard per game day only makes sense for finished game days.
+    // - PENDING: not started / no meaningful leaderboard
+    // - ACTIVE: still running, use Gesamtansicht instead
+    // - ARCHIVED: hidden from the public leaderboard selection
+    const finalizedDays = gameDays.filter((day) => day.status === GAME_DAY_STATUS.FINALIZED);
 
     finalizedDays.forEach((day) => {
         const option = document.createElement('option');
@@ -1353,11 +1357,13 @@ function renderAdminForm() {
     submitButton.textContent = 'Hottake speichern';
 
     const targetMeta = getSelectedGameDayMeta();
-    const targetInactive = !targetMeta || targetMeta.status !== GAME_DAY_STATUS.ACTIVE;
+    // Allow creating hottakes for upcoming (PENDING) and current (ACTIVE) game days.
+    const targetInactive =
+        !targetMeta || ![GAME_DAY_STATUS.PENDING, GAME_DAY_STATUS.ACTIVE].includes(targetMeta.status);
     if (targetInactive) {
         const warn = document.createElement('p');
         warn.className = 'admin-form-hint';
-        warn.textContent = 'Wähle einen aktiven Spieltag, um Hottakes anzulegen.';
+        warn.textContent = 'Wähle einen zukünftigenSpieltag, um Hottakes anzulegen.';
         form.appendChild(warn);
     }
 
