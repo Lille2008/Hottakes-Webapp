@@ -27,11 +27,12 @@ export async function findCurrentGameDayNumber(): Promise<number | null> {
   // 1. Locked (lockTime in past) but not finalized
   // 2. Locktime within 5 days (about to lock)
   const activeOrUpcoming = await prisma.gameDay.findFirst({
-    where: { 
-      status: GAME_DAY_STATUS.ACTIVE,
+    where: {
+      // Treat PENDING and ACTIVE as candidates; exclude finished days.
+      status: { notIn: [GAME_DAY_STATUS.FINALIZED, GAME_DAY_STATUS.ARCHIVED] },
       lockTime: {
         not: null,
-        lte: fiveDaysFromNow  // lockTime is now or within 5 days
+        lte: fiveDaysFromNow // lockTime is now/past or within 5 days
       }
     },
     orderBy: { lockTime: 'asc' }

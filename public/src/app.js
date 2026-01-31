@@ -74,9 +74,6 @@ const authedActions = document.getElementById('authed-actions');
 
 const lockCountdown = document.getElementById('lock-countdown');
 const lockStatus = document.getElementById('lock-status');
-
-const viewToggleActive = document.getElementById('view-active');
-const viewToggleHistory = document.getElementById('view-history');
 const gameDayBanner = document.getElementById('game-day-banner');
 const gameDayActions = document.querySelector('#game-day-banner .game-day-actions');
 let historySelect = null;
@@ -649,11 +646,19 @@ function applyLockStateUI() {
     const hasExactOpen = openHottakes.length === MIN_OPEN_HOTTAKES;
     const blocked = isLocked || isHistory || finalized || !hasExactOpen;
 
+    // Prüfe, ob es ein zukünftiger Spieltag ohne Hottakes ist
+    const isFutureWithoutHottakes = selectedMeta && 
+        selectedMeta.lockTime && 
+        new Date(selectedMeta.lockTime).getTime() > Date.now() && 
+        openHottakes.length === 0;
+
     document.body.classList.toggle('picks-locked', isLocked || finalized);
 
     if (savePicksButton) {
         savePicksButton.disabled = blocked;
-        if (isLocked || finalized) {
+        // Hide the save button whenever picks must not be editable (history view / locked / finalized).
+        // The server also enforces rules, but UI should make the allowed actions obvious.
+        if (isLocked || finalized || isHistory) {
             savePicksButton.style.display = 'none';
         } else {
             savePicksButton.style.display = 'inline-block';
@@ -662,10 +667,16 @@ function applyLockStateUI() {
     }
 
     if (hottakesNotice) {
-        if (isLocked) {
+        if (isFutureWithoutHottakes) {
+            // Zukünftiger Spieltag ohne Hottakes
+            hottakesNotice.textContent = 'Es gibt noch keine Hottakes für diesen Spieltag.';
+            hottakesNotice.classList.add('is-visible');
+        } else if (isLocked) {
+            // Spieltag läuft bereits oder ist abgeschlossen
             hottakesNotice.textContent = 'Die Picks sind gesperrt. Der Spieltag läuft bereits oder ist abgeschlossen.';
             hottakesNotice.classList.add('is-visible');
         } else if (!hasExactOpen) {
+            // Nicht genug offene Hottakes
             hottakesNotice.textContent = `Es müssen genau ${MIN_OPEN_HOTTAKES} Hottakes offen sein. Aktuell: ${openHottakes.length}.`;
             hottakesNotice.classList.add('is-visible');
         } else {
@@ -676,7 +687,7 @@ function applyLockStateUI() {
 }
 
 
-function updateLockBanner(lockTime, diffMs) {
+function updateLockBanner(lockTime, diffMs, openCount = 0) {
     if (!lockStatus || !lockCountdown) {
         return;
     }
@@ -688,13 +699,23 @@ function updateLockBanner(lockTime, diffMs) {
         return;
     }
 
+    // Zukünftiger Spieltag ohne Hottakes: Kein Banner anzeigen
+    if (diffMs !== null && diffMs > 0 && openCount === 0) {
+        lockStatus.textContent = '';
+        lockCountdown.textContent = '';
+        lockCountdown.dataset.state = 'idle';
+        return;
+    }
+
     const formattedLock = formatDateTime(lockTime);
 
+    // Wenn diffMs <= 0, ist der Spieltag bereits gesperrt (läuft oder ist vorbei)
     if (diffMs !== null && diffMs <= 0) {
         lockStatus.textContent = `Gesperrt seit ${formattedLock}`;
         lockCountdown.textContent = '';
         lockCountdown.dataset.state = 'locked';
     } else {
+        // Spieltag noch offen, Countdown läuft
         lockStatus.textContent = `Sperre um ${formattedLock}`;
         lockCountdown.textContent = diffMs === null ? 'Countdown inaktiv' : `Noch ${formatDuration(diffMs)}`;
         lockCountdown.dataset.state = 'open';
@@ -709,21 +730,21 @@ function refreshLockState() {
 
     if (!selectedMeta) {
         isLocked = false;
-        updateLockBanner(null, null);
+        updateLockBanner(null, null, openHottakes.length);
         applyLockStateUI();
         return;
     }
 
     if (selectedMeta.status !== GAME_DAY_STATUS.ACTIVE) {
         isLocked = true;
-        updateLockBanner(selectedMeta.lockTime || null, 0);
+        updateLockBanner(selectedMeta.lockTime || null, 0, openHottakes.length);
         applyLockStateUI();
         return;
     }
 
     if (!selectedMeta.lockTime) {
         isLocked = false;
-        updateLockBanner(null, null);
+        updateLockBanner(null, null, openHottakes.length);
         applyLockStateUI();
         return;
     }
@@ -733,7 +754,7 @@ function refreshLockState() {
     const update = () => {
         const diffMs = lockTime.getTime() - Date.now();
         isLocked = diffMs <= 0;
-        updateLockBanner(lockTime, diffMs);
+        updateLockBanner(lockTime, diffMs, openHottakes.length);
         applyLockStateUI();
 
         if (isLocked) {
@@ -767,43 +788,8 @@ async function loadActiveGameDay() {
 }
 
 
-async function setViewMode(mode) {
-    viewMode = mode === 'history' ? 'history' : 'active';
-
-    if (viewToggleActive) {
-        viewToggleActive.classList.toggle('is-active', viewMode === 'active');
-    }
-
-    if (viewToggleHistory) {
-        viewToggleHistory.classList.toggle('is-active', viewMode === 'history');
-    }
-
-    const target = selectedGameDay !== null ? selectedGameDay : activeGameDay?.gameDay;
-    await refreshHottakes(target);
-    await loadSubmissionForCurrentUser(target, viewMode === 'history');
-    await drawLeaderboard();
-
-    renderHottakes();
-}
-
-
-function setupViewToggle() {
-    if (viewToggleActive) {
-        viewToggleActive.addEventListener('click', () => setViewMode('active'));
-    }
-
-    if (viewToggleHistory) {
-        viewToggleHistory.addEventListener('click', () => setViewMode('history'));
-    }
-
-    if (viewToggleActive) {
-        viewToggleActive.classList.toggle('is-active', viewMode === 'active');
-    }
-
-    if (viewToggleHistory) {
-        viewToggleHistory.classList.toggle('is-active', viewMode === 'history');
-    }
-}
+// Note: "active" vs "history" is now derived from the selected game day's status.
+// Older UI toggles (#view-active / #view-history) were removed from the HTML.
 
 function ensureHistorySelect() {
     if (historySelect) {
@@ -832,7 +818,7 @@ function ensureHistorySelect() {
 
     const label = document.createElement('label');
     label.htmlFor = historySelect.id;
-    label.textContent = 'Ansicht';
+    
 
     wrapper.append(label, historySelect);
 
@@ -907,7 +893,7 @@ function ensureLeaderboardSelect() {
 
     const label = document.createElement('label');
     label.htmlFor = leaderboardSelect.id;
-    label.textContent = 'Ansicht';
+    
 
     wrapper.append(label, leaderboardSelect);
 
@@ -1210,10 +1196,8 @@ async function loadSubmissionForCurrentUser(gameDay = null, isHistory = false) {
 
 
 async function saveSubmission() {
-    if (viewMode !== 'active') {
-        alert('Historie ist schreibgeschützt. Wechsle zur aktiven Ansicht.');
-        return;
-    }
+    // Safety guard: In the current UI, the save button should not be visible/clickable in history.
+    if (viewMode !== 'active') return;
 
     if (selectedGameDay === null) {
         alert('Es ist kein Spieltag ausgewählt.');
@@ -1436,7 +1420,7 @@ function renderGameDayAdmin() {
 
     const selectLabel = document.createElement('label');
     selectLabel.className = 'admin-form-label';
-    selectLabel.textContent = 'Ansicht';
+    
 
     const select = document.createElement('select');
     select.className = 'admin-select';
@@ -1770,7 +1754,7 @@ async function updateUIForGuest() {
     updateSettingsAuth(null);
     closeSettings();
     setHeaderAuthState(false);
-    await setViewMode('active');
+    viewMode = 'active';
 
     adminEnabled = false;
 
@@ -1808,7 +1792,6 @@ async function initializeApp() {
     initTheme();
     setupSettingsPanel();
     setupLegalModal();
-    setupViewToggle();
     createRankSlots();
     await loadGameDays();
     await loadActiveGameDay();
