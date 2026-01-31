@@ -14,21 +14,34 @@ export type GameDayStatus = (typeof GAME_DAY_STATUS)[keyof typeof GAME_DAY_STATU
  * Does NOT modify game day statuses in the database.
  * 
  * Logic determines the "current" game day as:
- * - Priority 1: A game day that is locked but not finalized (currently in progress)
- * - Priority 2: The next upcoming game day (has future lock time or no lock time)
+ * - Priority 1: A game day that is locked but not finalized (lockTime in past)
+ * - Priority 2: The next upcoming game day within 5 days (lockTime within 5 days)
+ * 
+ * Game days more than 5 days in the future are NOT considered active.
  */
 export async function findCurrentGameDayNumber(): Promise<number | null> {
   const now = new Date();
+  const fiveDaysFromNow = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
 
-  const upcoming = await prisma.gameDay.findFirst({
-    where: { status: GAME_DAY_STATUS.ACTIVE, lockTime: { not: null, gt: now } },
+  // Find game day that is either:
+  // 1. Locked (lockTime in past) but not finalized
+  // 2. Locktime within 5 days (about to lock)
+  const activeOrUpcoming = await prisma.gameDay.findFirst({
+    where: { 
+      status: GAME_DAY_STATUS.ACTIVE,
+      lockTime: {
+        not: null,
+        lte: fiveDaysFromNow  // lockTime is now or within 5 days
+      }
+    },
     orderBy: { lockTime: 'asc' }
   });
 
-  if (upcoming) {
-    return upcoming.gameDay;
+  if (activeOrUpcoming) {
+    return activeOrUpcoming.gameDay;
   }
 
+  // Fallback: return any active game day (shouldn't normally happen)
   const fallback = await prisma.gameDay.findFirst({
     where: { status: GAME_DAY_STATUS.ACTIVE },
     orderBy: [{ lockTime: 'asc' }, { createdAt: 'asc' }]
