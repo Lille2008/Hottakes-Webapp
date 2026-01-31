@@ -82,7 +82,7 @@ model GameDay {
   startTime   DateTime?
   lockTime    DateTime?
   finalizedAt DateTime?
-  status      GameDayStatus @default(ACTIVE)
+  status      GameDayStatus @default(PENDING)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   hottakes    Hottake[]     @relation("GameDayHottakes")

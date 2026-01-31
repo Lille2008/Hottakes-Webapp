@@ -78,7 +78,7 @@ router.post('/', async (req, res, next) => {
         startTime: payload.startTime ?? null,
         lockTime: payload.lockTime ?? null,
         finalizedAt: payload.finalizedAt ?? null,
-        status: payload.status ?? GAME_DAY_STATUS.ACTIVE,
+        status: payload.status ?? GAME_DAY_STATUS.PENDING,
         gameDay: nextGameDay
       }
     });
