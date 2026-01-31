@@ -12,6 +12,34 @@ export function startReminderScheduler() {
 
   started = true;
 
+  // Daily status sync (05:00): if a game day is close enough (lockTime within 5 days),
+  // we promote it from PENDING -> ACTIVE.
+  // Why: the app treats such days as "current" already (see findCurrentGameDayNumber),
+  // so persisting it in DB keeps API/UI behavior consistent.
+  cron.schedule('0 5 * * *', async () => {
+    try {
+      const now = new Date();
+      const fiveDaysFromNow = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
+
+      const result = await prisma.gameDay.updateMany({
+        where: {
+          status: GAME_DAY_STATUS.PENDING,
+          lockTime: {
+            not: null,
+            lte: fiveDaysFromNow
+          }
+        },
+        data: { status: GAME_DAY_STATUS.ACTIVE }
+      });
+
+      if (result.count > 0) {
+        console.log(`[scheduler] promoted ${result.count} game day(s) from PENDING to ACTIVE`);
+      }
+    } catch (error) {
+      console.error('[scheduler] game day status job failed', error);
+    }
+  });
+
   cron.schedule('0 8 * * *', async () => {
     try {
       const now = new Date();

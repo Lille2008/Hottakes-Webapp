@@ -153,8 +153,10 @@ router.post('/', requireAuth, checkGameDayLock, async (req, res, next) => {
     }
 
     const gameDayEvent = await getGameDayByNumber(gameDay);
-    if (gameDayEvent.status !== GAME_DAY_STATUS.ACTIVE) {
-      return res.status(400).json({ message: 'Spieltag ist abgeschlossen. Keine Änderungen mehr möglich.' });
+    // We allow saving picks while a game day is upcoming (PENDING) or current (ACTIVE).
+    // Finished days must be immutable so history/leaderboard stays consistent.
+    if (gameDayEvent.status !== GAME_DAY_STATUS.ACTIVE && gameDayEvent.status !== GAME_DAY_STATUS.PENDING) {
+      return res.status(400).json({ message: 'Spieltag ist abgeschlossen oder archiviert. Keine Änderungen mehr möglich.' });
     }
 
     const openCount = await prisma.hottake.count({ where: { gameDay, status: 'OFFEN' } });

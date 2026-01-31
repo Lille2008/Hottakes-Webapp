@@ -180,6 +180,60 @@ describe('Hottakes API', () => {
       .expect(403);
   });
 
+  it('allows submissions while game day is PENDING (before lock time)', async () => {
+    const agent = request.agent(app);
+
+    await agent
+      .post('/api/auth/register')
+      .send({ nickname: 'PendingPlayer', email: 'pending@example.com', password: 'password123' })
+      .expect(201);
+
+    await ensureGameDayZero({
+      status: 'PENDING',
+      lockTime: new Date(Date.now() + 60 * 60 * 1000), // 1 hour from now
+      description: 'Upcoming day'
+    });
+
+    const hottakeIds = await Promise.all(
+      Array.from({ length: 5 }).map((_, index) =>
+        prisma.hottake.create({ data: { text: `Pending Pick ${index + 1}`, status: 'OFFEN', gameDay: 0 } })
+      )
+    );
+
+    await Promise.all(
+      Array.from({ length: 5 }).map((_, index) =>
+        prisma.hottake.create({ data: { text: `Pending Extra ${index + 1}`, status: 'OFFEN', gameDay: 0 } })
+      )
+    );
+
+    await agent
+      .post('/api/submissions?gameDay=0')
+      .send({ picks: hottakeIds.map((hot) => hot.id) })
+      .expect(201);
+  });
+
+  it('blocks submissions for finalized game day even when lockTime is null', async () => {
+    const agent = request.agent(app);
+
+    await agent
+      .post('/api/auth/register')
+      .send({ nickname: 'FinalizedPlayer', email: 'finalized@example.com', password: 'password123' })
+      .expect(201);
+
+    await ensureGameDayZero({ status: 'FINALIZED', lockTime: null, description: 'Finalized day' });
+
+    const hottakeIds = await Promise.all(
+      Array.from({ length: 5 }).map((_, index) =>
+        prisma.hottake.create({ data: { text: `Finalized Pick ${index + 1}`, status: 'OFFEN', gameDay: 0 } })
+      )
+    );
+
+    await agent
+      .post('/api/submissions?gameDay=0')
+      .send({ picks: hottakeIds.map((hot) => hot.id) })
+      .expect(403);
+  });
+
   it('handles password reset flow', async () => {
     const agent = request.agent(app);
     const email = 'resetme@example.com';

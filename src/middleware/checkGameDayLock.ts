@@ -6,14 +6,15 @@ export async function checkGameDayLock(req: Request, res: Response, next: NextFu
     const gameDay = await resolveGameDayParam(req.query.gameDay);
     const event = await getGameDayByNumber(gameDay);
 
-    if (!event.lockTime) {
-      return next();
-    }
-
     const now = new Date();
 
-    if (event.status !== GAME_DAY_STATUS.ACTIVE) {
-      return res.status(403).json({ message: 'Picks sind gesperrt. Der Spieltag ist abgeschlossen.' });
+    if (event.status !== GAME_DAY_STATUS.ACTIVE && event.status !== GAME_DAY_STATUS.PENDING) { 
+      return res.status(403).json({ message: 'Picks sind gesperrt. Der Spieltag ist abgeschlossen.' }); 
+    }
+
+    // If there is no lock time, picks are allowed (for PENDING/ACTIVE only).
+    if (!event.lockTime) {
+      return next();
     }
 
     if (now >= event.lockTime) {
