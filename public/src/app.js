@@ -928,12 +928,16 @@ function updateLeaderboardSelect() {
     // - PENDING: not started / no meaningful leaderboard
     // - ACTIVE: still running, use Gesamtansicht instead
     // - ARCHIVED: hidden from the public leaderboard selection
-    const finalizedDays = gameDays.filter((day) => day.status === GAME_DAY_STATUS.FINALIZED);
+    const selectableDays = gameDays.filter((day) => 
+        [GAME_DAY_STATUS.FINALIZED, GAME_DAY_STATUS.ACTIVE].includes(day.status)
+    );
 
-    finalizedDays.forEach((day) => {
+    selectableDays.forEach((day) => {
         const option = document.createElement('option');
+        const isActive = day.status === GAME_DAY_STATUS.ACTIVE;
+        const suffix = isActive ? ' (aktiv)' : '';
         option.value = String(day.gameDay);
-        option.textContent = day.description ? `${day.description}` : `Spieltag ${day.gameDay}`;
+        option.textContent = day.description ? `${day.description}${suffix}` : `Spieltag ${day.gameDay}${suffix}`;
         select.appendChild(option);
     });
 
