@@ -1,90 +1,99 @@
-# Hottakes – AI Coding Agent Guide
+# Hottakes – Leitfaden für KI-Coding-Agenten
 
-This document gives AI coding agents the essential, repo-specific context to be productive immediately. Prefer concrete patterns from this codebase over generic best practices.
+Dieses Dokument gibt dir alle repo-spezifischen Hinweise, die du brauchst, um hier sinnvoll zu arbeiten. Die Zielgruppe ist ein Coding-Einsteiger. Erkläre deshalb jeden Schritt kurz und verständlich. Motiviere aktiv dazu, selbst Code zu schreiben und den Code zu verstehen.
 
-## Architecture Overview
-- Backend: TypeScript + Express API in `src/`. App wiring lives in `src/app.ts`; process startup is isolated in `src/server.ts`.
-- Frontend: Static SPA served from `public/` (vanilla JS in `public/src/app.js`). The API is expected under the `/api` prefix and uses cookie-based JWT auth.
-- Data: PostgreSQL via Prisma. Client is created once and reused from `src/lib/db.ts` (singleton in dev to avoid multiple connections).
-- Domain: “Hottakes” users pick 5 open predictions; scores are computed from actual outcomes and shown in a leaderboard.
+## Wichtige Arbeitsprinzipien (bitte immer beachten)
+- **Alles auf der Webapp auf Deutsch:** Die gesamte UI ist auf Deutsch. Die Kommentare und Erklärungen sollen auf Englisch sein; der Nutzer ist aber deutschsprachig und möchte die Konzepte verstehen, aber gleichzeitig auch die englischen Begriffe im Code lernen, um sein Englisch zu verbessern.
+- **Jeden Schritt erklären:** Schreibe kurze Erklärungen, warum du etwas tust und was es bewirkt.
+- **Einsteigerfreundlich motivieren:** Ermutige den Nutzer, selbst Code zu schreiben oder gezielt nachzuvollziehen. Beispiel: „Probier gerne selbst, die Variable umzubenennen – ich erkläre dir, was dabei passiert.“
+- **Kommentare nutzen:** Wenn du Code änderst oder neu schreibst, füge hilfreiche Kommentare hinzu, die *warum* und *wie* erklären (nicht nur *was*).
+- **README als KI-Konversation nutzen:** Halte neue Erkenntnisse, offene Fragen und Probleme in der README in Form einer KI-Dialog-Notiz fest.
+- **Konkrete Hinweise geben:** Bei Änderungen nenne die betroffenen Dateien/Ordner und erkläre kurz die Auswirkungen.
+- **Keine Annahmen:** Wenn etwas unklar ist, recherchiere kurz im Code oder frag gezielt nach.
 
-## Data Model (Prisma)
-- Schema in `prisma/schema.prisma`. Key models:
+## Architektur-Überblick
+- Backend: TypeScript + Express API in `src/`. Die App-Wiring-Logik ist in `src/app.ts`, der Serverstart in `src/server.ts`.
+- Frontend: Statische SPA aus `public/` (Vanilla JS in `public/src/app.js`). Die API liegt unter `/api` und nutzt JWT-Cookies.
+- Daten: PostgreSQL via Prisma. Client kommt aus `src/lib/db.ts` (Singleton in Dev, um Mehrfach-Verbindungen zu vermeiden).
+- Domain: „Hottakes“ – Nutzer wählen 5 offene Vorhersagen; Score wird aus tatsächlichen Outcomes berechnet und im Leaderboard angezeigt.
+
+## Datenmodell (Prisma)
+- Schema liegt in `prisma/schema.prisma`. Wichtigste Modelle:
   - `Hottake { id, text, status: OFFEN|WAHR|FALSCH, createdAt, updatedAt }`
   - `User { id, nickname(unique), email, passwordHash, prefs Json? default "{}", submission? }`
   - `Submission { id, userId(unique), picks: Int[], createdAt, updatedAt }`
-  - `Setting` and `AdminEvent` exist for future features.
-- Raw SQL bootstrap exists in `prisma/init.sql` and mirrors the schema.
+  - `Setting` und `AdminEvent` sind für später vorgesehen.
+- Rohes SQL-Bootstrap in `prisma/init.sql` (spiegelt das Schema).
 
-## API Surface
-- Route registration: `src/app.ts`
+## API-Oberfläche
+- Routen-Registrierung: `src/app.ts`
   - `/api/auth` → `src/routes/auth.ts`
-    - POST `/register` create account (nickname, email, password) and set JWT cookie
-    - POST `/login` authenticate via nickname or email + password, set JWT cookie
-    - POST `/logout` clear auth cookie
-    - GET `/me` returns current user (requires auth cookie)
+    - POST `/register` erstellt Account (Nickname, Email, Passwort) und setzt JWT-Cookie
+    - POST `/login` authentifiziert per Nickname oder Email + Passwort, setzt JWT-Cookie
+    - POST `/logout` löscht Auth-Cookie
+    - GET `/me` gibt aktuellen Nutzer zurück (Auth-Cookie nötig)
   - `/api/hottakes` → `src/routes/hottakes.ts`
-    - GET `/` list all (oldest first)
-    - POST `/` create (admin-only via header `x-admin-password` or logged-in admin nickname)
-    - PATCH `/:id` update status (admin-only; same rules as above)
+    - GET `/` listet alle (älteste zuerst)
+    - POST `/` erstellt (nur Admin, Header `x-admin-password` oder Admin-Nickname)
+    - PATCH `/:id` Status aktualisieren (nur Admin, gleiche Regeln)
   - `/api/submissions` → `src/routes/submissions.ts`
-    - GET `/?nickname=…` or `/?userId=…` fetch a submission with score
-    - GET `/:nickname` convenience variant
-    - POST `/` create or update a user’s picks (5 unique IDs, only from open hottakes)
-  - `/api/leaderboard` → `src/routes/leaderboard.ts` (GET) builds sorted ranking via `src/lib/leaderboard.ts`
-  - `/api/health` and `/health` → `src/routes/health.ts`
-- Static hosting: `express.static(dist/public)`; non-API GETs fall back to `public/index.html` (SPA).
+    - GET `/?nickname=…` oder `/?userId=…` holt Submission inkl. Score
+    - GET `/:nickname` Kurz-Variante
+    - POST `/` erstellt/updated Picks (5 eindeutige IDs, nur offene Hottakes)
+  - `/api/leaderboard` → `src/routes/leaderboard.ts` (GET) berechnet Ranking via `src/lib/leaderboard.ts`
+  - `/api/health` und `/health` → `src/routes/health.ts`
+- Static Hosting: `express.static(dist/public)`; alle nicht-API-GETs gehen auf `public/index.html` (SPA).
 
-## Domain Rules and Utilities
+## Domain-Regeln und Utilities
 - Scoring in `src/lib/scoring.ts`:
-  - Position weights: `[5,4,3,2,1]` for picks index 0..4.
-  - A pick scores only if the referenced hottake status is `WAHR`.
+  - Positions-Gewichte: `[5,4,3,2,1]` für Picks 0..4.
+  - Ein Pick zählt nur, wenn der Status `WAHR` ist.
 - Leaderboard in `src/lib/leaderboard.ts`:
-  - Computes each user’s score from current hottake outcomes, then sorts by score desc, tie-break by earlier `submittedAt`.
-- Validation: Use `zod` in routes (see `createHottakeSchema`, `updateStatusSchema`, `submissionSchema`). Parse incoming bodies before DB work.
-- Admin auth: `optionalAuth` reads the JWT cookie; `requireAdmin` allows either a logged-in admin nickname (`process.env.ADMIN_NICKNAME` default `lille08`) or the legacy header `x-admin-password` matching `process.env.ADMIN_PASSWORD`.
+  - Berechnet Score und sortiert absteigend; Tie-Breaker: frühere `submittedAt`.
+- Validierung: Nutze `zod` in Routes (z. B. `createHottakeSchema`, `updateStatusSchema`, `submissionSchema`). Body vor DB-Operation parsen.
+- Admin-Auth: `optionalAuth` liest JWT-Cookie; `requireAdmin` erlaubt Admin-Nickname (`process.env.ADMIN_NICKNAME`, default `lille08`) oder den Legacy-Header `x-admin-password` (`process.env.ADMIN_PASSWORD`).
 
-## Conventions and Patterns
-- Keep `src/app.ts` free of network `listen()`; only mount middleware and routes. Start the server only in `src/server.ts`.
-- Always import DB via the shared Prisma client in `src/lib/db.ts`.
-- Mount `optionalAuth` before admin routes that can rely on the authenticated user (e.g., hottakes); keep `requireAuth` for protected endpoints like `/api/auth/me`.
-- Prefer explicit `.json(...)` responses and 4xx/5xx codes; unknown `/api/*` should resolve to `{ message: 'Not Found' }` with 404 (see `app.use('/api', ...)`).
-- Central error handler (end of `src/app.ts`) normalizes `ZodError` to 400 with `issues` and other errors to `{ message }`.
-- Maintain the `/api` prefix to avoid clashing with SPA fallback routing.
+## Konventionen und Muster
+- `src/app.ts` enthält **kein** `listen()`; nur Middleware + Routen. Serverstart nur in `src/server.ts`.
+- DB immer über den geteilten Prisma-Client aus `src/lib/db.ts`.
+- `optionalAuth` vor Admin-Routen (z. B. Hottakes), `requireAuth` nur für geschützte Endpoints (z. B. `/api/auth/me`).
+- Klare `.json(...)`-Antworten und 4xx/5xx-Statuscodes. Unbekannte `/api/*` → `{ message: 'Not Found' }` mit 404.
+- Zentraler Error-Handler (Ende `src/app.ts`) normalisiert `ZodError` zu 400 mit `issues`, sonst `{ message }`.
+- `/api`-Prefix beibehalten (SPA-Fallback braucht das).
 
-## Local Dev, Build, Run
-- Dev server (ts-node-dev): `npm run dev` → starts `src/server.ts` with hot reload.
-- Build: `npm run build` → `tsc` to `dist/` then copies `public/` to `dist/public`.
-- Start (production): `npm start` → runs `node dist/server.js`. Fallback `server.js` at repo root can serve static `public/` if `dist/` isn’t built.
+## Lokal entwickeln, bauen, starten
+- Dev-Server (ts-node-dev): `npm run dev` → startet `src/server.ts` mit Hot-Reload.
+- Build: `npm run build` → `tsc` nach `dist/`, dann `public/` nach `dist/public`.
+- Start (Prod): `npm start` → `node dist/server.js`. Fallback: `server.js` im Root kann `public/` ohne Build ausliefern.
 
-## Testing (Integration with real Postgres)
-- Command: `npm test` (Jest + ts-jest).
-- Tests use Testcontainers (`postgres:16-alpine`) and `prisma db push` in `tests/setup.ts`.
-  - Requires Docker available to the test runner.
-- End-to-end style API tests live in `tests/app.test.ts` and import `src/app` directly.
+## Tests (Integration mit echtem Postgres)
+- Befehl: `npm test` (Jest + ts-jest).
+- Tests nutzen Testcontainers (`postgres:16-alpine`) und `prisma db push` in `tests/setup.ts`.
+  - Docker muss verfügbar sein.
+- End-to-end API-Tests in `tests/app.test.ts`, importieren `src/app` direkt.
 
-## Environment Variables
-- `DATABASE_URL` (primary). `DIRECT_DATABASE_URL` optional. For local compat, `src/lib/db.ts` maps `DB_URL` → `DATABASE_URL` if needed.
-- `JWT_SECRET` **required** for issuing/verifying auth cookies.
-- `ADMIN_PASSWORD` optional legacy header for POST/PATCH under `/api/hottakes`.
-- `ADMIN_NICKNAME` logged-in admin identifier (defaults to `lille08`; must match the nickname used in the SPA to unlock admin UI).
-- `PORT` optional (defaults to `3000`).
+## Umgebungsvariablen
+- `DATABASE_URL` (primär). `DIRECT_DATABASE_URL` optional. `src/lib/db.ts` mappt `DB_URL` → `DATABASE_URL`.
+- `JWT_SECRET` **Pflicht** für Auth-Cookies.
+- `ADMIN_PASSWORD` optionaler Legacy-Header für POST/PATCH unter `/api/hottakes`.
+- `ADMIN_NICKNAME` Admin-Identifikator (default `lille08`; muss zur SPA passen).
+- `PORT` optional (default `3000`).
 
-## Adding or Modifying Endpoints (Examples)
-- New route: create `src/routes/<feature>.ts`, export an Express `Router`, mount under `/api/<feature>` in `src/app.ts`.
-- Validate inputs with `zod.parse(req.body)` and handle errors via `next(error)` to leverage the central error middleware.
-- Query via Prisma using the minimal needed shape, then transform to small DTOs; see `src/lib/leaderboard.ts` for mapping patterns.
-- When reading submissions with scores, reuse `calculateScore(...)` from `src/lib/scoring.ts` to keep business rules consistent.
+## Endpoints hinzufügen oder ändern (Beispiele)
+- Neue Route: `src/routes/<feature>.ts` anlegen, Express-`Router` exportieren, in `src/app.ts` unter `/api/<feature>` mounten.
+- Inputs mit `zod.parse(req.body)` validieren und Fehler via `next(error)` an den zentralen Handler geben.
+- Prisma-Abfragen nur mit benötigtem Shape; Ergebnisse in kleine DTOs umwandeln (Beispiel: `src/lib/leaderboard.ts`).
+- Bei Submissions mit Score `calculateScore(...)` aus `src/lib/scoring.ts` verwenden.
 
-## Frontend Integration Notes
-- Frontend hits the API at `/api` (see `public/src/app.js`, `API_BASE`) and sends credentials via cookies.
-- Login/registration lives in `public/login.html` and `public/register.html`; session is managed by the JWT cookie returned by `/api/auth/login|register`.
-- Admin UI unlocks when the logged-in nickname matches `ADMIN_NICKNAME` (default `lille08`) and calls the same hottake endpoints; legacy `x-admin-password` header is supported but the SPA primarily uses login.
-- Admin expects hottake statuses `OFFEN|WAHR|FALSCH`.
+## Frontend-Integration
+- Frontend ruft die API unter `/api` auf (siehe `public/src/app.js`, `API_BASE`) und sendet Credentials via Cookies.
+- Login/Registrierung: `public/login.html` und `public/register.html`; Session wird per JWT-Cookie verwaltet.
+- Admin-UI wird aktiviert, wenn der Nickname `ADMIN_NICKNAME` entspricht; nutzt die gleichen Hottake-Endpoints.
+- Admin erwartet Hottake-Statuswerte `OFFEN|WAHR|FALSCH`.
 
-## Phase Status
-- Phase 8 (user auth/account flow) is implemented: `/api/auth` supports register/login/logout/me with bcrypt + JWT cookies; SPA includes login/register pages and uses the cookie session to gate play/admin.
-- Phase 9 (prefs/dark mode) remains future; `prefs` is unused in the codebase.
+## Phasen-Status
+- Phase 8 (Auth/Accounts) ist umgesetzt: `/api/auth` kann register/login/logout/me, nutzt bcrypt + JWT-Cookies; SPA enthält Login/Register und Cookie-Session.
+- Phase 9 (Prefs/Dark Mode) ist offen; `prefs` wird noch nicht genutzt.
 
 ---
-If anything above is unclear or missing for your task, propose concrete updates to this guide with file paths you’d like clarified.
+Wenn etwas unklar ist, schlage konkrete Ergänzungen für diesen Leitfaden vor (mit Dateipfaden). Denke immer daran: **kurz erklären, motivieren, und Kommentare nutzen**.
