@@ -715,12 +715,7 @@ if (ranksContainer) {
     ranksContainer.appendChild(rankSwapNotice);
 }
 
-const rankHint = document.createElement('p');
-rankHint.className = 'rank-hint';
-rankHint.textContent = 'Du kannst auch „passiert nicht“ ranken.';
-if (ranksContainer) {
-    ranksContainer.appendChild(rankHint);
-}
+const rankHint = null;
 
 
 const hottakesList = document.createElement('div');
@@ -813,6 +808,7 @@ function clearSlotSelection() {
 function clearSelections() {
     clearSwapSelection();
     clearSlotSelection();
+    clearDropHighlights();
     clearSwapIndicators();
     updateSwapNotice();
     updateTargetAffordance();
@@ -974,6 +970,10 @@ function moveHottakeToRank(element, rankDiv, sourceParent, hottakeId) {
 function handleHottakeTap(element, hottakeId) {
     if (viewMode !== 'active' || isLocked) {
         return;
+    }
+
+    if (pendingGesture?.element === element) {
+        pendingGesture = null;
     }
 
     if (Date.now() - lastDragAt < 250) {
@@ -1522,9 +1522,6 @@ function applyLockStateUI() {
         }
     }
 
-    if (rankHint) {
-        rankHint.classList.toggle('is-hidden', isReadOnlyState);
-    }
 
     if (hottakesNotice) {
         if (isFutureWithoutHottakes) {

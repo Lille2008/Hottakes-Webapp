@@ -102,5 +102,21 @@
 - Ein gefüllter Rank kann nicht mehr per Click/Drag in die leere Liste entleert werden; nur Swaps sind erlaubt.
 - Click‑Swap unterstützt jetzt Rank↔Liste und Liste↔Liste (Drag&Drop bleibt erhalten).
 
+**User:** Gestrichelte Umrandung bleibt manchmal hängen
+
+**AI:**
+- Drop-Target-Styles werden beim Verlassen der Auswahl immer entfernt.
+
+**User:** Picks-Button verschieben & Rank-Hinweis entfernen
+
+**AI:**
+- „Picks Speichern“ liegt jetzt unter dem Spieltag-Banner und nicht mehr im Rank-Header.
+- Hinweis „Du kannst auch \"passiert nicht\" ranken.“ wurde entfernt.
+
+**User:** Click-Modus springt nach Slot-Placement zurück
+
+**AI:**
+- Pending-Gesture wird beim Tap gelöscht, damit keine „Geister-Auswahl“ entsteht.
+
 
 
