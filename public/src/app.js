@@ -522,7 +522,6 @@ function finishSwipeFlow() {
     saveDraftState();
 
     renderHottakes();
-    showRankSummary('10 Entscheidungen gespeichert. Jetzt deine Top 3 ranken.');
 }
 
 function handleSwipeDecision(decision) {
@@ -760,12 +759,20 @@ function createRankSlots() {
         const label = document.createElement('div');
         label.textContent = `Platz ${i}`;
         label.className = 'rank-label';
+        label.addEventListener('click', (event) => {
+            // English comment: Let users select a filled slot via the label.
+            event.stopPropagation();
+            handleRankTap(rankDiv);
+        });
         container.appendChild(label);
 
         const rankDiv = document.createElement('div');
         rankDiv.className = 'rank';
         rankDiv.dataset.rank = String(i);
-        rankDiv.addEventListener('click', () => {
+        rankDiv.addEventListener('click', (event) => {
+            if (event.target && event.target.closest('.hottake')) {
+                return;
+            }
             handleRankTap(rankDiv);
         });
 
@@ -984,6 +991,37 @@ function handleHottakeTap(element, hottakeId) {
         return;
     }
 
+    if (swapSelection && swapSelection.element !== element) {
+        const selected = swapSelection.element;
+        const selectedId = swapSelection.hottakeId;
+        const selectedParent = selected.parentElement;
+        const targetParent = element.parentElement;
+        if (!selectedParent || !targetParent) {
+            clearSelections();
+            return;
+        }
+
+        if (targetParent.classList.contains('rank')) {
+            moveHottakeToRank(selected, targetParent, selectedParent, selectedId);
+            clearSelections();
+            return;
+        }
+
+        if (targetParent.id === 'hottakes-list') {
+            if (selectedParent.classList.contains('rank')) {
+                swapRankWithListItemClick(selected, element, selectedParent);
+                clearSelections();
+                return;
+            }
+
+            if (selectedParent.id === 'hottakes-list') {
+                swapListItemsInList(selected, element);
+                clearSelections();
+                return;
+            }
+        }
+    }
+
     if (swapSelection?.hottakeId === hottakeId) {
         clearSelections();
         return;
@@ -1036,7 +1074,12 @@ function handleListTap() {
         return;
     }
 
-    moveHottakeToList(selected, selectedParent);
+    // English comment: Keep filled ranks filled; only swaps are allowed.
+    if (selectedParent.classList.contains('rank')) {
+        clearSelections();
+        return;
+    }
+
     clearSelections();
 }
 
@@ -1151,7 +1194,10 @@ function setActiveDropTarget(target, hottakeTarget) {
             target.classList.add('is-dragover');
             updateSwapIndicatorForRank(target);
         } else if (target.id === 'hottakes-list') {
-            target.classList.add('is-dragover');
+            const originIsList = dragState.originParent && dragState.originParent.id === 'hottakes-list';
+            if (!originIsList) {
+                target.classList.add('is-dragover');
+            }
             clearSwapIndicators();
         }
     } else {
@@ -1196,7 +1242,11 @@ function finishHottakeDrag(clientX, clientY) {
     } else if (hottakeTarget && hottakeTarget.parentElement && hottakeTarget.parentElement.id === 'hottakes-list' && hottakeTarget !== element) {
         swapHottakeWithListItem(element, hottakeTarget, originParent, placeholder);
     } else if (listTarget) {
-        placeHottakeInList(element, originParent);
+        if (originParent && originParent.classList.contains('rank')) {
+            // English comment: Keep ranks filled; only allow swaps with list items.
+        } else {
+            placeHottakeInList(element, originParent);
+        }
     } else if (originParent) {
         const originRect = placeholder?.getBoundingClientRect();
         const currentRect = element.getBoundingClientRect();
@@ -1266,18 +1316,54 @@ function swapHottakeWithListItem(element, targetItem, originParent, placeholder)
         return;
     }
 
+    // English comment: Insert dragged item first while the target still sits in the list.
+    targetParent.insertBefore(element, targetItem);
+
     if (originParent.classList.contains('rank')) {
+        // English comment: Move the list item into the original rank slot.
         originParent.appendChild(targetItem);
     } else if (placeholder && placeholder.parentElement === originParent) {
+        // English comment: Return the list item to the dragged item's old position.
         originParent.insertBefore(targetItem, placeholder);
     } else {
         originParent.appendChild(targetItem);
     }
 
-    targetParent.insertBefore(element, targetItem);
     animateSwapOut(targetItem);
     animateSwapIn(element);
     syncPicksFromRanks();
+}
+
+function swapRankWithListItemClick(rankItem, listItem, rankParent) {
+    const targetParent = listItem?.parentElement;
+    if (!targetParent || targetParent.id !== 'hottakes-list') {
+        return;
+    }
+
+    // English comment: Swap rank item with a list item on click.
+    targetParent.insertBefore(rankItem, listItem);
+    rankParent.appendChild(listItem);
+    animateSwapOut(listItem);
+    animateSwapIn(rankItem);
+    syncPicksFromRanks();
+    saveDraftState();
+}
+
+function swapListItemsInList(element, targetItem) {
+    const parent = element?.parentElement;
+    if (!parent || parent.id !== 'hottakes-list' || targetItem?.parentElement !== parent) {
+        return;
+    }
+
+    // English comment: Swap positions of two list items without affecting rank picks.
+    const marker = document.createElement('span');
+    marker.style.display = 'none';
+    parent.insertBefore(marker, element);
+    parent.insertBefore(element, targetItem);
+    parent.insertBefore(targetItem, marker);
+    marker.remove();
+    animateSwapOut(targetItem);
+    animateSwapIn(element);
 }
 
 function cancelHottakeDrag() {

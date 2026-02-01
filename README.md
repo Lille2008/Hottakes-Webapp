@@ -84,5 +84,23 @@
 - Drafts werden lokal gespeichert (Picks + Swipe-Entscheidungen) und beim Laden im aktiven Modus wiederhergestellt.
 - Save-Button ist gegen Mehrfachklicks geschützt und zeigt während des Speicherns „Speichert...“.
 
+**User:** Swipe-Message entfernen & Click-Swaps verbessern
+
+**AI:**
+- Die grüne „Swipes gespeichert“-Meldung nach dem Swipe-Flow wurde entfernt.
+- Klick-Swaps innerhalb der Ranks funktionieren nun zuverlässig; Slot-Selection geht über das Rank-Label.
+- Beim Ziehen innerhalb der Liste wird der Hottakes-Container nicht mehr gestrichelt umrandet.
+
+**User:** App hängt beim Rank→Liste‑Swap
+
+**AI:**
+- Swap-Logik angepasst: Das gezogene Item wird zuerst in die Liste eingesetzt, bevor das Ziel-Item in den Rank wandert.
+
+**User:** Rank bleibt immer gefüllt + List‑Swap per Click
+
+**AI:**
+- Ein gefüllter Rank kann nicht mehr per Click/Drag in die leere Liste entleert werden; nur Swaps sind erlaubt.
+- Click‑Swap unterstützt jetzt Rank↔Liste und Liste↔Liste (Drag&Drop bleibt erhalten).
+
 
 
