@@ -606,26 +606,31 @@ h3 {
     width: 100%;
     height: 100%;
     display: flex;
-    flex-direction: column;
+    align-items: center;
     justify-content: center;
-    gap: 20px;
+    position: relative;
+    text-align: center;
+    padding-bottom: 70px;
 }
 
 .swipe-text {
     margin: 0;
-    font-size: 1.2rem;
+    font-size: clamp(1.4rem, 2.2vw, 2rem);
     font-weight: 700;
     line-height: 1.5;
     text-align: center;
 }
 
 .swipe-arrows {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 18px;
     width: 100%;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-top: auto;
-    padding-top: 16px;
+    padding: 0 16px;
 }
 
 .swipe-button {
@@ -685,10 +690,14 @@ h3 {
 
 .swipe-arrow--left {
     left: 16px;
+    background: rgba(239, 68, 68, 0.35);
+    border-color: rgba(239, 68, 68, 0.45);
 }
 
 .swipe-arrow--right {
     right: 16px;
+    background: rgba(34, 197, 94, 0.35);
+    border-color: rgba(34, 197, 94, 0.45);
 }
 
 .swipe-overlay.is-swipe-left {
@@ -926,6 +935,14 @@ body.swipe-open #cookie-banner {
     box-shadow: var(--shadow-card);
 }
 
+.ranks-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
 #hottakes-container {
     order: 2;
 }
@@ -952,6 +969,26 @@ body.swipe-open #cookie-banner {
     display: block;
 }
 
+.rank-summary {
+    margin: 0 0 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(34, 197, 94, 0.16);
+    color: var(--status-true);
+    font-weight: 700;
+    display: none;
+}
+
+.rank-summary.is-visible {
+    display: block;
+}
+
+.rank-hint {
+    margin: 0 0 14px;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
 #hottakes-list {
     display: flex;
     flex-direction: column;
@@ -967,6 +1004,18 @@ body.swipe-open #cookie-banner {
     border: 2px solid transparent;
     transition: var(--transition-smooth);
     box-shadow: var(--shadow-card);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.drag-handle {
+    font-weight: 900;
+    opacity: 0.6;
+}
+
+.hottake-text {
+    user-select: none;
 }
 
 .hottake:hover {
@@ -1019,6 +1068,11 @@ body.swipe-open #cookie-banner {
     transition: var(--transition-smooth);
 }
 
+.rank.is-dragover {
+    border-color: var(--gradient-start);
+    box-shadow: var(--glow-cyan), var(--glow-green);
+}
+
 .rank:hover {
     border-color: var(--gradient-start);
     box-shadow: var(--glow-cyan), var(--glow-green);
@@ -1033,7 +1087,7 @@ body.swipe-open #cookie-banner {
    ============================================ */
 #save-picks {
     display: block;
-    margin: 30px auto;
+    margin: 0;
     padding: 14px 40px;
     background: var(--gradient-primary);
     color: var(--text-primary);

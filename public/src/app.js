@@ -52,6 +52,7 @@ let swipeGameDay = null;
 let swipeTouchStartX = null;
 let swipeTouchDeltaX = 0;
 let swipeAnimating = false;
+let isDragging = false;
 
 const hottakesContainer = document.getElementById('hottakes-container');
 const ranksContainer = document.getElementById('ranks-container');
@@ -444,6 +445,16 @@ function renderSwipeCard() {
         return;
     }
 
+    swipeCard.classList.remove('is-swiping-left', 'is-swiping-right');
+    swipeCard.style.transform = '';
+    if (swipeOverlay) {
+        swipeOverlay.classList.remove('is-swipe-left', 'is-swipe-right');
+    }
+    if (swipeCardBack) {
+        swipeCardBack.style.transform = '';
+        swipeCardBack.style.opacity = '';
+    }
+
     const current = swipeDeck[swipeIndex];
     const next = swipeDeck[swipeIndex + 1];
 
@@ -504,6 +515,7 @@ function finishSwipeFlow() {
     });
 
     renderHottakes();
+    showRankSummary('10 Entscheidungen gespeichert.');
 }
 
 function handleSwipeDecision(decision) {
@@ -589,6 +601,20 @@ function resetSwipeFlow() {
     startSwipeFlow();
 }
 
+function handleAutoScroll(event) {
+    if (!isDragging) {
+        return;
+    }
+
+    const margin = 80;
+    if (event.clientY < margin) {
+        window.scrollBy(0, -12);
+    }
+    if (event.clientY > window.innerHeight - margin) {
+        window.scrollBy(0, 12);
+    }
+}
+
 
 function updateSettingsAuth(user) {
     if (!settingsAuthGuest || !settingsAuthUser) {
@@ -653,7 +679,25 @@ function setHeaderAuthState(isLoggedIn) {
 const hottakesNotice = document.createElement('p');
 hottakesNotice.id = 'hottakes-notice';
 hottakesNotice.className = 'hottakes-notice';
-hottakesContainer.appendChild(hottakesNotice);
+if (ranksContainer) {
+    ranksContainer.appendChild(hottakesNotice);
+} else {
+    hottakesContainer.appendChild(hottakesNotice);
+}
+
+const rankSummary = document.createElement('p');
+rankSummary.id = 'rank-summary';
+rankSummary.className = 'rank-summary';
+if (ranksContainer) {
+    ranksContainer.appendChild(rankSummary);
+}
+
+const rankHint = document.createElement('p');
+rankHint.className = 'rank-hint';
+rankHint.textContent = 'Du kannst auch „passiert nicht“ ranken.';
+if (ranksContainer) {
+    ranksContainer.appendChild(rankHint);
+}
 
 
 const hottakesList = document.createElement('div');
@@ -713,7 +757,16 @@ function createRankSlots() {
         rankDiv.addEventListener('dragover', (event) => {
             event.preventDefault();
         });
-        rankDiv.addEventListener('drop', handleRankDrop);
+        rankDiv.addEventListener('dragenter', () => {
+            rankDiv.classList.add('is-dragover');
+        });
+        rankDiv.addEventListener('dragleave', () => {
+            rankDiv.classList.remove('is-dragover');
+        });
+        rankDiv.addEventListener('drop', (event) => {
+            rankDiv.classList.remove('is-dragover');
+            handleRankDrop(event);
+        });
 
         container.appendChild(rankDiv);
         ranksContainer.appendChild(container);
@@ -788,6 +841,19 @@ function handleRankDrop(event) {
     }
 
     picks[targetIndex] = hottakeId;
+}
+
+function showRankSummary(message, ms = 2500) {
+    if (!rankSummary) {
+        return;
+    }
+
+    rankSummary.textContent = message;
+    rankSummary.classList.add('is-visible');
+
+    window.setTimeout(() => {
+        rankSummary.classList.remove('is-visible');
+    }, ms);
 }
 
 
@@ -1233,7 +1299,15 @@ function sanitizePicks(allowedHottakes = openHottakes) {
 
 function createHottakeElement(hottake, { readonly = false, picked = false } = {}) {
     const element = document.createElement('p');
-    element.textContent = hottake.text;
+    element.textContent = '';
+
+    const handle = document.createElement('span');
+    handle.className = 'drag-handle';
+    handle.textContent = '⠿';
+
+    const textSpan = document.createElement('span');
+    textSpan.className = 'hottake-text';
+    textSpan.textContent = hottake.text;
 
     const statusClass = STATUS_BADGE_CLASS[hottake.status] || 'is-open';
     element.className = `hottake ${statusClass}`;
@@ -1249,10 +1323,16 @@ function createHottakeElement(hottake, { readonly = false, picked = false } = {}
     element.dataset.hottakeId = String(hottake.id);
     if (!readonly && !isLocked) {
         element.addEventListener('dragstart', (event) => {
+            isDragging = true;
             event.dataTransfer.setData('text/plain', String(hottake.id));
             event.dataTransfer.effectAllowed = 'move';
         });
+        element.addEventListener('dragend', () => {
+            isDragging = false;
+        });
     }
+
+    element.append(handle, textSpan);
     return element;
 }
 
@@ -1977,6 +2057,11 @@ if (swipeCard) {
         }
     });
 }
+
+document.addEventListener('dragover', handleAutoScroll);
+document.addEventListener('dragend', () => {
+    isDragging = false;
+});
 
 
 async function checkLoginStatus() {
