@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Hottakes</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -159,8 +159,11 @@
     <section id="swipe-overlay" class="swipe-overlay" aria-hidden="true" role="dialog" aria-modal="true">
         <div class="swipe-overlay__inner">
             <p class="swipe-kicker">Hottakes ranken</p>
-            <h2 class="swipe-title">Swipe deinen nächsten Hottake</h2>
-            <div id="swipe-card" class="swipe-card" aria-live="polite"></div>
+            <h2 class="swipe-title">Was denkst du?</h2>
+            <div class="swipe-card-stack">
+                <div id="swipe-card-back" class="swipe-card swipe-card--back" aria-hidden="true"></div>
+                <div id="swipe-card" class="swipe-card" aria-live="polite"></div>
+            </div>
             <button id="swipe-back" class="swipe-button swipe-button--ghost" type="button">Zurück</button>
             <p id="swipe-progress" class="swipe-progress">0 / 10</p>
         </div>

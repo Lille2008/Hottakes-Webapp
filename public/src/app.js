@@ -83,6 +83,7 @@ const guestActions = document.getElementById('guest-actions');
 const authedActions = document.getElementById('authed-actions');
 const swipeOverlay = document.getElementById('swipe-overlay');
 const swipeCard = document.getElementById('swipe-card');
+const swipeCardBack = document.getElementById('swipe-card-back');
 const swipeBackButton = document.getElementById('swipe-back');
 const swipeProgress = document.getElementById('swipe-progress');
 
@@ -444,13 +445,20 @@ function renderSwipeCard() {
     }
 
     const current = swipeDeck[swipeIndex];
-    swipeCard.innerHTML = '';
-    if (!current) {
-        swipeCard.textContent = 'Alle Hottakes geswiped!';
-    } else {
+    const next = swipeDeck[swipeIndex + 1];
+
+    const buildCardContent = (hottake) => {
+        const content = document.createElement('div');
+        content.className = 'swipe-card-content';
+
+        if (!hottake) {
+            content.textContent = 'Alle Hottakes geswiped!';
+            return content;
+        }
+
         const text = document.createElement('p');
         text.className = 'swipe-text';
-        text.textContent = current.text;
+        text.textContent = hottake.text;
 
         const leftArrow = document.createElement('div');
         leftArrow.className = 'swipe-arrow swipe-arrow--left';
@@ -460,13 +468,27 @@ function renderSwipeCard() {
         rightArrow.className = 'swipe-arrow swipe-arrow--right';
         rightArrow.textContent = 'Passiert →';
 
-        swipeCard.append(text, leftArrow, rightArrow);
+        const arrowsRow = document.createElement('div');
+        arrowsRow.className = 'swipe-arrows';
+        arrowsRow.append(leftArrow, rightArrow);
+
+        content.append(text, arrowsRow);
+        return content;
+    };
+
+    swipeCard.innerHTML = '';
+    swipeCard.append(buildCardContent(current));
+
+    if (swipeCardBack) {
+        swipeCardBack.innerHTML = '';
+        swipeCardBack.append(buildCardContent(next));
     }
 
     swipeProgress.textContent = `${Math.min(swipeIndex + 1, MIN_OPEN_HOTTAKES)} / ${MIN_OPEN_HOTTAKES}`;
 
     if (swipeBackButton) {
         swipeBackButton.disabled = swipeIndex === 0;
+        swipeBackButton.classList.toggle('is-hidden', swipeIndex === 0);
     }
 }
 
@@ -518,10 +540,19 @@ function animateSwipe(decision) {
     swipeOverlay.classList.add(overlayClass);
     swipeCard.classList.add(directionClass);
 
+    if (swipeCardBack) {
+        swipeCardBack.style.transform = 'scale(1) translateY(0)';
+        swipeCardBack.style.opacity = '1';
+    }
+
     window.setTimeout(() => {
         swipeCard.classList.remove(directionClass);
         swipeOverlay.classList.remove(overlayClass);
         swipeCard.style.transform = '';
+        if (swipeCardBack) {
+            swipeCardBack.style.transform = '';
+            swipeCardBack.style.opacity = '';
+        }
         swipeAnimating = false;
         handleSwipeDecision(decision);
     }, 180);
@@ -1935,6 +1966,15 @@ if (swipeCard) {
         }
 
         animateSwipe(delta > 0 ? 'hit' : 'pass');
+    });
+
+    swipeCard.addEventListener('touchcancel', () => {
+        swipeTouchStartX = null;
+        swipeTouchDeltaX = 0;
+        swipeCard.style.transform = '';
+        if (swipeOverlay) {
+            swipeOverlay.classList.remove('is-swipe-left', 'is-swipe-right');
+        }
     });
 }
 
