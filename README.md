@@ -39,5 +39,18 @@
 - Lock-State wird vor dem ersten Render/Swipe aktualisiert, damit keine Swipe-Karten mehr erscheinen, wenn der Spieltag gesperrt ist.
 - Drag&Drop nutzt HTML5-Drag für Maus und Pointer-Drag für Touch, inklusive visuellem Drop-Feedback.
 
+**User:** Save-Button nur bei 10 Hottakes, read-only Notice rot bei fehlenden Picks, Dropdown-Wrapper entfernen, Option D (Tap-Select + Drag) für Hottakes.
+
+**AI:**
+- Save-Button wird nur angezeigt, wenn genau 10 offene Hottakes vorhanden sind.
+- Read-only Notice ist rot, wenn keine Picks gespeichert sind; sonst neutral.
+- GameDay- und Leaderboard-Selects werden ohne extra Wrapper gerendert.
+- Option D umgesetzt: kurzer Tap selektiert, Bewegung startet Drag, Ranks lassen Tap-Tausch zu.
+
+**User:** Slot→Element und Element→Slot sollen beide funktionieren.
+
+**AI:**
+- Zusätzlich zum Element‑Select kann nun ein Slot selektiert werden; der nächste Tap platziert oder tauscht.
+
 
 

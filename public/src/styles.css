@@ -735,7 +735,7 @@ h3 {
 }
 
 .hottake {
-    touch-action: none;
+    touch-action: pan-y;
 }
 
 .drag-handle {
@@ -1014,6 +1014,26 @@ body.swipe-open #cookie-banner {
     display: block;
 }
 
+.rank-readonly-notice.is-danger {
+    background: rgba(239, 68, 68, 0.16);
+    border: 1px solid rgba(239, 68, 68, 0.45);
+    color: var(--status-false);
+}
+
+.rank-swap-notice {
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(0, 217, 255, 0.1);
+    color: var(--gradient-start);
+    font-weight: 700;
+    display: none;
+}
+
+.rank-swap-notice.is-visible {
+    display: block;
+}
+
 .rank-hint {
     margin: 0 0 14px;
     color: var(--text-secondary);
@@ -1045,6 +1065,11 @@ body.swipe-open #cookie-banner {
     display: flex;
     align-items: center;
     gap: 10px;
+}
+
+.hottake.is-selected {
+    border-color: var(--gradient-end);
+    box-shadow: var(--glow-cyan), var(--shadow-card-hover);
 }
 
 .hottake.is-dragging {
@@ -1116,6 +1141,11 @@ body.swipe-open #cookie-banner {
     border-radius: 8px;
     padding: 12px;
     transition: var(--transition-smooth);
+}
+
+.rank.is-selected {
+    border-color: var(--gradient-end);
+    box-shadow: var(--glow-cyan), var(--shadow-card-hover);
 }
 
 .rank.is-dragover {
