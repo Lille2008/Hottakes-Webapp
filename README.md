@@ -67,5 +67,22 @@
 - Drag‑Gesten laufen jetzt über `touchstart/move/end` plus `mousedown/mousemove/up` mit den gleichen Thresholds.
 - Pointer‑Capture wurde entfernt; Touch‑Cancel setzt das Item sauber zurück.
 
+**User:** Drag&Drop laggt und List‑Swap fehlt (Rank → Liste tauschen).
+
+**AI:**
+- Drag‑Bewegung läuft jetzt über `requestAnimationFrame` mit `translate3d` statt Layout‑Updates.
+- Swap in der Liste: Drop auf einen Hottake tauscht jetzt zuverlässig in beide Richtungen.
+
+**User:** Und kann man auch innerhalb der Ranks tauschen?
+
+**AI:**
+- Rank↔Rank Swap umgesetzt: Beim Drop auf einen belegten Slot wird das bestehende Item zurück in den Ursprungsslot getauscht (statt in die Liste).
+
+**User:** Implementiere den Schutz vor Datenverlust und die Double-Submit Prevention
+
+**AI:**
+- Drafts werden lokal gespeichert (Picks + Swipe-Entscheidungen) und beim Laden im aktiven Modus wiederhergestellt.
+- Save-Button ist gegen Mehrfachklicks geschützt und zeigt während des Speicherns „Speichert...“.
+
 
 

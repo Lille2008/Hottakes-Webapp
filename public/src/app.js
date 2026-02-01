@@ -40,7 +40,7 @@ let activeGameDay = null;
 let gameDays = [];
 let selectedHistoryGameDay = null;
 let selectedGameDay = null;
-let leaderboardSelection = 'all';
+    saveDraftState(); // Save the current draft state after syncing picks
 let leaderboardRequestToken = 0;
 let lockCountdownTimer = null;
 let isLocked = false;
@@ -58,9 +58,11 @@ let pendingGesture = null;
 let swapSelection = null;
 let slotSelection = null;
 let lastDragAt = 0;
+let dragFrameId = null;
 const DRAG_START_THRESHOLD = 10;
 const TAP_MAX_DURATION_MS = 200;
 const LONG_PRESS_MS = 200;
+const DRAFT_STORAGE_PREFIX = 'hottakes-draft';
 
 const hottakesContainer = document.getElementById('hottakes-container');
 const ranksContainer = document.getElementById('ranks-container');
@@ -517,6 +519,7 @@ function finishSwipeFlow() {
 
     // English comment: After swiping, keep ranks empty until the user explicitly ranks their Top 3.
     picks = Array(RANK_COUNT).fill(null);
+    saveDraftState();
 
     renderHottakes();
     showRankSummary('10 Entscheidungen gespeichert. Jetzt deine Top 3 ranken.');
@@ -533,6 +536,7 @@ function handleSwipeDecision(decision) {
     }
 
     swipeDecisions.push({ hottakeId: current.id, decision });
+    saveDraftState();
     swipeIndex += 1;
 
     if (swipeIndex >= swipeDeck.length) {
@@ -575,6 +579,7 @@ function handleSwipeBack() {
     }
 
     swipeDecisions.pop();
+    saveDraftState();
     swipeIndex = Math.max(0, swipeIndex - 1);
     renderSwipeCard();
 }
@@ -591,6 +596,7 @@ function startSwipeFlow() {
     swipeDecisions = [];
     picks = Array(RANK_COUNT).fill(null);
     swipeAnimating = false;
+    saveDraftState();
     openSwipeOverlay();
     renderSwipeCard();
 }
@@ -929,13 +935,20 @@ function moveHottakeToRank(element, rankDiv, sourceParent, hottakeId) {
     }
 
     const existing = rankDiv.querySelector('.hottake');
+    const existingId = existing ? Number(existing.dataset.hottakeId) : null;
     if (existing && existing !== element) {
         animateSwapOut(existing);
-        hottakesList.appendChild(existing);
+        if (sourceParent && sourceParent.classList.contains('rank')) {
+            // English comment: Swap rank↔rank by moving the existing item back to the source slot.
+            sourceParent.appendChild(existing);
+            animateSwapIn(existing);
+        } else {
+            hottakesList.appendChild(existing);
+        }
     }
 
     if (sourceIndex !== null && sourceIndex >= 0 && sourceIndex < picks.length) {
-        picks[sourceIndex] = null;
+        picks[sourceIndex] = existingId ?? null;
     }
 
     rankDiv.appendChild(element);
@@ -948,6 +961,7 @@ function moveHottakeToRank(element, rankDiv, sourceParent, hottakeId) {
     }
 
     picks[targetIndex] = hottakeId;
+    saveDraftState();
 }
 
 function handleHottakeTap(element, hottakeId) {
@@ -1063,12 +1077,16 @@ function beginHottakeDrag({ element, hottakeId, clientX, clientY, inputType = 'm
         hottakeId,
         offsetX,
         offsetY,
+        baseLeft: rect.left,
+        baseTop: rect.top,
         originParent,
         originNextSibling,
         placeholder,
         inputType,
         touchId,
-        activeDropTarget: null
+        activeDropTarget: null,
+        activeSwapTarget: null,
+        pendingPoint: { x: clientX, y: clientY }
     };
 
     isDragging = true;
@@ -1082,28 +1100,47 @@ function updateDragPosition(clientX, clientY) {
         return;
     }
 
-    dragState.element.style.left = `${clientX - dragState.offsetX}px`;
-    dragState.element.style.top = `${clientY - dragState.offsetY}px`;
+    dragState.pendingPoint = { x: clientX, y: clientY };
 
-    handleAutoScroll(clientY);
+    if (dragFrameId !== null) {
+        return;
+    }
 
-    const target = document.elementFromPoint(clientX, clientY);
-    const rankTarget = target ? target.closest('.rank') : null;
-    const listTarget = target ? target.closest('#hottakes-list') : null;
-    setActiveDropTarget(rankTarget || listTarget);
+    dragFrameId = window.requestAnimationFrame(() => {
+        dragFrameId = null;
+        if (!dragState) {
+            return;
+        }
+
+        const { x, y } = dragState.pendingPoint;
+        const translateX = x - dragState.offsetX - dragState.baseLeft;
+        const translateY = y - dragState.offsetY - dragState.baseTop;
+        dragState.element.style.transform = `translate3d(${translateX}px, ${translateY}px, 0)`;
+
+        handleAutoScroll(y);
+
+        const target = document.elementFromPoint(x, y);
+        const rankTarget = target ? target.closest('.rank') : null;
+        const listTarget = target ? target.closest('#hottakes-list') : null;
+        const hottakeTarget = target ? target.closest('.hottake') : null;
+        setActiveDropTarget(rankTarget || listTarget, hottakeTarget);
+    });
 }
 
 function clearDropHighlights() {
     rankSlots.forEach((slot) => slot.classList.remove('is-dragover'));
     hottakesList.classList.remove('is-dragover');
+    hottakesList.querySelectorAll('.hottake.is-drop-target').forEach((item) => {
+        item.classList.remove('is-drop-target');
+    });
 }
 
-function setActiveDropTarget(target) {
+function setActiveDropTarget(target, hottakeTarget) {
     if (!dragState) {
         return;
     }
 
-    if (dragState.activeDropTarget === target) {
+    if (dragState.activeDropTarget === target && dragState.activeSwapTarget === hottakeTarget) {
         return;
     }
 
@@ -1122,6 +1159,15 @@ function setActiveDropTarget(target) {
     }
 
     dragState.activeDropTarget = target;
+    dragState.activeSwapTarget = null;
+
+    if (hottakeTarget && hottakeTarget.classList.contains('hottake')) {
+        const parentList = hottakeTarget.parentElement;
+        if (parentList && parentList.id === 'hottakes-list' && hottakeTarget !== dragState.element) {
+            hottakeTarget.classList.add('is-drop-target');
+            dragState.activeSwapTarget = hottakeTarget;
+        }
+    }
 }
 
 function placeHottakeInList(element, sourceParent) {
@@ -1143,9 +1189,12 @@ function finishHottakeDrag(clientX, clientY) {
     const target = document.elementFromPoint(clientX, clientY);
     const rankTarget = target ? target.closest('.rank') : null;
     const listTarget = target ? target.closest('#hottakes-list') : null;
+    const hottakeTarget = target ? target.closest('.hottake') : null;
 
     if (rankTarget) {
         placeHottakeInRank(element, rankTarget, originParent, dragState.hottakeId);
+    } else if (hottakeTarget && hottakeTarget.parentElement && hottakeTarget.parentElement.id === 'hottakes-list' && hottakeTarget !== element) {
+        swapHottakeWithListItem(element, hottakeTarget, originParent, placeholder);
     } else if (listTarget) {
         placeHottakeInList(element, originParent);
     } else if (originParent) {
@@ -1205,6 +1254,30 @@ function cleanupDragState(element, placeholder) {
     isDragging = false;
     document.body.classList.remove('is-dragging');
     updateTargetAffordance();
+}
+
+function swapHottakeWithListItem(element, targetItem, originParent, placeholder) {
+    if (!originParent) {
+        return;
+    }
+
+    const targetParent = targetItem.parentElement;
+    if (!targetParent || targetParent.id !== 'hottakes-list') {
+        return;
+    }
+
+    if (originParent.classList.contains('rank')) {
+        originParent.appendChild(targetItem);
+    } else if (placeholder && placeholder.parentElement === originParent) {
+        originParent.insertBefore(targetItem, placeholder);
+    } else {
+        originParent.appendChild(targetItem);
+    }
+
+    targetParent.insertBefore(element, targetItem);
+    animateSwapOut(targetItem);
+    animateSwapIn(element);
+    syncPicksFromRanks();
 }
 
 function cancelHottakeDrag() {
@@ -1330,6 +1403,7 @@ function applyLockStateUI() {
     }
 
     if (savePicksButton) {
+        const isBusy = savePicksButton.dataset.busy === 'true';
         savePicksButton.disabled = blocked;
         // Hide the save button whenever picks must not be editable (readonly / locked / finalized).
         // The server also enforces rules, but UI should make the allowed actions obvious.
@@ -1337,7 +1411,12 @@ function applyLockStateUI() {
             savePicksButton.style.display = 'none';
         } else {
             savePicksButton.style.display = 'inline-block';
-            savePicksButton.textContent = 'Picks Speichern';
+            if (!isBusy) {
+                savePicksButton.textContent = 'Picks Speichern';
+            }
+        }
+        if (isBusy) {
+            savePicksButton.disabled = true;
         }
     }
 
@@ -1685,6 +1764,102 @@ function sanitizePicks(allowedHottakes = openHottakes) {
     picks = picks.map((id) => (typeof id === 'number' && validIds.has(id) ? id : null));
 }
 
+function canUseDrafts() {
+    return viewMode === 'active' && !isLocked;
+}
+
+function getDraftStorageKey() {
+    const userKey = currentUser?.id ?? 'guest';
+    const gameDayKey = selectedGameDay ?? activeGameDay?.gameDay ?? 'active';
+    return `${DRAFT_STORAGE_PREFIX}:${userKey}:${gameDayKey}`;
+}
+
+function saveDraftState() {
+    if (!canUseDrafts()) {
+        return;
+    }
+
+    const key = getDraftStorageKey();
+    const payload = {
+        picks: picks.slice(0, RANK_COUNT),
+        swipeDecisions: swipeDecisions.slice(),
+        timestamp: Date.now()
+    };
+
+    try {
+        localStorage.setItem(key, JSON.stringify(payload));
+    } catch (_error) {
+        // English comment: Ignore storage failures (private mode, quota, etc.).
+    }
+}
+
+function clearDraftState() {
+    const key = getDraftStorageKey();
+    try {
+        localStorage.removeItem(key);
+    } catch (_error) {
+        // English comment: Ignore storage failures (private mode, quota, etc.).
+    }
+}
+
+function loadDraftState(allowedHottakes = openHottakes) {
+    if (!canUseDrafts()) {
+        return;
+    }
+
+    if (!picks.every((entry) => entry === null) || swipeDecisions.length > 0) {
+        return;
+    }
+
+    const key = getDraftStorageKey();
+    let raw = null;
+    try {
+        raw = localStorage.getItem(key);
+    } catch (_error) {
+        return;
+    }
+
+    if (!raw) {
+        return;
+    }
+
+    let parsed = null;
+    try {
+        parsed = JSON.parse(raw);
+    } catch (_error) {
+        return;
+    }
+
+    if (!parsed || typeof parsed !== 'object') {
+        return;
+    }
+
+    const validIds = new Set((allowedHottakes || []).map((hot) => hot.id));
+    const nextPicks = Array.isArray(parsed.picks)
+        ? parsed.picks.slice(0, RANK_COUNT).map((id) => (typeof id === 'number' && validIds.has(id) ? id : null))
+        : Array(RANK_COUNT).fill(null);
+
+    const nextDecisions = Array.isArray(parsed.swipeDecisions)
+        ? parsed.swipeDecisions.filter((entry) => {
+              if (!entry || typeof entry !== 'object') {
+                  return false;
+              }
+              if (typeof entry.hottakeId !== 'number' || !validIds.has(entry.hottakeId)) {
+                  return false;
+              }
+              return entry.decision === 'hit' || entry.decision === 'miss';
+          })
+        : [];
+
+    picks = nextPicks;
+    swipeDecisions = nextDecisions;
+
+    if (nextDecisions.length >= MIN_OPEN_HOTTAKES) {
+        swipeCompleted = true;
+        swipeIndex = MIN_OPEN_HOTTAKES;
+    }
+}
+
 
 function createHottakeElement(hottake, { readonly = false, picked = false } = {}) {
     const element = document.createElement('p');
@@ -1850,6 +2025,7 @@ async function refreshHottakes(targetGameDay = null) {
         archivedHottakes = Array.isArray(archivedData) ? archivedData : [];
         allHottakes = [...openHottakes, ...archivedHottakes];
         refreshLockState();
+        loadDraftState(openHottakes);
         renderHottakes();
         startSwipeFlow();
     } catch (error) {
@@ -1964,6 +2140,10 @@ async function saveSubmission() {
     // Safety guard: In the current UI, the save button should not be visible/clickable in readonly mode.
     if (viewMode !== 'active') return;
 
+    if (savePicksButton?.dataset.busy === 'true') {
+        return;
+    }
+
     if (selectedGameDay === null) {
         alert('Es ist kein Spieltag ausgewählt.');
         return;
@@ -1994,6 +2174,13 @@ async function saveSubmission() {
         return;
     }
 
+    const previousLabel = savePicksButton?.textContent;
+    if (savePicksButton) {
+        savePicksButton.dataset.busy = 'true';
+        savePicksButton.disabled = true;
+        savePicksButton.textContent = 'Speichert...';
+    }
+
     try {
         await apiFetch(`/submissions?gameDay=${encodeURIComponent(selectedGameDay)}`, {
             method: 'POST',
@@ -2005,11 +2192,18 @@ async function saveSubmission() {
 
         lastSubmissionPicks = picks.slice(0, RANK_COUNT);
         lastSubmissionSwipeDecisions = swipeDecisions.slice();
+        clearDraftState();
 
         alert('Deine Picks wurden gespeichert.');
         await drawLeaderboard();
     } catch (error) {
         alert(error.message);
+    } finally {
+        if (savePicksButton) {
+            savePicksButton.dataset.busy = 'false';
+            savePicksButton.textContent = previousLabel || 'Picks Speichern';
+        }
+        applyLockStateUI();
     }
 }
 

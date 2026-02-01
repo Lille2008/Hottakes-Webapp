@@ -1085,6 +1085,7 @@ body.swipe-open #cookie-banner {
     transform: none;
     box-shadow: 0 18px 38px rgba(0, 0, 0, 0.35), var(--glow-cyan-strong);
     will-change: transform;
+    transition: none;
 }
 
 .hottake-placeholder {
@@ -1193,6 +1194,11 @@ body.is-targeting .rank {
 .rank.is-swap-target .hottake {
     opacity: 0.5;
     transform: scale(0.94);
+}
+
+.hottake.is-drop-target {
+    outline: 2px dashed rgba(0, 217, 255, 0.6);
+    outline-offset: 4px;
 }
 
 .cancel-selection {
