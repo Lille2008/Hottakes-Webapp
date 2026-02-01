@@ -70,6 +70,12 @@ body {
     min-height: 100vh;
 }
 
+body.is-dragging {
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+}
+
 .settings-open {
     overflow: hidden;
 }
@@ -1065,17 +1071,20 @@ body.swipe-open #cookie-banner {
     display: flex;
     align-items: center;
     gap: 10px;
+    will-change: transform;
 }
 
 .hottake.is-selected {
     border-color: var(--gradient-end);
     box-shadow: var(--glow-cyan), var(--shadow-card-hover);
+    animation: hottake-pulse 1.2s ease-out infinite;
 }
 
 .hottake.is-dragging {
     cursor: grabbing;
     transform: none;
-    box-shadow: var(--shadow-card-hover), var(--glow-cyan);
+    box-shadow: 0 18px 38px rgba(0, 0, 0, 0.35), var(--glow-cyan-strong);
+    will-change: transform;
 }
 
 .hottake-placeholder {
@@ -1101,6 +1110,18 @@ body.swipe-open #cookie-banner {
 .hottake:active {
     cursor: grabbing;
     transform: scale(1.02);
+}
+
+@keyframes hottake-pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(0, 217, 255, 0.45), var(--shadow-card-hover);
+    }
+    70% {
+        box-shadow: 0 0 0 14px rgba(0, 217, 255, 0), var(--shadow-card-hover);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(0, 217, 255, 0), var(--shadow-card-hover);
+    }
 }
 
 .hottake.is-open {
@@ -1136,11 +1157,18 @@ body.swipe-open #cookie-banner {
 
 .rank {
     background: linear-gradient(135deg, rgba(0, 217, 255, 0.1), rgba(0, 102, 255, 0.1));
-    border: 2px dashed rgba(0, 217, 255, 0.3);
+    border: 2px solid rgba(0, 217, 255, 0.3);
     min-height: 50px;
     border-radius: 8px;
     padding: 12px;
     transition: var(--transition-smooth);
+}
+
+body.is-targeting .rank {
+    border-style: dashed;
+    border-width: 3px;
+    border-color: rgba(0, 217, 255, 0.65);
+    box-shadow: var(--glow-cyan), var(--glow-green);
 }
 
 .rank.is-selected {
@@ -1160,6 +1188,35 @@ body.swipe-open #cookie-banner {
 
 .rank .hottake {
     margin: 0;
+}
+
+.rank.is-swap-target .hottake {
+    opacity: 0.5;
+    transform: scale(0.94);
+}
+
+.cancel-selection {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    padding: 12px 18px;
+    border-radius: 999px;
+    border: 1px solid rgba(0, 217, 255, 0.4);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-weight: 700;
+    box-shadow: var(--shadow-card);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(8px);
+    transition: var(--transition-smooth);
+    z-index: 50;
+}
+
+.cancel-selection.is-visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
 }
 
 /* ============================================

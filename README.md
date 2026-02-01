@@ -52,5 +52,14 @@
 **AI:**
 - Zusätzlich zum Element‑Select kann nun ein Slot selektiert werden; der nächste Tap platziert oder tauscht.
 
+**User:** Hybrid-UX (Option D) für Click/Drag mit präziser Eingabe-Erkennung, visuelles Feedback und Fail‑Safe‑Swap.
+
+**AI:**
+- Click/Drag-Erkennung nutzt jetzt $<10$px & $\le 200$ms für Tap und startet Drag bei $>10$px oder $>200$ms Hold.
+- Active-Item bekommt Pulse-Feedback; Slots zeigen im Targeting-Modus breite gestrichelte Konturen mit Glow.
+- Swap-Indikator dimmt belegte Slots, Cancel-Button ("Abbrechen") erscheint bei aktiver Auswahl.
+- Dragging erhält hohen Z-Index, tiefen Schatten, Pointer-Events-Block und Snap‑Back‑Animation.
+- Beim Platzieren wird das alte Item immer in den Pool zurückgeschoben und per Web Animations API animiert.
+
 
 

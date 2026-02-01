@@ -58,8 +58,9 @@ let pendingGesture = null;
 let swapSelection = null;
 let slotSelection = null;
 let lastDragAt = 0;
-const DRAG_START_THRESHOLD = 8;
-const TAP_MAX_DURATION_MS = 220;
+const DRAG_START_THRESHOLD = 10;
+const TAP_MAX_DURATION_MS = 200;
+const LONG_PRESS_MS = 200;
 
 const hottakesContainer = document.getElementById('hottakes-container');
 const ranksContainer = document.getElementById('ranks-container');
@@ -727,6 +728,17 @@ hottakesList.addEventListener('click', (event) => {
 });
 hottakesContainer.appendChild(hottakesList);
 
+const cancelSelectionButton = document.createElement('button');
+cancelSelectionButton.id = 'cancel-selection';
+cancelSelectionButton.className = 'cancel-selection';
+cancelSelectionButton.type = 'button';
+cancelSelectionButton.textContent = 'Abbrechen';
+cancelSelectionButton.addEventListener('click', () => {
+    // English comment: Allow users to safely exit the click/slot selection mode.
+    clearSelections();
+});
+document.body.appendChild(cancelSelectionButton);
+
 
 const rankSlots = [];
 
@@ -788,7 +800,10 @@ function clearSlotSelection() {
 function clearSelections() {
     clearSwapSelection();
     clearSlotSelection();
+    clearSwapIndicators();
     updateSwapNotice();
+    updateTargetAffordance();
+    updateCancelSelectionVisibility();
 }
 
 function setSwapSelection(element, hottakeId) {
@@ -798,6 +813,8 @@ function setSwapSelection(element, hottakeId) {
     swapSelection = { element, hottakeId };
     element.classList.add('is-selected');
     updateSwapNotice();
+    updateTargetAffordance();
+    updateCancelSelectionVisibility();
 }
 
 function setSlotSelection(rankDiv) {
@@ -807,6 +824,58 @@ function setSlotSelection(rankDiv) {
     slotSelection = rankDiv;
     rankDiv.classList.add('is-selected');
     updateSwapNotice();
+    updateTargetAffordance();
+    updateSwapIndicatorForRank(rankDiv);
+    updateCancelSelectionVisibility();
+}
+
+function updateTargetAffordance() {
+    const isTargeting = Boolean(swapSelection || dragState);
+    document.body.classList.toggle('is-targeting', isTargeting);
+}
+
+function updateCancelSelectionVisibility() {
+    const isVisible = Boolean(swapSelection || slotSelection);
+    cancelSelectionButton.classList.toggle('is-visible', isVisible);
+}
+
+function clearSwapIndicators() {
+    rankSlots.forEach((slot) => slot.classList.remove('is-swap-target'));
+}
+
+function updateSwapIndicatorForRank(rankDiv) {
+    clearSwapIndicators();
+    if (rankDiv && rankDiv.querySelector('.hottake')) {
+        rankDiv.classList.add('is-swap-target');
+    }
+}
+
+function animateSwapOut(element) {
+    if (!element || typeof element.animate !== 'function') {
+        return;
+    }
+
+    element.animate(
+        [
+            { transform: 'translateY(0)', opacity: 1 },
+            { transform: 'translateY(14px)', opacity: 0.5 }
+        ],
+        { duration: 180, easing: 'ease-out' }
+    );
+}
+
+function animateSwapIn(element) {
+    if (!element || typeof element.animate !== 'function') {
+        return;
+    }
+
+    element.animate(
+        [
+            { transform: 'scale(1.2)' },
+            { transform: 'scale(1)' }
+        ],
+        { duration: 220, easing: 'cubic-bezier(0.2, 0, 0.2, 1)' }
+    );
 }
 
 function updateSwapNotice() {
@@ -815,7 +884,7 @@ function updateSwapNotice() {
     }
 
     if (swapSelection && viewMode === 'active' && !isLocked) {
-        rankSwapNotice.textContent = 'Wähle einen weiteren Hottake aus, um sie zu tauschen.';
+        rankSwapNotice.textContent = 'Wähle einen Slot aus, um den Hottake zu platzieren.';
         rankSwapNotice.classList.add('is-visible');
         return;
     }
@@ -861,14 +930,8 @@ function moveHottakeToRank(element, rankDiv, sourceParent, hottakeId) {
 
     const existing = rankDiv.querySelector('.hottake');
     if (existing && existing !== element) {
-        const existingId = Number(existing.dataset.hottakeId);
-        if (!Number.isNaN(existingId)) {
-            if (sourceIndex !== null && sourceParent && sourceParent.classList.contains('rank')) {
-                sourceParent.appendChild(existing);
-            } else {
-                hottakesList.appendChild(existing);
-            }
-        }
+        animateSwapOut(existing);
+        hottakesList.appendChild(existing);
     }
 
     if (sourceIndex !== null && sourceIndex >= 0 && sourceIndex < picks.length) {
@@ -876,6 +939,7 @@ function moveHottakeToRank(element, rankDiv, sourceParent, hottakeId) {
     }
 
     rankDiv.appendChild(element);
+    animateSwapIn(element);
 
     for (let i = 0; i < picks.length; i += 1) {
         if (i !== targetIndex && picks[i] === hottakeId) {
@@ -906,41 +970,12 @@ function handleHottakeTap(element, hottakeId) {
         return;
     }
 
-    if (!swapSelection) {
-        setSwapSelection(element, hottakeId);
-        return;
-    }
-
-    if (swapSelection.hottakeId === hottakeId) {
+    if (swapSelection?.hottakeId === hottakeId) {
         clearSelections();
         return;
     }
 
-    const first = swapSelection.element;
-    const second = element;
-    const firstParent = first.parentElement;
-    const secondParent = second.parentElement;
-    if (!firstParent || !secondParent) {
-        clearSelections();
-        return;
-    }
-
-    const firstNext = first.nextSibling;
-    const secondNext = second.nextSibling;
-
-    if (firstParent === secondParent) {
-        if (secondNext === first) {
-            secondParent.insertBefore(first, second);
-        } else {
-            secondParent.insertBefore(second, first);
-        }
-    } else {
-        secondParent.insertBefore(first, secondNext);
-        firstParent.insertBefore(second, firstNext);
-    }
-
-    syncPicksFromRanks();
-    clearSelections();
+    setSwapSelection(element, hottakeId);
 }
 
 function handleRankTap(rankDiv) {
@@ -948,54 +983,26 @@ function handleRankTap(rankDiv) {
         return;
     }
 
-    if (!swapSelection && !slotSelection) {
-        setSlotSelection(rankDiv);
-        return;
-    }
-
-    if (slotSelection && !swapSelection) {
-        if (slotSelection === rankDiv) {
+    if (swapSelection) {
+        const selected = swapSelection.element;
+        const selectedId = swapSelection.hottakeId;
+        const selectedParent = selected.parentElement;
+        if (!selectedParent) {
             clearSelections();
             return;
         }
 
-        const existing = rankDiv.querySelector('.hottake');
-        if (existing) {
-            const existingParent = existing.parentElement;
-            const existingId = Number(existing.dataset.hottakeId);
-            if (!existingParent || Number.isNaN(existingId)) {
-                clearSelections();
-                return;
-            }
-            moveHottakeToRank(existing, slotSelection, existingParent, existingId);
-            clearSelections();
-            return;
-        }
-
-        setSlotSelection(rankDiv);
-        return;
-    }
-
-    if (!swapSelection) {
-        return;
-    }
-
-    const selected = swapSelection.element;
-    const selectedId = swapSelection.hottakeId;
-    const selectedParent = selected.parentElement;
-    if (!selectedParent) {
+        moveHottakeToRank(selected, rankDiv, selectedParent, selectedId);
         clearSelections();
         return;
     }
 
-    const existing = rankDiv.querySelector('.hottake');
-    if (existing) {
-        handleHottakeTap(existing, Number(existing.dataset.hottakeId));
+    if (slotSelection === rankDiv) {
+        clearSelections();
         return;
     }
 
-    moveHottakeToRank(selected, rankDiv, selectedParent, selectedId);
-    clearSelections();
+    setSlotSelection(rankDiv);
 }
 
 function handleListTap() {
@@ -1047,7 +1054,7 @@ function beginHottakeDrag({ element, hottakeId, pointerId, clientX, clientY }) {
     element.style.left = `${rect.left}px`;
     element.style.top = `${rect.top}px`;
     element.style.position = 'fixed';
-    element.style.zIndex = '30';
+    element.style.zIndex = '999';
     element.style.pointerEvents = 'none';
 
     document.body.appendChild(element);
@@ -1065,6 +1072,8 @@ function beginHottakeDrag({ element, hottakeId, pointerId, clientX, clientY }) {
     };
 
     isDragging = true;
+    document.body.classList.add('is-dragging');
+    updateTargetAffordance();
     updateDragPosition(clientX, clientY);
 }
 
@@ -1103,9 +1112,13 @@ function setActiveDropTarget(target) {
     if (target) {
         if (target.classList.contains('rank')) {
             target.classList.add('is-dragover');
+            updateSwapIndicatorForRank(target);
         } else if (target.id === 'hottakes-list') {
             target.classList.add('is-dragover');
+            clearSwapIndicators();
         }
+    } else {
+        clearSwapIndicators();
     }
 
     dragState.activeDropTarget = target;
@@ -1142,6 +1155,32 @@ function finishHottakeDrag(clientX, clientY) {
     } else if (listTarget) {
         placeHottakeInList(element, originParent);
     } else if (originParent) {
+        const originRect = placeholder?.getBoundingClientRect();
+        const currentRect = element.getBoundingClientRect();
+        if (originRect) {
+            const deltaX = originRect.left - currentRect.left;
+            const deltaY = originRect.top - currentRect.top;
+            const snapAnimation = element.animate(
+                [
+                    { transform: 'translate(0, 0)' },
+                    { transform: `translate(${deltaX}px, ${deltaY}px)` }
+                ],
+                { duration: 300, easing: 'cubic-bezier(0.2, 0, 0.2, 1)' }
+            );
+
+            snapAnimation.onfinish = () => {
+                if (originNextSibling) {
+                    originParent.insertBefore(element, originNextSibling);
+                } else {
+                    originParent.appendChild(element);
+                }
+                cleanupDragState(element, placeholder);
+            };
+
+            dragState = null;
+            return;
+        }
+
         if (originNextSibling) {
             originParent.insertBefore(element, originNextSibling);
         } else {
@@ -1149,11 +1188,16 @@ function finishHottakeDrag(clientX, clientY) {
         }
     }
 
+    cleanupDragState(element, placeholder);
+}
+
+function cleanupDragState(element, placeholder) {
     if (placeholder && placeholder.parentElement) {
         placeholder.remove();
     }
 
     clearDropHighlights();
+    clearSwapIndicators();
     element.classList.remove('is-dragging');
     element.style.position = '';
     element.style.left = '';
@@ -1161,9 +1205,12 @@ function finishHottakeDrag(clientX, clientY) {
     element.style.width = '';
     element.style.zIndex = '';
     element.style.pointerEvents = '';
+    element.style.transform = '';
 
     dragState = null;
     isDragging = false;
+    document.body.classList.remove('is-dragging');
+    updateTargetAffordance();
 }
 
 function showRankSummary(message, ms = 2500) {
@@ -1660,13 +1707,31 @@ function createHottakeElement(hottake, { readonly = false, picked = false } = {}
             if (event.pointerType === 'mouse' && event.button !== 0) {
                 return;
             }
+            if (pendingGesture?.holdTimer) {
+                window.clearTimeout(pendingGesture.holdTimer);
+            }
             pendingGesture = {
                 element,
                 hottakeId: hottake.id,
                 startX: event.clientX,
                 startY: event.clientY,
+                lastX: event.clientX,
+                lastY: event.clientY,
                 startTime: Date.now(),
-                pointerId: event.pointerId
+                pointerId: event.pointerId,
+                holdTimer: window.setTimeout(() => {
+                    if (!pendingGesture || pendingGesture.pointerId !== event.pointerId || dragState) {
+                        return;
+                    }
+                    beginHottakeDrag({
+                        element: pendingGesture.element,
+                        hottakeId: pendingGesture.hottakeId,
+                        pointerId: pendingGesture.pointerId,
+                        clientX: pendingGesture.lastX,
+                        clientY: pendingGesture.lastY
+                    });
+                    pendingGesture = null;
+                }, LONG_PRESS_MS)
             };
         };
         handle.addEventListener('pointerdown', startGesture);
@@ -2417,8 +2482,13 @@ document.addEventListener('pointermove', (event) => {
 
     const deltaX = event.clientX - pendingGesture.startX;
     const deltaY = event.clientY - pendingGesture.startY;
+    pendingGesture.lastX = event.clientX;
+    pendingGesture.lastY = event.clientY;
     const distance = Math.hypot(deltaX, deltaY);
     if (distance >= DRAG_START_THRESHOLD) {
+        if (pendingGesture.holdTimer) {
+            window.clearTimeout(pendingGesture.holdTimer);
+        }
         beginHottakeDrag({
             element: pendingGesture.element,
             hottakeId: pendingGesture.hottakeId,
@@ -2445,6 +2515,9 @@ document.addEventListener('pointerup', (event) => {
     const deltaY = event.clientY - pendingGesture.startY;
     const distance = Math.hypot(deltaX, deltaY);
     const duration = Date.now() - pendingGesture.startTime;
+    if (pendingGesture.holdTimer) {
+        window.clearTimeout(pendingGesture.holdTimer);
+    }
     if (distance < DRAG_START_THRESHOLD && duration <= TAP_MAX_DURATION_MS) {
         handleHottakeTap(pendingGesture.element, pendingGesture.hottakeId);
     }
@@ -2455,6 +2528,9 @@ document.addEventListener('pointerup', (event) => {
 document.addEventListener('pointercancel', (event) => {
     if (dragState) {
         finishHottakeDrag(event.clientX, event.clientY);
+    }
+    if (pendingGesture?.holdTimer) {
+        window.clearTimeout(pendingGesture.holdTimer);
     }
     pendingGesture = null;
 });
