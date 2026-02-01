@@ -90,10 +90,11 @@ describe('Submission Constraint Tests', () => {
     );
 
     // Submit picks for game day 0
-    const picksGameDay0 = hottakesGameDay0.slice(0, 5).map((h) => h.id);
+    const picksGameDay0 = hottakesGameDay0.slice(0, 3).map((h) => h.id);
+    const swipeDecisionsGameDay0 = hottakesGameDay0.map((h) => ({ hottakeId: h.id, decision: 'hit' as const }));
     const submission0Response = await agent
       .post('/api/submissions?gameDay=0')
-      .send({ picks: picksGameDay0 })
+      .send({ picks: picksGameDay0, swipeDecisions: swipeDecisionsGameDay0 })
       .expect(201);
 
     expect(submission0Response.body).toMatchObject({
@@ -103,10 +104,11 @@ describe('Submission Constraint Tests', () => {
     });
 
     // Submit picks for game day 1 (should NOT fail with unique constraint error)
-    const picksGameDay1 = hottakesGameDay1.slice(0, 5).map((h) => h.id);
+    const picksGameDay1 = hottakesGameDay1.slice(0, 3).map((h) => h.id);
+    const swipeDecisionsGameDay1 = hottakesGameDay1.map((h) => ({ hottakeId: h.id, decision: 'pass' as const }));
     const submission1Response = await agent
       .post('/api/submissions?gameDay=1')
-      .send({ picks: picksGameDay1 })
+      .send({ picks: picksGameDay1, swipeDecisions: swipeDecisionsGameDay1 })
       .expect(201);
 
     expect(submission1Response.body).toMatchObject({
@@ -145,17 +147,19 @@ describe('Submission Constraint Tests', () => {
     );
 
     // Submit initial picks
-    const initialPicks = hottakes.slice(0, 5).map((h) => h.id);
+    const initialPicks = hottakes.slice(0, 3).map((h) => h.id);
+    const initialDecisions = hottakes.map((h) => ({ hottakeId: h.id, decision: 'hit' as const }));
     await agent
       .post('/api/submissions?gameDay=0')
-      .send({ picks: initialPicks })
+      .send({ picks: initialPicks, swipeDecisions: initialDecisions })
       .expect(201);
 
     // Update picks (upsert should update, not create a new submission)
-    const updatedPicks = hottakes.slice(5, 10).map((h) => h.id);
+    const updatedPicks = hottakes.slice(5, 8).map((h) => h.id);
+    const updatedDecisions = hottakes.map((h) => ({ hottakeId: h.id, decision: 'pass' as const }));
     const updateResponse = await agent
       .post('/api/submissions?gameDay=0')
-      .send({ picks: updatedPicks })
+      .send({ picks: updatedPicks, swipeDecisions: updatedDecisions })
       .expect(201);
 
     expect(updateResponse.body).toMatchObject({
@@ -195,17 +199,18 @@ describe('Submission Constraint Tests', () => {
       )
     );
 
-    const picks = hottakes.slice(0, 5).map((h) => h.id);
+    const picks = hottakes.slice(0, 3).map((h) => h.id);
+    const swipeDecisions = hottakes.map((h) => ({ hottakeId: h.id, decision: 'hit' as const }));
 
     // Both users should be able to submit the same picks for the same game day
     await agent1
       .post('/api/submissions?gameDay=0')
-      .send({ picks })
+      .send({ picks, swipeDecisions })
       .expect(201);
 
     await agent2
       .post('/api/submissions?gameDay=0')
-      .send({ picks })
+      .send({ picks, swipeDecisions })
       .expect(201);
 
     // Verify both submissions exist

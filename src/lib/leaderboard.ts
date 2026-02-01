@@ -29,7 +29,10 @@ export async function buildLeaderboard(gameDay: number): Promise<LeaderboardEntr
   const perUser = new Map<number, LeaderboardEntry>();
 
   for (const submission of submissions) {
-    const score = calculateScore(submission.picks, mappedHottakes);
+    const storedDecisions = Array.isArray(submission.swipeDecisions)
+      ? (submission.swipeDecisions as { hottakeId: number; decision: 'hit' | 'pass' }[])
+      : [];
+    const score = calculateScore(submission.picks, mappedHottakes, storedDecisions);
     const nickname = submission.user?.nickname || 'Unknown';
 
     if (score !== submission.score) {
@@ -96,7 +99,10 @@ export async function buildLeaderboardAll(): Promise<LeaderboardEntry[]> {
 
   for (const submission of submissions) {
     const mappedHottakes = hottakesByGameDay.get(submission.gameDay) ?? [];
-    const score = calculateScore(submission.picks, mappedHottakes);
+    const storedDecisions = Array.isArray(submission.swipeDecisions)
+      ? (submission.swipeDecisions as { hottakeId: number; decision: 'hit' | 'pass' }[])
+      : [];
+    const score = calculateScore(submission.picks, mappedHottakes, storedDecisions);
     const nickname = submission.user?.nickname || 'Unknown';
 
     if (score !== submission.score) {

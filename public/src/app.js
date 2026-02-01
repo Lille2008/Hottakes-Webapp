@@ -1,6 +1,7 @@
 const API_BASE = window.APP_API_BASE || '/api';
-const RANK_COUNT = 5;
+const RANK_COUNT = 3;
 const MIN_OPEN_HOTTAKES = 10;
+const SWIPE_THRESHOLD = 50;
 
 
 const STATUS_LABELS = {
@@ -31,6 +32,7 @@ let openHottakes = [];
 let archivedHottakes = [];
 let picks = Array(RANK_COUNT).fill(null);
 let lastSubmissionPicks = [];
+let lastSubmissionSwipeDecisions = [];
 let currentUser = null;
 let adminEnabled = false;
 let viewMode = 'active';
@@ -42,6 +44,12 @@ let leaderboardSelection = 'all';
 let leaderboardRequestToken = 0;
 let lockCountdownTimer = null;
 let isLocked = false;
+let swipeDeck = [];
+let swipeIndex = 0;
+let swipeDecisions = [];
+let swipeCompleted = false;
+let swipeGameDay = null;
+let swipeTouchStartX = null;
 
 const hottakesContainer = document.getElementById('hottakes-container');
 const ranksContainer = document.getElementById('ranks-container');
@@ -71,6 +79,12 @@ const legalContent = document.getElementById('legal-content');
 const legalClose = document.getElementById('legal-close');
 const guestActions = document.getElementById('guest-actions');
 const authedActions = document.getElementById('authed-actions');
+const swipeOverlay = document.getElementById('swipe-overlay');
+const swipeCard = document.getElementById('swipe-card');
+const swipePassButton = document.getElementById('swipe-pass');
+const swipeHitButton = document.getElementById('swipe-hit');
+const swipeProgress = document.getElementById('swipe-progress');
+const swipeResetButton = document.getElementById('swipe-reset');
 
 const lockCountdown = document.getElementById('lock-countdown');
 const lockStatus = document.getElementById('lock-status');
@@ -278,6 +292,7 @@ function closeSettings() {
     }
 
     document.body.classList.remove('settings-open');
+    startSwipeFlow();
 }
 
 
@@ -348,6 +363,7 @@ function closeLegal() {
     legalModal.setAttribute('aria-hidden', 'true');
     legalBackdrop.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('legal-open');
+    startSwipeFlow();
 }
 
 
@@ -374,6 +390,111 @@ function setupLegalModal() {
             closeLegal();
         }
     });
+}
+
+function openSwipeOverlay() {
+    if (!swipeOverlay) {
+        return;
+    }
+
+    swipeOverlay.classList.add('is-open');
+    swipeOverlay.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('swipe-open');
+}
+
+function closeSwipeOverlay() {
+    if (!swipeOverlay) {
+        return;
+    }
+
+    swipeOverlay.classList.remove('is-open');
+    swipeOverlay.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('swipe-open');
+}
+
+function shouldAutoStartSwipe() {
+    if (!currentUser || adminEnabled) {
+        return false;
+    }
+
+    if (viewMode !== 'active' || isLocked) {
+        return false;
+    }
+
+    if (openHottakes.length !== MIN_OPEN_HOTTAKES) {
+        return false;
+    }
+
+    if (document.body.classList.contains('settings-open') || document.body.classList.contains('legal-open')) {
+        return false;
+    }
+
+    if (swipeOverlay && swipeOverlay.classList.contains('is-open')) {
+        return false;
+    }
+
+    return !swipeCompleted;
+}
+
+function renderSwipeCard() {
+    if (!swipeCard || !swipeProgress) {
+        return;
+    }
+
+    const current = swipeDeck[swipeIndex];
+    swipeCard.textContent = current ? current.text : 'Alle Hottakes geswiped!';
+    swipeProgress.textContent = `${Math.min(swipeIndex + 1, MIN_OPEN_HOTTAKES)} / ${MIN_OPEN_HOTTAKES}`;
+}
+
+function finishSwipeFlow() {
+    swipeCompleted = true;
+    closeSwipeOverlay();
+
+    // English comment: Pre-fill the Top-3 with the first three swiped items (hit or pass).
+    const swipedIds = swipeDecisions.map((entry) => entry.hottakeId);
+    picks = Array(RANK_COUNT).fill(null);
+    swipedIds.slice(0, RANK_COUNT).forEach((id, index) => {
+        picks[index] = id;
+    });
+
+    renderHottakes();
+}
+
+function handleSwipeDecision(decision) {
+    const current = swipeDeck[swipeIndex];
+    if (!current) {
+        return;
+    }
+
+    swipeDecisions.push({ hottakeId: current.id, decision });
+    swipeIndex += 1;
+
+    if (swipeIndex >= swipeDeck.length) {
+        finishSwipeFlow();
+        return;
+    }
+
+    renderSwipeCard();
+}
+
+function startSwipeFlow() {
+    if (!shouldAutoStartSwipe()) {
+        return;
+    }
+
+    // English comment: Reset swipe state so each page load starts fresh.
+    swipeDeck = openHottakes.slice();
+    swipeIndex = 0;
+    swipeCompleted = false;
+    swipeDecisions = [];
+    picks = Array(RANK_COUNT).fill(null);
+    openSwipeOverlay();
+    renderSwipeCard();
+}
+
+function resetSwipeFlow() {
+    swipeCompleted = false;
+    startSwipeFlow();
 }
 
 
@@ -651,7 +772,8 @@ function applyLockStateUI() {
         ? [GAME_DAY_STATUS.FINALIZED, GAME_DAY_STATUS.ARCHIVED].includes(selectedMeta.status)
         : false;
     const hasExactOpen = openHottakes.length === MIN_OPEN_HOTTAKES;
-    const blocked = isLocked || isReadOnlyMode || finalized || !hasExactOpen;
+    const hasSwipeDecisions = viewMode !== 'active' || swipeDecisions.length === MIN_OPEN_HOTTAKES;
+    const blocked = isLocked || isReadOnlyMode || finalized || !hasExactOpen || !hasSwipeDecisions;
 
     // Prüfe, ob es ein zukünftiger Spieltag ohne Hottakes ist
     const isFutureWithoutHottakes = selectedMeta && 
@@ -685,6 +807,10 @@ function applyLockStateUI() {
         } else if (!hasExactOpen) {
             // Nicht genug offene Hottakes
             hottakesNotice.textContent = `Es müssen genau ${MIN_OPEN_HOTTAKES} Hottakes offen sein. Aktuell: ${openHottakes.length}.`;
+            hottakesNotice.classList.add('is-visible');
+        } else if (!hasSwipeDecisions && viewMode === 'active') {
+            // Swipe-Flow noch nicht abgeschlossen
+            hottakesNotice.textContent = 'Bitte swipe zuerst alle 10 Hottakes, bevor du speicherst.';
             hottakesNotice.classList.add('is-visible');
         } else {
             hottakesNotice.textContent = '';
@@ -1052,8 +1178,8 @@ function renderHottakes() {
         slot.innerHTML = '';
     });
 
-    const hasMinimumOpen = openHottakes.length >= MIN_OPEN_HOTTAKES;
-    if (viewMode === 'active' && !isLocked && !hasMinimumOpen) {
+    const hasExactOpen = openHottakes.length === MIN_OPEN_HOTTAKES;
+    if (viewMode === 'active' && !isLocked && !hasExactOpen) {
         hottakesNotice.textContent = `Es müssen genau ${MIN_OPEN_HOTTAKES} Hottakes offen sein. Aktuell verfügbar: ${openHottakes.length}.`;
         hottakesNotice.classList.add('is-visible');
     } else if (!isLocked) {
@@ -1088,6 +1214,13 @@ async function refreshHottakes(targetGameDay = null) {
         const gameDay = targetGameDay !== null ? targetGameDay : fallback;
         const meta = gameDay !== null && gameDay !== undefined ? getSelectedGameDayMeta() : null;
 
+        if (gameDay !== swipeGameDay) {
+            // English comment: Reset swipe completion when switching game days.
+            swipeCompleted = false;
+            swipeGameDay = gameDay;
+            swipeDecisions = [];
+        }
+
         // Only finished days should force readonly. Future (PENDING) days are still editable.
         if (meta && [GAME_DAY_STATUS.FINALIZED, GAME_DAY_STATUS.ARCHIVED].includes(meta.status)) {
             viewMode = 'readonly';
@@ -1112,6 +1245,7 @@ async function refreshHottakes(targetGameDay = null) {
         archivedHottakes = Array.isArray(archivedData) ? archivedData : [];
         allHottakes = [...openHottakes, ...archivedHottakes];
         renderHottakes();
+        startSwipeFlow();
     } catch (error) {
         console.error(error);
         hottakesList.innerHTML = '<p>Fehler beim Laden der Hottakes.</p>';
@@ -1195,6 +1329,10 @@ async function loadSubmissionForCurrentUser(gameDay = null, isReadOnly = false) 
             ? submission.picks.slice(0, RANK_COUNT)
             : [];
 
+        lastSubmissionSwipeDecisions = submission && Array.isArray(submission.swipeDecisions)
+            ? submission.swipeDecisions
+            : [];
+
         if (submission && Array.isArray(submission.picks)) {
             submission.picks.slice(0, RANK_COUNT).forEach((id, index) => {
                 if (typeof id === 'number') {
@@ -1204,6 +1342,7 @@ async function loadSubmissionForCurrentUser(gameDay = null, isReadOnly = false) 
         }
 
         if (isReadOnly) {
+            swipeDecisions = lastSubmissionSwipeDecisions.slice();
             renderHottakes();
         } else {
             picks = nextPicks;
@@ -1234,8 +1373,13 @@ async function saveSubmission() {
         return;
     }
 
+    if (swipeDecisions.length !== MIN_OPEN_HOTTAKES) {
+        alert('Bitte swipe zuerst alle 10 Hottakes.');
+        return;
+    }
+
     if (picks.some((entry) => entry === null)) {
-        alert('Bitte wähle alle 5 Hottakes aus, bevor du speicherst.');
+        alert('Bitte wähle alle 3 Hottakes aus, bevor du speicherst.');
         return;
     }
 
@@ -1250,10 +1394,11 @@ async function saveSubmission() {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ picks })
+            body: JSON.stringify({ picks, swipeDecisions })
         });
 
         lastSubmissionPicks = picks.slice(0, RANK_COUNT);
+        lastSubmissionSwipeDecisions = swipeDecisions.slice();
 
         alert('Deine Picks wurden gespeichert.');
         await drawLeaderboard();
@@ -1685,6 +1830,39 @@ function disableAdminArea() {
 
 savePicksButton.addEventListener('click', saveSubmission);
 
+if (swipePassButton) {
+    swipePassButton.addEventListener('click', () => handleSwipeDecision('pass'));
+}
+
+if (swipeHitButton) {
+    swipeHitButton.addEventListener('click', () => handleSwipeDecision('hit'));
+}
+
+if (swipeResetButton) {
+    swipeResetButton.addEventListener('click', resetSwipeFlow);
+}
+
+if (swipeCard) {
+    swipeCard.addEventListener('touchstart', (event) => {
+        swipeTouchStartX = event.touches[0].clientX;
+    });
+
+    swipeCard.addEventListener('touchend', (event) => {
+        if (swipeTouchStartX === null) {
+            return;
+        }
+
+        const delta = event.changedTouches[0].clientX - swipeTouchStartX;
+        swipeTouchStartX = null;
+
+        if (Math.abs(delta) < SWIPE_THRESHOLD) {
+            return;
+        }
+
+        handleSwipeDecision(delta > 0 ? 'hit' : 'pass');
+    });
+}
+
 
 async function checkLoginStatus() {
     try {
@@ -1742,6 +1920,9 @@ function updateUIForLogin(user) {
     const adminArea = document.getElementById('admin-area');
 
     if (user.nickname === 'lille08') {
+        closeSwipeOverlay();
+        swipeCompleted = false;
+        swipeDecisions = [];
 
         if (gameContainer) gameContainer.style.display = 'none';
         if (savePicksButton) savePicksButton.style.display = 'none';
@@ -1775,10 +1956,13 @@ async function updateUIForGuest() {
     updateUserChip(null);
     updateSettingsAuth(null);
     closeSettings();
+    closeSwipeOverlay();
     setHeaderAuthState(false);
     viewMode = 'active';
 
     adminEnabled = false;
+    swipeCompleted = false;
+    swipeDecisions = [];
 
 
     const guestArea = document.getElementById('guest-nickname-area');

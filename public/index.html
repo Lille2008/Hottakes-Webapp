@@ -145,7 +145,7 @@
             <h2>Hottakes</h2>
         </div>
         <div id="ranks-container">
-            <h2>Ranks</h2>
+            <h2>Top 3</h2>
         </div>
     </div>
     <button id="save-picks">Picks Speichern</button>
@@ -156,6 +156,20 @@
     </section>
 
     <div id="leaderboard-container"></div>
+
+    <section id="swipe-overlay" class="swipe-overlay" aria-hidden="true" role="dialog" aria-modal="true">
+        <div class="swipe-overlay__inner">
+            <p class="swipe-kicker">Hottakes ranken</p>
+            <h2 class="swipe-title">Swipe deinen nächsten Hottake</h2>
+            <div id="swipe-card" class="swipe-card" aria-live="polite"></div>
+            <div class="swipe-actions">
+                <button id="swipe-pass" class="swipe-button swipe-button--pass" type="button">Passiert nicht</button>
+                <button id="swipe-hit" class="swipe-button swipe-button--hit" type="button">Passiert</button>
+            </div>
+            <p id="swipe-progress" class="swipe-progress">0 / 10</p>
+            <button id="swipe-reset" class="swipe-button swipe-button--ghost" type="button">Neu starten</button>
+        </div>
+    </section>
 
     <div id="admin-area">
         <h2>Admin Bereich</h2>

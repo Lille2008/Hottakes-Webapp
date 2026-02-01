@@ -16,5 +16,15 @@
 **AI:**
 - Ja, jetzt automatisiert: Ein täglicher Cronjob um `05:00` setzt `PENDING` → `ACTIVE`, wenn `lockTime` innerhalb der nächsten 5 Tage liegt (oder bereits in der Vergangenheit). Umsetzung: [src/lib/scheduler.ts](src/lib/scheduler.ts)
 
+### 2026-02-01
+
+**User:** Swipe-Flow ersetzt Drag&Drop (5 Ranks) und neue Scoring-Logik
+
+**AI:**
+- Swipe-Overlay startet bei jedem Laden für aktive, nicht gesperrte Spieltage mit exakt 10 offenen Hottakes.
+- Swipe-Entscheidungen werden gespeichert (Objektliste `{ hottakeId, decision }`) und geben je +1 Punkt bei richtiger Vorhersage.
+- Top-3 Ranks geben zusätzliche Punkte $3,2,1$ bei `WAHR`.
+- Alte Submissions wurden vorab gelöscht.
+
 
 

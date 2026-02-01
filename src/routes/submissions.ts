@@ -2,19 +2,30 @@ import { Router } from 'express';
 import { z } from 'zod';
 
 import prisma from '../lib/db';
-import { calculateScore, type HottakeOutcome } from '../lib/scoring';
+import { calculateScore, type HottakeOutcome, type SwipeDecision } from '../lib/scoring';
 import { requireAuth, type AuthRequest } from '../middleware/auth';
 import { checkGameDayLock } from '../middleware/checkGameDayLock';
 import { GAME_DAY_STATUS, getGameDayByNumber, resolveGameDayParam } from '../lib/gameDay';
 
 type HottakeWithStatus = { id: number; status: HottakeOutcome['status']; gameDay: number };
 
+const swipeDecisionSchema = z.object({
+  hottakeId: z.number().int(),
+  decision: z.enum(['hit', 'pass'])
+});
+
 const submissionSchema = z.object({
   picks: z
     .array(z.number().int())
-    .length(5)
+    .length(3)
     .refine((arr) => new Set(arr).size === arr.length, {
       message: 'Picks müssen eindeutig sein.'
+    }),
+  swipeDecisions: z
+    .array(swipeDecisionSchema)
+    .length(10)
+    .refine((arr) => new Set(arr.map((entry) => entry.hottakeId)).size === arr.length, {
+      message: 'Swipe-Entscheidungen müssen eindeutig sein.'
     })
 });
 
@@ -44,7 +55,10 @@ async function buildSubmissionResponse(userId: number, nickname: string, gameDay
     status: hot.status
   }));
 
-  const score = calculateScore(submission.picks, mappedHottakes);
+  const storedDecisions = Array.isArray(submission.swipeDecisions)
+    ? (submission.swipeDecisions as SwipeDecision[])
+    : [];
+  const score = calculateScore(submission.picks, mappedHottakes, storedDecisions);
 
   if (score !== submission.score) {
     await prisma.submission.update({
@@ -56,6 +70,7 @@ async function buildSubmissionResponse(userId: number, nickname: string, gameDay
   return {
     nickname,
     picks: submission.picks,
+    swipeDecisions: storedDecisions,
     score,
     submittedAt: submission.updatedAt,
     gameDay
@@ -168,21 +183,25 @@ router.post('/', requireAuth, checkGameDayLock, async (req, res, next) => {
       return res.status(400).json({ message: 'Spieltag ist abgeschlossen oder archiviert. Keine Änderungen mehr möglich.' });
     }
 
-    const openCount = await prisma.hottake.count({ where: { gameDay, status: 'OFFEN' } });
-    if (openCount !== 10) {
-      return res.status(400).json({ message: `Es müssen genau 10 offene Hottakes vorhanden sein. Aktuell: ${openCount}.` });
-    }
-
-    const selectedHottakes = await prisma.hottake.findMany({
-      where: { id: { in: payload.picks }, gameDay },
+    const openHottakes = await prisma.hottake.findMany({
+      where: { gameDay, status: 'OFFEN' },
       select: { id: true, status: true, gameDay: true }
     });
 
-    if (selectedHottakes.length !== payload.picks.length) {
-      return res.status(400).json({ message: 'Ungültige Picks gefunden (falscher Spieltag oder unbekannte IDs).' });
+    if (openHottakes.length !== 10) {
+      return res
+        .status(400)
+        .json({ message: `Es müssen genau 10 offene Hottakes vorhanden sein. Aktuell: ${openHottakes.length}.` });
     }
 
-    if (selectedHottakes.some((hot: HottakeWithStatus) => hot.status !== 'OFFEN')) {
+    const openIds = new Set(openHottakes.map((hot) => hot.id));
+    const decisionIds = new Set(payload.swipeDecisions.map((entry) => entry.hottakeId));
+
+    if (decisionIds.size !== openIds.size || Array.from(openIds).some((id) => !decisionIds.has(id))) {
+      return res.status(400).json({ message: 'Swipe-Entscheidungen müssen alle 10 offenen Hottakes enthalten.' });
+    }
+
+    if (payload.picks.some((pickId) => !openIds.has(pickId))) {
       return res.status(400).json({ message: 'Alle Picks müssen offene Hottakes sein.' });
     }
 
@@ -196,8 +215,8 @@ router.post('/', requireAuth, checkGameDayLock, async (req, res, next) => {
     try {
       submission = await prisma.submission.upsert({
         where: { userId_gameDay: { userId: user.id, gameDay } },
-        update: { picks: payload.picks },
-        create: { picks: payload.picks, userId: user.id, gameDay }
+        update: { picks: payload.picks, swipeDecisions: payload.swipeDecisions },
+        create: { picks: payload.picks, swipeDecisions: payload.swipeDecisions, userId: user.id, gameDay }
       });
     } catch (error) {
       // If the DB still has a legacy UNIQUE(userId) constraint/index,
@@ -213,14 +232,14 @@ router.post('/', requireAuth, checkGameDayLock, async (req, res, next) => {
       throw error;
     }
 
-    const mappedHottakes: HottakeOutcome[] = selectedHottakes.map(
+    const mappedHottakes: HottakeOutcome[] = openHottakes.map(
       (hot: HottakeWithStatus): HottakeOutcome => ({
         id: hot.id,
         status: hot.status
       })
     );
 
-    const score = calculateScore(submission.picks, mappedHottakes);
+    const score = calculateScore(submission.picks, mappedHottakes, payload.swipeDecisions);
 
     if (score !== submission.score) {
       await prisma.submission.update({
@@ -232,6 +251,7 @@ router.post('/', requireAuth, checkGameDayLock, async (req, res, next) => {
     res.status(201).json({
       nickname: user.nickname,
       picks: submission.picks,
+      swipeDecisions: payload.swipeDecisions,
       score,
       submittedAt: submission.updatedAt,
       gameDay

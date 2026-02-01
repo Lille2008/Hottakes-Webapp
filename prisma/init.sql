@@ -33,6 +33,7 @@ CREATE TABLE "submissions" (
     "userId" INTEGER NOT NULL,
     "gameDay" INTEGER NOT NULL,
     "picks" INTEGER[] NOT NULL,
+    "swipeDecisions" JSONB,
     "score" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,

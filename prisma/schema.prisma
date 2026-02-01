@@ -59,6 +59,7 @@ model Submission {
   gameDay   Int
   gameDayRef GameDay? @relation("GameDaySubmissions", fields: [gameDay], references: [gameDay])
   picks     Int[]    // [] heißt, dass es sich um eine Liste von diesem Datentyp handelt
+  swipeDecisions Json?
   score     Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

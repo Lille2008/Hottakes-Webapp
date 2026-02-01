@@ -86,7 +86,7 @@ describe('Hottakes API', () => {
       prisma.hottake.create({ data: { text: 'Coach resigns post match', status: 'OFFEN' } })
     ]);
 
-    await Promise.all(
+    const extraHottakes = await Promise.all(
       Array.from({ length: 5 }).map((_, index) =>
         prisma.hottake.create({
           data: { text: `Zusatz-Hottake ${index + 1}`, status: 'OFFEN' }
@@ -94,11 +94,16 @@ describe('Hottakes API', () => {
       )
     );
 
-    const picks = [hottakeA.id, hottakeB.id, hottakeC.id, hottakeD.id, hottakeE.id];
+    const allHottakes = [hottakeA, hottakeB, hottakeC, hottakeD, hottakeE, ...extraHottakes];
+    const picks = [hottakeA.id, hottakeB.id, hottakeC.id];
+    const swipeDecisions = allHottakes.map((hot) => ({
+      hottakeId: hot.id,
+      decision: hot.id === hottakeA.id || hot.id === hottakeB.id ? 'hit' : 'pass'
+    }));
 
     const submissionResponse = await agent
       .post('/api/submissions')
-      .send({ picks })
+      .send({ picks, swipeDecisions })
       .expect(201);
 
     expect(submissionResponse.body).toMatchObject({
@@ -121,14 +126,14 @@ describe('Hottakes API', () => {
     await updateStatus(hottakeE.id, 'FALSCH');
 
     const byNickname = await agent.get('/api/submissions/Lille').expect(200);
-    expect(byNickname.body.score).toBe(9);
+    expect(byNickname.body.score).toBe(10);
 
     const byQuery = await agent.get('/api/submissions?nickname=Lille').expect(200);
     expect(byQuery.body.picks).toEqual(picks);
 
     const leaderboard = await request(app).get('/api/leaderboard?gameDay=0').expect(200);
     expect(Array.isArray(leaderboard.body)).toBe(true);
-    expect(leaderboard.body[0]).toMatchObject({ nickname: 'Lille', score: 9 });
+    expect(leaderboard.body[0]).toMatchObject({ nickname: 'Lille', score: 10 });
   });
 
   it('requires admin password for creating hottakes and exposes health check', async () => {
@@ -169,14 +174,17 @@ describe('Hottakes API', () => {
     await ensureGameDayZero({ lockTime: new Date(Date.now() - 60_000), status: 'ACTIVE', description: 'Test lock' });
 
     const hottakeIds = await Promise.all(
-      Array.from({ length: 5 }).map((_, index) =>
+      Array.from({ length: 10 }).map((_, index) =>
         prisma.hottake.create({ data: { text: `Locked Pick ${index + 1}`, status: 'OFFEN', gameDay: 0 } })
       )
     );
 
     await agent
       .post('/api/submissions?gameDay=0')
-      .send({ picks: hottakeIds.map((hot) => hot.id) })
+      .send({
+        picks: hottakeIds.slice(0, 3).map((hot) => hot.id),
+        swipeDecisions: hottakeIds.map((hot) => ({ hottakeId: hot.id, decision: 'pass' }))
+      })
       .expect(403);
   });
 
@@ -195,20 +203,17 @@ describe('Hottakes API', () => {
     });
 
     const hottakeIds = await Promise.all(
-      Array.from({ length: 5 }).map((_, index) =>
+      Array.from({ length: 10 }).map((_, index) =>
         prisma.hottake.create({ data: { text: `Pending Pick ${index + 1}`, status: 'OFFEN', gameDay: 0 } })
-      )
-    );
-
-    await Promise.all(
-      Array.from({ length: 5 }).map((_, index) =>
-        prisma.hottake.create({ data: { text: `Pending Extra ${index + 1}`, status: 'OFFEN', gameDay: 0 } })
       )
     );
 
     await agent
       .post('/api/submissions?gameDay=0')
-      .send({ picks: hottakeIds.map((hot) => hot.id) })
+      .send({
+        picks: hottakeIds.slice(0, 3).map((hot) => hot.id),
+        swipeDecisions: hottakeIds.map((hot) => ({ hottakeId: hot.id, decision: 'hit' }))
+      })
       .expect(201);
   });
 
@@ -223,14 +228,17 @@ describe('Hottakes API', () => {
     await ensureGameDayZero({ status: 'FINALIZED', lockTime: null, description: 'Finalized day' });
 
     const hottakeIds = await Promise.all(
-      Array.from({ length: 5 }).map((_, index) =>
+      Array.from({ length: 10 }).map((_, index) =>
         prisma.hottake.create({ data: { text: `Finalized Pick ${index + 1}`, status: 'OFFEN', gameDay: 0 } })
       )
     );
 
     await agent
       .post('/api/submissions?gameDay=0')
-      .send({ picks: hottakeIds.map((hot) => hot.id) })
+      .send({
+        picks: hottakeIds.slice(0, 3).map((hot) => hot.id),
+        swipeDecisions: hottakeIds.map((hot) => ({ hottakeId: hot.id, decision: 'pass' }))
+      })
       .expect(403);
   });
 
