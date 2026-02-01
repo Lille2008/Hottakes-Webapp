@@ -1026,6 +1026,13 @@ body.swipe-open #cookie-banner {
     gap: 12px;
 }
 
+#hottakes-list.is-dragover {
+    outline: 2px dashed rgba(0, 217, 255, 0.4);
+    outline-offset: 6px;
+    border-radius: 10px;
+    background: rgba(0, 217, 255, 0.05);
+}
+
 .hottake {
     background-color: var(--bg-card-hover);
     color: var(--text-primary);

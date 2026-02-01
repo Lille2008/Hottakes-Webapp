@@ -33,5 +33,11 @@
 - Nach dem Swipen bleiben die Ranks leer; alle 10 Hottakes bleiben unter den Ranks.
 - Drag&Drop nutzt Pointer-Events für sofortiges Dragging (ohne Long-Press).
 
+**User:** Lock-Status soll sofort greifen und Drag&Drop auf Mobile ohne Long-Press funktionieren.
+
+**AI:**
+- Lock-State wird vor dem ersten Render/Swipe aktualisiert, damit keine Swipe-Karten mehr erscheinen, wenn der Spieltag gesperrt ist.
+- Drag&Drop nutzt HTML5-Drag für Maus und Pointer-Drag für Touch, inklusive visuellem Drop-Feedback.
+
 
 
