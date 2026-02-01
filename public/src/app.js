@@ -53,6 +53,7 @@ let swipeTouchStartX = null;
 let swipeTouchDeltaX = 0;
 let swipeAnimating = false;
 let isDragging = false;
+let dragState = null;
 
 const hottakesContainer = document.getElementById('hottakes-container');
 const ranksContainer = document.getElementById('ranks-container');
@@ -507,15 +508,11 @@ function finishSwipeFlow() {
     swipeCompleted = true;
     closeSwipeOverlay();
 
-    // English comment: Pre-fill the Top-3 with the first three swiped items (hit or pass).
-    const swipedIds = swipeDecisions.map((entry) => entry.hottakeId);
+    // English comment: After swiping, keep ranks empty until the user explicitly ranks their Top 3.
     picks = Array(RANK_COUNT).fill(null);
-    swipedIds.slice(0, RANK_COUNT).forEach((id, index) => {
-        picks[index] = id;
-    });
 
     renderHottakes();
-    showRankSummary('10 Entscheidungen gespeichert.');
+    showRankSummary('10 Entscheidungen gespeichert. Jetzt deine Top 3 ranken.');
 }
 
 function handleSwipeDecision(decision) {
@@ -555,7 +552,11 @@ function animateSwipe(decision) {
     window.setTimeout(() => {
         swipeCard.classList.remove(directionClass);
         swipeOverlay.classList.remove(overlayClass);
+        swipeCard.classList.add('is-resetting');
         swipeCard.style.transform = '';
+        window.setTimeout(() => {
+            swipeCard.classList.remove('is-resetting');
+        }, 0);
         swipeAnimating = false;
         handleSwipeDecision(decision);
     }, 180);
@@ -597,11 +598,16 @@ function handleAutoScroll(event) {
         return;
     }
 
+    const clientY = typeof event === 'number' ? event : event?.clientY;
+    if (typeof clientY !== 'number') {
+        return;
+    }
+
     const margin = 80;
-    if (event.clientY < margin) {
+    if (clientY < margin) {
         window.scrollBy(0, -12);
     }
-    if (event.clientY > window.innerHeight - margin) {
+    if (clientY > window.innerHeight - margin) {
         window.scrollBy(0, 12);
     }
 }
@@ -681,6 +687,13 @@ rankSummary.id = 'rank-summary';
 rankSummary.className = 'rank-summary';
 if (ranksContainer) {
     ranksContainer.appendChild(rankSummary);
+}
+
+const rankReadOnlyNotice = document.createElement('p');
+rankReadOnlyNotice.id = 'rank-readonly-notice';
+rankReadOnlyNotice.className = 'rank-readonly-notice';
+if (ranksContainer) {
+    ranksContainer.appendChild(rankReadOnlyNotice);
 }
 
 const rankHint = document.createElement('p');
@@ -834,6 +847,178 @@ function handleRankDrop(event) {
     picks[targetIndex] = hottakeId;
 }
 
+function startHottakeDrag(event, element, hottakeId) {
+    if (dragState) {
+        return;
+    }
+
+    if (viewMode !== 'active' || isLocked) {
+        return;
+    }
+
+    if (event.pointerType === 'mouse' && event.button !== 0) {
+        return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const rect = element.getBoundingClientRect();
+    const offsetX = event.clientX - rect.left;
+    const offsetY = event.clientY - rect.top;
+    const placeholder = document.createElement('div');
+    placeholder.className = 'hottake-placeholder';
+    placeholder.style.height = `${rect.height}px`;
+    placeholder.style.width = `${rect.width}px`;
+
+    const originParent = element.parentElement;
+    const originNextSibling = element.nextSibling;
+
+    if (originParent) {
+        originParent.insertBefore(placeholder, element);
+    }
+
+    element.setPointerCapture(event.pointerId);
+    element.classList.add('is-dragging');
+    element.style.width = `${rect.width}px`;
+    element.style.left = `${rect.left}px`;
+    element.style.top = `${rect.top}px`;
+    element.style.position = 'fixed';
+    element.style.zIndex = '30';
+    element.style.pointerEvents = 'none';
+
+    document.body.appendChild(element);
+
+    dragState = {
+        element,
+        hottakeId,
+        offsetX,
+        offsetY,
+        originParent,
+        originNextSibling,
+        placeholder,
+        pointerId: event.pointerId
+    };
+
+    isDragging = true;
+    updateDragPosition(event.clientX, event.clientY);
+}
+
+function updateDragPosition(clientX, clientY) {
+    if (!dragState) {
+        return;
+    }
+
+    dragState.element.style.left = `${clientX - dragState.offsetX}px`;
+    dragState.element.style.top = `${clientY - dragState.offsetY}px`;
+
+    handleAutoScroll(clientY);
+}
+
+function placeHottakeInList(element, sourceParent) {
+    if (sourceParent && sourceParent.classList.contains('rank')) {
+        const prevIndex = Number(sourceParent.dataset.rank) - 1;
+        if (prevIndex >= 0 && prevIndex < picks.length) {
+            picks[prevIndex] = null;
+        }
+    }
+
+    hottakesList.appendChild(element);
+}
+
+function placeHottakeInRank(element, rankDiv, sourceParent) {
+    const targetIndex = Number(rankDiv.dataset.rank) - 1;
+    if (targetIndex < 0 || targetIndex >= picks.length) {
+        return;
+    }
+
+    const sourceIndex =
+        sourceParent && sourceParent.classList.contains('rank')
+            ? Number(sourceParent.dataset.rank) - 1
+            : null;
+
+    if (sourceIndex === targetIndex) {
+        rankDiv.appendChild(element);
+        return;
+    }
+
+    const existing = rankDiv.querySelector('.hottake');
+    if (existing && existing !== element) {
+        const existingId = Number(existing.dataset.hottakeId);
+        if (!Number.isNaN(existingId)) {
+            if (sourceIndex !== null && sourceParent && sourceParent.classList.contains('rank')) {
+                sourceParent.appendChild(existing);
+                picks[sourceIndex] = existingId;
+            } else {
+                hottakesList.appendChild(existing);
+                const existingIndex = picks.indexOf(existingId);
+                if (existingIndex !== -1) {
+                    picks[existingIndex] = null;
+                }
+            }
+        }
+    }
+
+    if (sourceIndex !== null && sourceIndex >= 0 && sourceIndex < picks.length) {
+        picks[sourceIndex] = null;
+    }
+
+    rankDiv.appendChild(element);
+
+    for (let i = 0; i < picks.length; i += 1) {
+        if (i !== targetIndex && picks[i] === dragState.hottakeId) {
+            picks[i] = null;
+        }
+    }
+
+    picks[targetIndex] = dragState.hottakeId;
+}
+
+function finishHottakeDrag(clientX, clientY) {
+    if (!dragState) {
+        return;
+    }
+
+    const { element, originParent, originNextSibling, placeholder, pointerId } = dragState;
+
+    try {
+        element.releasePointerCapture(pointerId);
+    } catch (_error) {
+        // Ignore missing capture release errors.
+    }
+
+    const target = document.elementFromPoint(clientX, clientY);
+    const rankTarget = target ? target.closest('.rank') : null;
+    const listTarget = target ? target.closest('#hottakes-list') : null;
+
+    if (rankTarget) {
+        placeHottakeInRank(element, rankTarget, originParent);
+    } else if (listTarget) {
+        placeHottakeInList(element, originParent);
+    } else if (originParent) {
+        if (originNextSibling) {
+            originParent.insertBefore(element, originNextSibling);
+        } else {
+            originParent.appendChild(element);
+        }
+    }
+
+    if (placeholder && placeholder.parentElement) {
+        placeholder.remove();
+    }
+
+    element.classList.remove('is-dragging');
+    element.style.position = '';
+    element.style.left = '';
+    element.style.top = '';
+    element.style.width = '';
+    element.style.zIndex = '';
+    element.style.pointerEvents = '';
+
+    dragState = null;
+    isDragging = false;
+}
+
 function showRankSummary(message, ms = 2500) {
     if (!rankSummary) {
         return;
@@ -922,7 +1107,8 @@ function applyLockStateUI() {
         : false;
     const hasExactOpen = openHottakes.length === MIN_OPEN_HOTTAKES;
     const hasSwipeDecisions = viewMode !== 'active' || swipeDecisions.length === MIN_OPEN_HOTTAKES;
-    const blocked = isLocked || isReadOnlyMode || finalized || !hasExactOpen || !hasSwipeDecisions;
+    const isReadOnlyState = isLocked || isReadOnlyMode || finalized;
+    const blocked = isReadOnlyState || !hasExactOpen || !hasSwipeDecisions;
 
     // Prüfe, ob es ein zukünftiger Spieltag ohne Hottakes ist
     const isFutureWithoutHottakes = selectedMeta && 
@@ -932,16 +1118,34 @@ function applyLockStateUI() {
 
     document.body.classList.toggle('picks-locked', isLocked || finalized);
 
+    if (isReadOnlyState) {
+        closeSwipeOverlay();
+    }
+
     if (savePicksButton) {
         savePicksButton.disabled = blocked;
         // Hide the save button whenever picks must not be editable (readonly / locked / finalized).
         // The server also enforces rules, but UI should make the allowed actions obvious.
-        if (isLocked || finalized || isReadOnlyMode) {
+        if (isReadOnlyState || adminEnabled) {
             savePicksButton.style.display = 'none';
         } else {
             savePicksButton.style.display = 'inline-block';
             savePicksButton.textContent = 'Picks Speichern';
         }
+    }
+
+    if (rankReadOnlyNotice) {
+        if (isReadOnlyState) {
+            rankReadOnlyNotice.textContent = 'Spieltag ist gesperrt.';
+            rankReadOnlyNotice.classList.add('is-visible');
+        } else {
+            rankReadOnlyNotice.textContent = '';
+            rankReadOnlyNotice.classList.remove('is-visible');
+        }
+    }
+
+    if (rankHint) {
+        rankHint.classList.toggle('is-hidden', isReadOnlyState);
     }
 
     if (hottakesNotice) {
@@ -950,9 +1154,8 @@ function applyLockStateUI() {
             hottakesNotice.textContent = 'Es gibt noch keine Hottakes für diesen Spieltag.';
             hottakesNotice.classList.add('is-visible');
         } else if (isLocked) {
-            // Spieltag läuft bereits oder ist abgeschlossen
-            hottakesNotice.textContent = 'Die Picks sind gesperrt. Der Spieltag läuft bereits oder ist abgeschlossen.';
-            hottakesNotice.classList.add('is-visible');
+            hottakesNotice.textContent = '';
+            hottakesNotice.classList.remove('is-visible');
         } else if (!hasExactOpen) {
             // Nicht genug offene Hottakes
             hottakesNotice.textContent = `Es müssen genau ${MIN_OPEN_HOTTAKES} Hottakes offen sein. Aktuell: ${openHottakes.length}.`;
@@ -1310,23 +1513,15 @@ function createHottakeElement(hottake, { readonly = false, picked = false } = {}
         element.classList.add('is-picked');
     }
 
-    element.draggable = !readonly && !isLocked;
+    element.draggable = false;
     element.dataset.hottakeId = String(hottake.id);
     if (!readonly && !isLocked) {
-        handle.draggable = true;
-        handle.addEventListener('dragstart', (event) => {
-            isDragging = true;
-            event.dataTransfer.setData('text/plain', String(hottake.id));
-            event.dataTransfer.effectAllowed = 'move';
-        });
-        element.addEventListener('dragstart', (event) => {
-            isDragging = true;
-            event.dataTransfer.setData('text/plain', String(hottake.id));
-            event.dataTransfer.effectAllowed = 'move';
-        });
-        element.addEventListener('dragend', () => {
-            isDragging = false;
-        });
+        handle.draggable = false;
+        const startDrag = (event) => {
+            startHottakeDrag(event, element, hottake.id);
+        };
+        handle.addEventListener('pointerdown', startDrag);
+        element.addEventListener('pointerdown', startDrag);
     }
 
     element.append(handle, textSpan);
@@ -1335,11 +1530,15 @@ function createHottakeElement(hottake, { readonly = false, picked = false } = {}
 
 
 function renderHottakes() {
-    const useReadOnlyView = viewMode !== 'active' || isLocked;
-    const availableHottakes = useReadOnlyView ? allHottakes : openHottakes;
-    const sanitizeSource = useReadOnlyView ? allHottakes : openHottakes;
     const isReadOnly = viewMode !== 'active' || isLocked;
-    const referencePicks = useReadOnlyView ? lastSubmissionPicks : picks;
+    const useSavedPicks = isReadOnly;
+    const availableHottakes = isLocked
+        ? openHottakes
+        : viewMode !== 'active'
+            ? allHottakes
+            : openHottakes;
+    const sanitizeSource = availableHottakes;
+    const referencePicks = useSavedPicks ? lastSubmissionPicks : picks;
 
     sanitizePicks(sanitizeSource);
     hottakesList.innerHTML = '';
@@ -2055,9 +2254,25 @@ if (swipeCard) {
     });
 }
 
-document.addEventListener('dragover', handleAutoScroll);
-document.addEventListener('dragend', () => {
-    isDragging = false;
+document.addEventListener('pointermove', (event) => {
+    if (!dragState) {
+        return;
+    }
+    updateDragPosition(event.clientX, event.clientY);
+});
+
+document.addEventListener('pointerup', (event) => {
+    if (!dragState) {
+        return;
+    }
+    finishHottakeDrag(event.clientX, event.clientY);
+});
+
+document.addEventListener('pointercancel', (event) => {
+    if (!dragState) {
+        return;
+    }
+    finishHottakeDrag(event.clientX, event.clientY);
 });
 
 

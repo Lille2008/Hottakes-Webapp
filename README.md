@@ -26,5 +26,12 @@
 - Top-3 Ranks geben zusätzliche Punkte $3,2,1$ bei `WAHR`.
 - Alte Submissions wurden vorab gelöscht.
 
+**User:** Lock soll read-only sein, Ranks leer mit kurzer Erklärung, Save-Button im read-only/Admin ausblenden, Swipe-Flow ohne Auto-Rank, Drag sofort starten.
+
+**AI:**
+- Read-only wird bei Lock erzwungen; Swipe-Overlay wird geschlossen und Save-Button im read-only/Admin ausgeblendet.
+- Nach dem Swipen bleiben die Ranks leer; alle 10 Hottakes bleiben unter den Ranks.
+- Drag&Drop nutzt Pointer-Events für sofortiges Dragging (ohne Long-Press).
+
 
 

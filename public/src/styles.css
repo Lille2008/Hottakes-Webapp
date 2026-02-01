@@ -582,10 +582,14 @@ h3 {
     align-items: center;
     justify-content: center;
     position: relative;
-    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
     user-select: none;
     -webkit-user-select: none;
     touch-action: none;
+}
+
+.swipe-card.is-resetting {
+    transition: none !important;
 }
 
 .swipe-card-stack {
@@ -714,11 +718,13 @@ h3 {
 }
 
 .swipe-card.is-swiping-left {
-    transform: translateX(-120%);
+    transform: translateX(-140%) rotate(-6deg);
+    opacity: 0.75;
 }
 
 .swipe-card.is-swiping-right {
-    transform: translateX(120%);
+    transform: translateX(140%) rotate(6deg);
+    opacity: 0.75;
 }
 
 .hottake,
@@ -994,6 +1000,20 @@ body.swipe-open #cookie-banner {
     display: block;
 }
 
+.rank-readonly-notice {
+    margin: 0 0 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(0, 102, 255, 0.12);
+    color: var(--gradient-end);
+    font-weight: 700;
+    display: none;
+}
+
+.rank-readonly-notice.is-visible {
+    display: block;
+}
+
 .rank-hint {
     margin: 0 0 14px;
     color: var(--text-secondary);
@@ -1018,6 +1038,18 @@ body.swipe-open #cookie-banner {
     display: flex;
     align-items: center;
     gap: 10px;
+}
+
+.hottake.is-dragging {
+    cursor: grabbing;
+    transform: none;
+    box-shadow: var(--shadow-card-hover), var(--glow-cyan);
+}
+
+.hottake-placeholder {
+    border: 2px dashed rgba(0, 217, 255, 0.4);
+    border-radius: 8px;
+    background: rgba(0, 217, 255, 0.08);
 }
 
 .drag-handle {
