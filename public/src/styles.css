@@ -597,9 +597,11 @@ h3 {
 .swipe-card--back {
     position: absolute;
     inset: 0;
-    transform: scale(0.97) translateY(10px);
+    transform: scale(0.98) translateY(6px);
     opacity: 0.65;
     filter: blur(0.5px);
+    transition: none;
+    pointer-events: none;
 }
 
 .swipe-card-content {
@@ -630,7 +632,7 @@ h3 {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0 16px;
+    padding: 0 20px;
 }
 
 .swipe-button {
@@ -676,16 +678,19 @@ h3 {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    font-size: 0.95rem;
+    font-size: 0.78rem;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    padding: 10px 14px;
+    padding: 8px 10px;
     border-radius: 999px;
     background: rgba(15, 23, 42, 0.55);
     color: var(--text-primary);
     border: 1px solid rgba(255, 255, 255, 0.2);
     pointer-events: none;
+    max-width: 44%;
+    text-align: center;
+    white-space: nowrap;
 }
 
 .swipe-arrow--left {
@@ -725,6 +730,12 @@ h3 {
 
 .hottake {
     touch-action: none;
+}
+
+.drag-handle {
+    font-size: 1.1rem;
+    cursor: grab;
+    padding: 4px 6px;
 }
 
 body.swipe-open {

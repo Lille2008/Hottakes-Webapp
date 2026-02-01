@@ -552,19 +552,10 @@ function animateSwipe(decision) {
     swipeOverlay.classList.add(overlayClass);
     swipeCard.classList.add(directionClass);
 
-    if (swipeCardBack) {
-        swipeCardBack.style.transform = 'scale(1) translateY(0)';
-        swipeCardBack.style.opacity = '1';
-    }
-
     window.setTimeout(() => {
         swipeCard.classList.remove(directionClass);
         swipeOverlay.classList.remove(overlayClass);
         swipeCard.style.transform = '';
-        if (swipeCardBack) {
-            swipeCardBack.style.transform = '';
-            swipeCardBack.style.opacity = '';
-        }
         swipeAnimating = false;
         handleSwipeDecision(decision);
     }, 180);
@@ -1322,6 +1313,12 @@ function createHottakeElement(hottake, { readonly = false, picked = false } = {}
     element.draggable = !readonly && !isLocked;
     element.dataset.hottakeId = String(hottake.id);
     if (!readonly && !isLocked) {
+        handle.draggable = true;
+        handle.addEventListener('dragstart', (event) => {
+            isDragging = true;
+            event.dataTransfer.setData('text/plain', String(hottake.id));
+            event.dataTransfer.effectAllowed = 'move';
+        });
         element.addEventListener('dragstart', (event) => {
             isDragging = true;
             event.dataTransfer.setData('text/plain', String(hottake.id));
