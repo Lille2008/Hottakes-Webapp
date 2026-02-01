@@ -50,6 +50,8 @@ let swipeDecisions = [];
 let swipeCompleted = false;
 let swipeGameDay = null;
 let swipeTouchStartX = null;
+let swipeTouchDeltaX = 0;
+let swipeAnimating = false;
 
 const hottakesContainer = document.getElementById('hottakes-container');
 const ranksContainer = document.getElementById('ranks-container');
@@ -81,10 +83,8 @@ const guestActions = document.getElementById('guest-actions');
 const authedActions = document.getElementById('authed-actions');
 const swipeOverlay = document.getElementById('swipe-overlay');
 const swipeCard = document.getElementById('swipe-card');
-const swipePassButton = document.getElementById('swipe-pass');
-const swipeHitButton = document.getElementById('swipe-hit');
+const swipeBackButton = document.getElementById('swipe-back');
 const swipeProgress = document.getElementById('swipe-progress');
-const swipeResetButton = document.getElementById('swipe-reset');
 
 const lockCountdown = document.getElementById('lock-countdown');
 const lockStatus = document.getElementById('lock-status');
@@ -400,6 +400,7 @@ function openSwipeOverlay() {
     swipeOverlay.classList.add('is-open');
     swipeOverlay.setAttribute('aria-hidden', 'false');
     document.body.classList.add('swipe-open');
+    swipeOverlay.classList.remove('is-swipe-left', 'is-swipe-right');
 }
 
 function closeSwipeOverlay() {
@@ -408,6 +409,7 @@ function closeSwipeOverlay() {
     }
 
     swipeOverlay.classList.remove('is-open');
+    swipeOverlay.classList.remove('is-swipe-left', 'is-swipe-right');
     swipeOverlay.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('swipe-open');
 }
@@ -442,8 +444,30 @@ function renderSwipeCard() {
     }
 
     const current = swipeDeck[swipeIndex];
-    swipeCard.textContent = current ? current.text : 'Alle Hottakes geswiped!';
+    swipeCard.innerHTML = '';
+    if (!current) {
+        swipeCard.textContent = 'Alle Hottakes geswiped!';
+    } else {
+        const text = document.createElement('p');
+        text.className = 'swipe-text';
+        text.textContent = current.text;
+
+        const leftArrow = document.createElement('div');
+        leftArrow.className = 'swipe-arrow swipe-arrow--left';
+        leftArrow.textContent = '← Passiert nicht';
+
+        const rightArrow = document.createElement('div');
+        rightArrow.className = 'swipe-arrow swipe-arrow--right';
+        rightArrow.textContent = 'Passiert →';
+
+        swipeCard.append(text, leftArrow, rightArrow);
+    }
+
     swipeProgress.textContent = `${Math.min(swipeIndex + 1, MIN_OPEN_HOTTAKES)} / ${MIN_OPEN_HOTTAKES}`;
+
+    if (swipeBackButton) {
+        swipeBackButton.disabled = swipeIndex === 0;
+    }
 }
 
 function finishSwipeFlow() {
@@ -461,6 +485,10 @@ function finishSwipeFlow() {
 }
 
 function handleSwipeDecision(decision) {
+    if (swipeAnimating) {
+        return;
+    }
+
     const current = swipeDeck[swipeIndex];
     if (!current) {
         return;
@@ -477,6 +505,38 @@ function handleSwipeDecision(decision) {
     renderSwipeCard();
 }
 
+function animateSwipe(decision) {
+    if (!swipeCard || !swipeOverlay) {
+        handleSwipeDecision(decision);
+        return;
+    }
+
+    swipeAnimating = true;
+    const directionClass = decision === 'hit' ? 'is-swiping-right' : 'is-swiping-left';
+    const overlayClass = decision === 'hit' ? 'is-swipe-right' : 'is-swipe-left';
+
+    swipeOverlay.classList.add(overlayClass);
+    swipeCard.classList.add(directionClass);
+
+    window.setTimeout(() => {
+        swipeCard.classList.remove(directionClass);
+        swipeOverlay.classList.remove(overlayClass);
+        swipeCard.style.transform = '';
+        swipeAnimating = false;
+        handleSwipeDecision(decision);
+    }, 180);
+}
+
+function handleSwipeBack() {
+    if (swipeAnimating || swipeIndex === 0) {
+        return;
+    }
+
+    swipeDecisions.pop();
+    swipeIndex = Math.max(0, swipeIndex - 1);
+    renderSwipeCard();
+}
+
 function startSwipeFlow() {
     if (!shouldAutoStartSwipe()) {
         return;
@@ -488,6 +548,7 @@ function startSwipeFlow() {
     swipeCompleted = false;
     swipeDecisions = [];
     picks = Array(RANK_COUNT).fill(null);
+    swipeAnimating = false;
     openSwipeOverlay();
     renderSwipeCard();
 }
@@ -1830,21 +1891,28 @@ function disableAdminArea() {
 
 savePicksButton.addEventListener('click', saveSubmission);
 
-if (swipePassButton) {
-    swipePassButton.addEventListener('click', () => handleSwipeDecision('pass'));
-}
-
-if (swipeHitButton) {
-    swipeHitButton.addEventListener('click', () => handleSwipeDecision('hit'));
-}
-
-if (swipeResetButton) {
-    swipeResetButton.addEventListener('click', resetSwipeFlow);
+if (swipeBackButton) {
+    swipeBackButton.addEventListener('click', handleSwipeBack);
 }
 
 if (swipeCard) {
     swipeCard.addEventListener('touchstart', (event) => {
         swipeTouchStartX = event.touches[0].clientX;
+        swipeTouchDeltaX = 0;
+    });
+
+    swipeCard.addEventListener('touchmove', (event) => {
+        if (swipeTouchStartX === null) {
+            return;
+        }
+
+        swipeTouchDeltaX = event.touches[0].clientX - swipeTouchStartX;
+        swipeCard.style.transform = `translateX(${swipeTouchDeltaX}px)`;
+
+        if (swipeOverlay) {
+            swipeOverlay.classList.toggle('is-swipe-left', swipeTouchDeltaX < -20);
+            swipeOverlay.classList.toggle('is-swipe-right', swipeTouchDeltaX > 20);
+        }
     });
 
     swipeCard.addEventListener('touchend', (event) => {
@@ -1852,14 +1920,21 @@ if (swipeCard) {
             return;
         }
 
-        const delta = event.changedTouches[0].clientX - swipeTouchStartX;
+        const delta = swipeTouchDeltaX;
         swipeTouchStartX = null;
+        swipeTouchDeltaX = 0;
+
+        if (swipeOverlay) {
+            swipeOverlay.classList.remove('is-swipe-left', 'is-swipe-right');
+        }
+
+        swipeCard.style.transform = '';
 
         if (Math.abs(delta) < SWIPE_THRESHOLD) {
             return;
         }
 
-        handleSwipeDecision(delta > 0 ? 'hit' : 'pass');
+        animateSwipe(delta > 0 ? 'hit' : 'pass');
     });
 }
 
