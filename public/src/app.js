@@ -40,7 +40,7 @@ let activeGameDay = null;
 let gameDays = [];
 let selectedHistoryGameDay = null;
 let selectedGameDay = null;
-    saveDraftState(); // Save the current draft state after syncing picks
+let leaderboardSelection = 'all';
 let leaderboardRequestToken = 0;
 let lockCountdownTimer = null;
 let isLocked = false;
