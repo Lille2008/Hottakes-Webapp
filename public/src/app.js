@@ -1026,7 +1026,7 @@ function handleListTap() {
     clearSelections();
 }
 
-function beginHottakeDrag({ element, hottakeId, pointerId, clientX, clientY }) {
+function beginHottakeDrag({ element, hottakeId, clientX, clientY, inputType = 'mouse', touchId = null }) {
     if (dragState || viewMode !== 'active' || isLocked) {
         return;
     }
@@ -1048,7 +1048,6 @@ function beginHottakeDrag({ element, hottakeId, pointerId, clientX, clientY }) {
         originParent.insertBefore(placeholder, element);
     }
 
-    element.setPointerCapture(pointerId);
     element.classList.add('is-dragging');
     element.style.width = `${rect.width}px`;
     element.style.left = `${rect.left}px`;
@@ -1067,7 +1066,8 @@ function beginHottakeDrag({ element, hottakeId, pointerId, clientX, clientY }) {
         originParent,
         originNextSibling,
         placeholder,
-        pointerId,
+        inputType,
+        touchId,
         activeDropTarget: null
     };
 
@@ -1138,13 +1138,7 @@ function finishHottakeDrag(clientX, clientY) {
         return;
     }
 
-    const { element, originParent, originNextSibling, placeholder, pointerId } = dragState;
-
-    try {
-        element.releasePointerCapture(pointerId);
-    } catch (_error) {
-        // Ignore missing capture release errors.
-    }
+    const { element, originParent, originNextSibling, placeholder } = dragState;
 
     const target = document.elementFromPoint(clientX, clientY);
     const rankTarget = target ? target.closest('.rank') : null;
@@ -1211,6 +1205,24 @@ function cleanupDragState(element, placeholder) {
     isDragging = false;
     document.body.classList.remove('is-dragging');
     updateTargetAffordance();
+}
+
+function cancelHottakeDrag() {
+    if (!dragState) {
+        return;
+    }
+
+    const { element, originParent, originNextSibling, placeholder } = dragState;
+
+    if (originParent) {
+        if (originNextSibling) {
+            originParent.insertBefore(element, originNextSibling);
+        } else {
+            originParent.appendChild(element);
+        }
+    }
+
+    cleanupDragState(element, placeholder);
 }
 
 function showRankSummary(message, ms = 2500) {
@@ -1700,42 +1712,52 @@ function createHottakeElement(hottake, { readonly = false, picked = false } = {}
     element.dataset.hottakeId = String(hottake.id);
     if (!readonly && !isLocked) {
         handle.draggable = false;
-        const startGesture = (event) => {
+        const startGesture = (event, inputType) => {
             if (viewMode !== 'active' || isLocked) {
                 return;
             }
-            if (event.pointerType === 'mouse' && event.button !== 0) {
+            if (inputType === 'mouse' && event.button !== 0) {
                 return;
             }
+
             if (pendingGesture?.holdTimer) {
                 window.clearTimeout(pendingGesture.holdTimer);
             }
+
+            const point = inputType === 'touch' ? event.touches[0] : event;
+            const touchId = inputType === 'touch' ? point.identifier : null;
+
             pendingGesture = {
                 element,
                 hottakeId: hottake.id,
-                startX: event.clientX,
-                startY: event.clientY,
-                lastX: event.clientX,
-                lastY: event.clientY,
+                startX: point.clientX,
+                startY: point.clientY,
+                lastX: point.clientX,
+                lastY: point.clientY,
                 startTime: Date.now(),
-                pointerId: event.pointerId,
+                inputType,
+                touchId,
                 holdTimer: window.setTimeout(() => {
-                    if (!pendingGesture || pendingGesture.pointerId !== event.pointerId || dragState) {
+                    if (!pendingGesture || dragState) {
                         return;
                     }
                     beginHottakeDrag({
                         element: pendingGesture.element,
                         hottakeId: pendingGesture.hottakeId,
-                        pointerId: pendingGesture.pointerId,
                         clientX: pendingGesture.lastX,
-                        clientY: pendingGesture.lastY
+                        clientY: pendingGesture.lastY,
+                        inputType: pendingGesture.inputType,
+                        touchId: pendingGesture.touchId
                     });
                     pendingGesture = null;
                 }, LONG_PRESS_MS)
             };
         };
-        handle.addEventListener('pointerdown', startGesture);
-        element.addEventListener('pointerdown', startGesture);
+
+        handle.addEventListener('touchstart', (event) => startGesture(event, 'touch'), { passive: true });
+        element.addEventListener('touchstart', (event) => startGesture(event, 'touch'), { passive: true });
+        handle.addEventListener('mousedown', (event) => startGesture(event, 'mouse'));
+        element.addEventListener('mousedown', (event) => startGesture(event, 'mouse'));
     }
 
     element.append(handle, textSpan);
@@ -2470,13 +2492,13 @@ if (swipeCard) {
     });
 }
 
-document.addEventListener('pointermove', (event) => {
-    if (dragState) {
+document.addEventListener('mousemove', (event) => {
+    if (dragState && dragState.inputType === 'mouse') {
         updateDragPosition(event.clientX, event.clientY);
         return;
     }
 
-    if (!pendingGesture || pendingGesture.pointerId !== event.pointerId) {
+    if (!pendingGesture || pendingGesture.inputType !== 'mouse') {
         return;
     }
 
@@ -2492,22 +2514,22 @@ document.addEventListener('pointermove', (event) => {
         beginHottakeDrag({
             element: pendingGesture.element,
             hottakeId: pendingGesture.hottakeId,
-            pointerId: pendingGesture.pointerId,
             clientX: event.clientX,
-            clientY: event.clientY
+            clientY: event.clientY,
+            inputType: 'mouse'
         });
         pendingGesture = null;
     }
 });
 
-document.addEventListener('pointerup', (event) => {
-    if (dragState) {
+document.addEventListener('mouseup', (event) => {
+    if (dragState && dragState.inputType === 'mouse') {
         finishHottakeDrag(event.clientX, event.clientY);
         lastDragAt = Date.now();
         return;
     }
 
-    if (!pendingGesture || pendingGesture.pointerId !== event.pointerId) {
+    if (!pendingGesture || pendingGesture.inputType !== 'mouse') {
         return;
     }
 
@@ -2525,9 +2547,83 @@ document.addEventListener('pointerup', (event) => {
     pendingGesture = null;
 });
 
-document.addEventListener('pointercancel', (event) => {
-    if (dragState) {
-        finishHottakeDrag(event.clientX, event.clientY);
+document.addEventListener('touchmove', (event) => {
+    if (dragState && dragState.inputType === 'touch') {
+        const touch = Array.from(event.touches).find((entry) => entry.identifier === dragState.touchId);
+        if (!touch) {
+            return;
+        }
+        event.preventDefault();
+        updateDragPosition(touch.clientX, touch.clientY);
+        return;
+    }
+
+    if (!pendingGesture || pendingGesture.inputType !== 'touch') {
+        return;
+    }
+
+    const touch = Array.from(event.touches).find((entry) => entry.identifier === pendingGesture.touchId) || event.touches[0];
+    if (!touch) {
+        return;
+    }
+
+    const deltaX = touch.clientX - pendingGesture.startX;
+    const deltaY = touch.clientY - pendingGesture.startY;
+    pendingGesture.lastX = touch.clientX;
+    pendingGesture.lastY = touch.clientY;
+    const distance = Math.hypot(deltaX, deltaY);
+    if (distance >= DRAG_START_THRESHOLD) {
+        if (pendingGesture.holdTimer) {
+            window.clearTimeout(pendingGesture.holdTimer);
+        }
+        beginHottakeDrag({
+            element: pendingGesture.element,
+            hottakeId: pendingGesture.hottakeId,
+            clientX: touch.clientX,
+            clientY: touch.clientY,
+            inputType: 'touch',
+            touchId: touch.identifier
+        });
+        pendingGesture = null;
+    }
+}, { passive: false });
+
+document.addEventListener('touchend', (event) => {
+    if (dragState && dragState.inputType === 'touch') {
+        const touch = Array.from(event.changedTouches).find((entry) => entry.identifier === dragState.touchId);
+        if (touch) {
+            finishHottakeDrag(touch.clientX, touch.clientY);
+            lastDragAt = Date.now();
+        }
+        return;
+    }
+
+    if (!pendingGesture || pendingGesture.inputType !== 'touch') {
+        return;
+    }
+
+    const touch = Array.from(event.changedTouches).find((entry) => entry.identifier === pendingGesture.touchId) || event.changedTouches[0];
+    if (!touch) {
+        return;
+    }
+
+    const deltaX = touch.clientX - pendingGesture.startX;
+    const deltaY = touch.clientY - pendingGesture.startY;
+    const distance = Math.hypot(deltaX, deltaY);
+    const duration = Date.now() - pendingGesture.startTime;
+    if (pendingGesture.holdTimer) {
+        window.clearTimeout(pendingGesture.holdTimer);
+    }
+    if (distance < DRAG_START_THRESHOLD && duration <= TAP_MAX_DURATION_MS) {
+        handleHottakeTap(pendingGesture.element, pendingGesture.hottakeId);
+    }
+
+    pendingGesture = null;
+});
+
+document.addEventListener('touchcancel', () => {
+    if (dragState && dragState.inputType === 'touch') {
+        cancelHottakeDrag();
     }
     if (pendingGesture?.holdTimer) {
         window.clearTimeout(pendingGesture.holdTimer);

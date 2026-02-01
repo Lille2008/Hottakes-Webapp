@@ -61,5 +61,11 @@
 - Dragging erhält hohen Z-Index, tiefen Schatten, Pointer-Events-Block und Snap‑Back‑Animation.
 - Beim Platzieren wird das alte Item immer in den Pool zurückgeschoben und per Web Animations API animiert.
 
+**User:** Mobile‑First: Drag&Drop soll Touch + Mouse nutzen.
+
+**AI:**
+- Drag‑Gesten laufen jetzt über `touchstart/move/end` plus `mousedown/mousemove/up` mit den gleichen Thresholds.
+- Pointer‑Capture wurde entfernt; Touch‑Cancel setzt das Item sauber zurück.
+
 
 
