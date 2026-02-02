@@ -132,6 +132,11 @@
 **AI:**
 - Kurzes Toast oben eingebaut (1 Sekunde) bei jedem Auto-Save. Umsetzung: [public/src/app.js](public/src/app.js) und [public/src/styles.css](public/src/styles.css)
 
+**User:** Nutzer mit vorhandenen Submissions sollen nicht erneut swipen müssen.
+
+**AI:**
+- Swipe-Overlay wird übersprungen, wenn für den Spieltag bereits eine Submission mit Swipe-Entscheidungen existiert; Swipe-State wird beim Laden und beim Spieltagwechsel korrekt gesetzt. Umsetzung: [public/src/app.js](public/src/app.js)
+
 **User:** Click-Interaktionen entfernen, nur Drag&Drop
 
 **AI:**

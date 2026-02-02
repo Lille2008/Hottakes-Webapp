@@ -34,6 +34,7 @@ let archivedHottakes = [];
 let picks = Array(RANK_COUNT).fill(null);
 let lastSubmissionPicks = [];
 let lastSubmissionSwipeDecisions = [];
+let lastSubmissionGameDay = null;
 let currentUser = null;
 let adminEnabled = false;
 let viewMode = 'active';
@@ -454,6 +455,14 @@ function shouldAutoStartSwipe() {
     }
 
     if (swipeOverlay && swipeOverlay.classList.contains('is-open')) {
+        return false;
+    }
+
+    const targetGameDay = selectedGameDay ?? activeGameDay?.gameDay ?? null;
+    const hasSavedSwipe = lastSubmissionGameDay === targetGameDay &&
+        lastSubmissionSwipeDecisions.length === MIN_OPEN_HOTTAKES;
+
+    if (hasSavedSwipe) {
         return false;
     }
 
@@ -2027,9 +2036,17 @@ async function refreshHottakes(targetGameDay = null) {
 
         if (gameDay !== swipeGameDay) {
             // English comment: Reset swipe completion when switching game days.
-            swipeCompleted = false;
             swipeGameDay = gameDay;
-            swipeDecisions = [];
+            const hasSavedSwipe = lastSubmissionGameDay === gameDay &&
+                lastSubmissionSwipeDecisions.length === MIN_OPEN_HOTTAKES;
+
+            if (hasSavedSwipe) {
+                swipeCompleted = true;
+                swipeDecisions = lastSubmissionSwipeDecisions.slice();
+            } else {
+                swipeCompleted = false;
+                swipeDecisions = [];
+            }
         }
 
         // Only finished days should force readonly. Future (PENDING) days are still editable.
@@ -2145,6 +2162,14 @@ async function loadSubmissionForCurrentUser(gameDay = null, isReadOnly = false) 
         lastSubmissionSwipeDecisions = submission && Array.isArray(submission.swipeDecisions)
             ? submission.swipeDecisions
             : [];
+        lastSubmissionGameDay = submission ? targetGameDay : null;
+
+        const hasSavedSwipe = lastSubmissionSwipeDecisions.length === MIN_OPEN_HOTTAKES;
+        if (hasSavedSwipe) {
+            swipeDecisions = lastSubmissionSwipeDecisions.slice();
+            swipeCompleted = true;
+            swipeGameDay = targetGameDay;
+        }
 
         if (submission && Array.isArray(submission.picks)) {
             submission.picks.slice(0, RANK_COUNT).forEach((id, index) => {
@@ -2241,6 +2266,7 @@ async function saveSubmission({ silent = false, source = 'manual' } = {}) {
 
         lastSubmissionPicks = picks.slice(0, RANK_COUNT);
         lastSubmissionSwipeDecisions = swipeDecisions.slice();
+        lastSubmissionGameDay = selectedGameDay;
         clearDraftState();
 
         if (!silent) {
