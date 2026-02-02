@@ -118,6 +118,20 @@
 **AI:**
 - Pending-Gesture wird beim Tap gelöscht, damit keine „Geister-Auswahl“ entsteht.
 
+### 2026-02-02
+
+**User:** Save-Button entfernen und Auto-Save einführen (erste Speicherung bei vollständig gefüllten Ranks, danach debounce pro Änderung).
+
+**AI:**
+- Save-Button aus der UI entfernt und Initialisierung so angepasst, dass er optional ist. Umsetzung: [public/index.html](public/index.html) und [public/src/app.js](public/src/app.js)
+- Auto-Save mit Debounce eingeführt: erste Speicherung sofort, sobald alle drei Ranks erstmals belegt sind; danach wird bei jeder Änderung ein Debounce-Timer gestartet und still gespeichert. Umsetzung: [public/src/app.js](public/src/app.js)
+- Auto-Save resettiert beim Wechsel des Spieltags, damit pro Spieltag neu gestartet wird. Umsetzung: [public/src/app.js](public/src/app.js)
+
+**User:** Auto-Save soll oben kurz "Gespeichert" anzeigen.
+
+**AI:**
+- Kurzes Toast oben eingebaut (1 Sekunde) bei jedem Auto-Save. Umsetzung: [public/src/app.js](public/src/app.js) und [public/src/styles.css](public/src/styles.css)
+
 **User:** Click-Interaktionen entfernen, nur Drag&Drop
 
 **AI:**

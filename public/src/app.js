@@ -2,6 +2,7 @@ const API_BASE = window.APP_API_BASE || '/api';
 const RANK_COUNT = 3;
 const MIN_OPEN_HOTTAKES = 10;
 const SWIPE_THRESHOLD = 50;
+const AUTO_SAVE_DEBOUNCE_MS = 800;
 
 
 const STATUS_LABELS = {
@@ -61,6 +62,11 @@ const DRAG_START_THRESHOLD = 10;
 const TAP_MAX_DURATION_MS = 200;
 const LONG_PRESS_MS = 200;
 const DRAFT_STORAGE_PREFIX = 'hottakes-draft';
+let autoSaveTimer = null;
+let autoSaveHasSavedOnce = false;
+let autoSaveGameDay = null;
+let isSavingSubmission = false;
+let autoSaveToastTimer = null;
 
 const hottakesContainer = document.getElementById('hottakes-container');
 const ranksContainer = document.getElementById('ranks-container');
@@ -102,13 +108,13 @@ const gameDayBanner = document.getElementById('game-day-banner');
 const gameDayActions = document.querySelector('#game-day-banner .game-day-actions');
 let historySelect = null;
 let leaderboardSelect = null;
+const autoSaveToast = document.createElement('div');
 
 // Sicherstellen, dass alle notwendigen DOM-Elemente vorhanden sind
 if (
     !hottakesContainer ||
     !ranksContainer ||
     !leaderboardContainer ||
-    !savePicksButton ||
     !adminArea ||
     !adminList ||
     !adminAdd
@@ -124,6 +130,12 @@ leaderboardList.id = 'leaderboard-list';
 if (leaderboardContainer) {
     leaderboardContainer.append(leaderboardHeader, leaderboardList);
 }
+
+autoSaveToast.className = 'auto-save-toast';
+autoSaveToast.textContent = 'Gespeichert';
+autoSaveToast.setAttribute('role', 'status');
+autoSaveToast.setAttribute('aria-live', 'polite');
+document.body.appendChild(autoSaveToast);
 
 async function loadGameDays() {
     try {
@@ -517,7 +529,7 @@ function finishSwipeFlow() {
 
     // English comment: After swiping, keep ranks empty until the user explicitly ranks their Top 3.
     picks = Array(RANK_COUNT).fill(null);
-    saveDraftState();
+    handlePicksChanged();
 
     renderHottakes();
 }
@@ -593,7 +605,7 @@ function startSwipeFlow() {
     swipeDecisions = [];
     picks = Array(RANK_COUNT).fill(null);
     swipeAnimating = false;
-    saveDraftState();
+    handlePicksChanged();
     openSwipeOverlay();
     renderSwipeCard();
 }
@@ -813,6 +825,7 @@ function moveHottakeToList(element, sourceParent) {
 
     hottakesList.appendChild(element);
     syncPicksFromRanks();
+    handlePicksChanged();
 }
 
 function moveHottakeToRank(element, rankDiv, sourceParent, hottakeId, originPlaceholder = null, originNextSibling = null) {
@@ -868,7 +881,6 @@ function moveHottakeToRank(element, rankDiv, sourceParent, hottakeId, originPlac
     }
 
     picks[targetIndex] = hottakeId;
-    saveDraftState();
 }
 
 
@@ -1012,6 +1024,7 @@ function placeHottakeInList(element, sourceParent) {
 function placeHottakeInRank(element, rankDiv, sourceParent, hottakeId, originPlaceholder = null, originNextSibling = null) {
     moveHottakeToRank(element, rankDiv, sourceParent, hottakeId, originPlaceholder, originNextSibling);
     syncPicksFromRanks();
+    handlePicksChanged();
 }
 
 function finishHottakeDrag(clientX, clientY) {
@@ -1128,6 +1141,7 @@ function swapHottakeWithListItem(element, targetItem, originParent, placeholder)
     animateSwapOut(targetItem);
     animateSwapIn(element);
     syncPicksFromRanks();
+    handlePicksChanged();
 }
 
 function swapRankWithListItemClick(rankItem, listItem, rankParent) {
@@ -1142,7 +1156,7 @@ function swapRankWithListItemClick(rankItem, listItem, rankParent) {
     animateSwapOut(listItem);
     animateSwapIn(rankItem);
     syncPicksFromRanks();
-    saveDraftState();
+    handlePicksChanged();
 }
 
 function swapListItemsInList(element, targetItem) {
@@ -1285,7 +1299,7 @@ function applyLockStateUI() {
     }
 
     if (savePicksButton) {
-        const isBusy = savePicksButton.dataset.busy === 'true';
+        const isBusy = isSavingSubmission;
         savePicksButton.disabled = blocked;
         // Hide the save button whenever picks must not be editable (readonly / locked / finalized).
         // The server also enforces rules, but UI should make the allowed actions obvious.
@@ -1437,6 +1451,7 @@ async function loadActiveGameDay() {
         if (activeGameDay && selectedGameDay === null) {
             selectedGameDay = activeGameDay.gameDay;
             selectedHistoryGameDay = selectedGameDay;
+            resetAutoSaveState(selectedGameDay);
             updateHistorySelect();
         }
     } catch (error) {
@@ -1466,6 +1481,7 @@ function ensureHistorySelect() {
         }
         selectedGameDay = value;
         selectedHistoryGameDay = value;
+        resetAutoSaveState(value);
         await refreshHottakes(value);
         await loadSubmissionForCurrentUser(value, viewMode === 'readonly');
         await drawLeaderboard();
@@ -1510,6 +1526,7 @@ function updateHistorySelect() {
         const currentId = activeGameDay?.gameDay;
         selectedGameDay = currentId ?? gameDays[0].gameDay;
         selectedHistoryGameDay = selectedGameDay;
+        resetAutoSaveState(selectedGameDay);
     }
 
     if (selectedGameDay !== null) {
@@ -1739,6 +1756,137 @@ function loadDraftState(allowedHottakes = openHottakes) {
     }
 }
 
+function resetAutoSaveState(nextGameDay = null) {
+    autoSaveHasSavedOnce = false;
+    autoSaveGameDay = nextGameDay;
+    if (autoSaveTimer) {
+        clearTimeout(autoSaveTimer);
+        autoSaveTimer = null;
+    }
+}
+
+function areRanksFilled() {
+    return picks.every((entry) => entry !== null);
+}
+
+function hasSubmissionChanged() {
+    for (let i = 0; i < RANK_COUNT; i += 1) {
+        const savedId = typeof lastSubmissionPicks?.[i] === 'number' ? lastSubmissionPicks[i] : null;
+        if (savedId !== picks[i]) {
+            return true;
+        }
+    }
+
+    if (lastSubmissionSwipeDecisions?.length !== swipeDecisions.length) {
+        return true;
+    }
+
+    for (let i = 0; i < swipeDecisions.length; i += 1) {
+        const savedEntry = lastSubmissionSwipeDecisions[i];
+        const currentEntry = swipeDecisions[i];
+        if (!savedEntry || !currentEntry) {
+            return true;
+        }
+        if (savedEntry.hottakeId !== currentEntry.hottakeId || savedEntry.decision !== currentEntry.decision) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function canAutoSaveNow() {
+    if (viewMode !== 'active') {
+        return false;
+    }
+
+    if (isLocked || selectedGameDay === null) {
+        return false;
+    }
+
+    if (openHottakes.length !== MIN_OPEN_HOTTAKES) {
+        return false;
+    }
+
+    if (swipeDecisions.length !== MIN_OPEN_HOTTAKES) {
+        return false;
+    }
+
+    if (!areRanksFilled()) {
+        return false;
+    }
+
+    if (!currentUser) {
+        return false;
+    }
+
+    return true;
+}
+
+function triggerAutoSave() {
+    if (!canAutoSaveNow()) {
+        return;
+    }
+
+    if (isSavingSubmission || !hasSubmissionChanged()) {
+        return;
+    }
+
+    saveSubmission({ silent: true, source: 'auto' });
+}
+
+function scheduleAutoSave({ immediate = false } = {}) {
+    if (autoSaveTimer) {
+        clearTimeout(autoSaveTimer);
+        autoSaveTimer = null;
+    }
+
+    if (immediate) {
+        triggerAutoSave();
+        return;
+    }
+
+    autoSaveTimer = window.setTimeout(() => {
+        autoSaveTimer = null;
+        triggerAutoSave();
+    }, AUTO_SAVE_DEBOUNCE_MS);
+}
+
+function handlePicksChanged() {
+    saveDraftState();
+
+    if (autoSaveGameDay !== selectedGameDay) {
+        resetAutoSaveState(selectedGameDay);
+    }
+
+    if (!autoSaveHasSavedOnce && areRanksFilled()) {
+        autoSaveHasSavedOnce = true;
+        scheduleAutoSave({ immediate: true });
+        return;
+    }
+
+    if (autoSaveHasSavedOnce) {
+        scheduleAutoSave();
+    }
+}
+
+function showAutoSaveToast() {
+    if (!autoSaveToast) {
+        return;
+    }
+
+    autoSaveToast.classList.add('is-visible');
+
+    if (autoSaveToastTimer) {
+        clearTimeout(autoSaveToastTimer);
+    }
+
+    autoSaveToastTimer = window.setTimeout(() => {
+        autoSaveToast.classList.remove('is-visible');
+        autoSaveToastTimer = null;
+    }, 1000);
+}
+
 
 function createHottakeElement(hottake, { readonly = false, picked = false } = {}) {
     const element = document.createElement('p');
@@ -1872,6 +2020,10 @@ async function refreshHottakes(targetGameDay = null) {
         const fallback = selectedGameDay !== null ? selectedGameDay : activeGameDay?.gameDay;
         const gameDay = targetGameDay !== null ? targetGameDay : fallback;
         const meta = gameDay !== null && gameDay !== undefined ? getSelectedGameDayMeta() : null;
+
+        if (gameDay !== autoSaveGameDay) {
+            resetAutoSaveState(gameDay);
+        }
 
         if (gameDay !== swipeGameDay) {
             // English comment: Reset swipe completion when switching game days.
@@ -2015,50 +2167,68 @@ async function loadSubmissionForCurrentUser(gameDay = null, isReadOnly = false) 
 }
 
 
-async function saveSubmission() {
+async function saveSubmission({ silent = false, source = 'manual' } = {}) {
     // Safety guard: In the current UI, the save button should not be visible/clickable in readonly mode.
     if (viewMode !== 'active') return;
 
-    if (savePicksButton?.dataset.busy === 'true') {
+    if (isSavingSubmission) {
         return;
     }
 
     if (selectedGameDay === null) {
-        alert('Es ist kein Spieltag ausgewählt.');
+        if (!silent) {
+            alert('Es ist kein Spieltag ausgewählt.');
+        }
         return;
     }
 
     if (isLocked) {
-        alert('Die Picks sind gesperrt. Der Spieltag hat bereits begonnen.');
+        if (!silent) {
+            alert('Die Picks sind gesperrt. Der Spieltag hat bereits begonnen.');
+        }
         return;
     }
 
     if (openHottakes.length !== MIN_OPEN_HOTTAKES) {
-        alert(`Es müssen genau ${MIN_OPEN_HOTTAKES} Hottakes offen sein, um zu tippen.`);
+        if (!silent) {
+            alert(`Es müssen genau ${MIN_OPEN_HOTTAKES} Hottakes offen sein, um zu tippen.`);
+        }
         return;
     }
 
     if (swipeDecisions.length !== MIN_OPEN_HOTTAKES) {
-        alert('Bitte swipe zuerst alle 10 Hottakes.');
+        if (!silent) {
+            alert('Bitte swipe zuerst alle 10 Hottakes.');
+        }
         return;
     }
 
     if (picks.some((entry) => entry === null)) {
-        alert('Bitte wähle alle 3 Hottakes aus, bevor du speicherst.');
+        if (!silent) {
+            alert('Bitte wähle alle 3 Hottakes aus, bevor du speicherst.');
+        }
         return;
     }
 
     if (!currentUser) {
-        alert('Bitte melde dich zuerst an.');
+        if (!silent) {
+            alert('Bitte melde dich zuerst an.');
+        }
+        return;
+    }
+
+    if (silent && !hasSubmissionChanged()) {
         return;
     }
 
     const previousLabel = savePicksButton?.textContent;
-    if (savePicksButton) {
+    if (savePicksButton && !silent) {
         savePicksButton.dataset.busy = 'true';
         savePicksButton.disabled = true;
         savePicksButton.textContent = 'Speichert...';
     }
+
+    isSavingSubmission = true;
 
     try {
         await apiFetch(`/submissions?gameDay=${encodeURIComponent(selectedGameDay)}`, {
@@ -2073,12 +2243,21 @@ async function saveSubmission() {
         lastSubmissionSwipeDecisions = swipeDecisions.slice();
         clearDraftState();
 
-        alert('Deine Picks wurden gespeichert.');
-        await drawLeaderboard();
+        if (!silent) {
+            alert('Deine Picks wurden gespeichert.');
+            await drawLeaderboard();
+        } else if (source === 'auto') {
+            showAutoSaveToast();
+        }
     } catch (error) {
-        alert(error.message);
+        if (!silent) {
+            alert(error.message);
+        } else {
+            console.warn('Auto-save fehlgeschlagen.', error);
+        }
     } finally {
-        if (savePicksButton) {
+        isSavingSubmission = false;
+        if (savePicksButton && !silent) {
             savePicksButton.dataset.busy = 'false';
             savePicksButton.textContent = previousLabel || 'Picks Speichern';
         }
@@ -2507,7 +2686,9 @@ function disableAdminArea() {
 }
 
 
-savePicksButton.addEventListener('click', saveSubmission);
+if (savePicksButton) {
+    savePicksButton.addEventListener('click', saveSubmission);
+}
 
 if (swipeBackButton) {
     swipeBackButton.addEventListener('click', handleSwipeBack);

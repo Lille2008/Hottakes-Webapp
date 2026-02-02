@@ -1000,6 +1000,30 @@ body.swipe-open #cookie-banner {
     display: block;
 }
 
+.auto-save-toast {
+    position: fixed;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-6px);
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(18, 132, 74, 0.95);
+    color: #fff;
+    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 1000;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.auto-save-toast.is-visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
 .rank-readonly-notice {
     margin: 0 0 10px;
     padding: 10px 12px;
