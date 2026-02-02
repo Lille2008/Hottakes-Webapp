@@ -88,28 +88,22 @@ a {
     color: inherit;
 }
 
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-    width: 12px;
-}
-
-::-webkit-scrollbar-track {
-    background: var(--bg-card);
-}
-
-::-webkit-scrollbar-thumb {
-    background: var(--gradient-primary);
-    border-radius: 6px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    box-shadow: var(--glow-cyan);
-}
-
-/* Firefox scrollbar support */
+/* Hide scrollbars globally without disabling scrolling. */
 * {
-    scrollbar-width: thin;
-    scrollbar-color: var(--gradient-start) var(--bg-card);
+    scrollbar-width: none; /* Firefox */
+}
+
+*::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+}
+
+*::-webkit-scrollbar-thumb {
+    background: transparent;
+}
+
+*::-webkit-scrollbar-track {
+    background: transparent;
 }
 
 /* ============================================

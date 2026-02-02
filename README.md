@@ -136,5 +136,10 @@
 - Beim Drag von der Liste in einen belegten Rank wird das verdrängte Item nun an der ursprünglichen Listenposition eingefügt (statt ans Listenende) und nutzt Platzhalter/Next-Sibling als Anker. Umsetzung: [public/src/app.js](public/src/app.js)
 - Drop-Target-Umrandungen werden global entfernt, auch wenn ein markiertes Item in einen Rank wandert. Umsetzung: [public/src/app.js](public/src/app.js)
 
+**User:** Ich möchte nirgendwo eine Scrollbar zu sehen haben.
+
+**AI:**
+- Scrollbars werden global ausgeblendet (ohne Scrollen zu deaktivieren). Umsetzung: [public/src/styles.css](public/src/styles.css)
+
 
 
