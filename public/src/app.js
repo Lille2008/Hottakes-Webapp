@@ -815,7 +815,7 @@ function moveHottakeToList(element, sourceParent) {
     syncPicksFromRanks();
 }
 
-function moveHottakeToRank(element, rankDiv, sourceParent, hottakeId) {
+function moveHottakeToRank(element, rankDiv, sourceParent, hottakeId, originPlaceholder = null, originNextSibling = null) {
     const targetIndex = Number(rankDiv.dataset.rank) - 1;
     if (targetIndex < 0 || targetIndex >= picks.length) {
         return;
@@ -840,6 +840,15 @@ function moveHottakeToRank(element, rankDiv, sourceParent, hottakeId) {
             // English comment: Swap rank↔rank by moving the existing item back to the source slot.
             sourceParent.appendChild(existing);
             animateSwapIn(existing);
+        } else if (sourceParent && sourceParent.id === 'hottakes-list') {
+            // English comment: Keep list order by inserting into the dragged item's old position.
+            if (originPlaceholder && originPlaceholder.parentElement === sourceParent) {
+                sourceParent.insertBefore(existing, originPlaceholder);
+            } else if (originNextSibling && originNextSibling.parentElement === sourceParent) {
+                sourceParent.insertBefore(existing, originNextSibling);
+            } else {
+                sourceParent.appendChild(existing);
+            }
         } else {
             hottakesList.appendChild(existing);
         }
@@ -953,7 +962,7 @@ function updateDragPosition(clientX, clientY) {
 function clearDropHighlights() {
     rankSlots.forEach((slot) => slot.classList.remove('is-dragover'));
     hottakesList.classList.remove('is-dragover');
-    hottakesList.querySelectorAll('.hottake.is-drop-target').forEach((item) => {
+    document.querySelectorAll('.hottake.is-drop-target').forEach((item) => {
         item.classList.remove('is-drop-target');
     });
 }
@@ -1000,8 +1009,8 @@ function placeHottakeInList(element, sourceParent) {
     moveHottakeToList(element, sourceParent);
 }
 
-function placeHottakeInRank(element, rankDiv, sourceParent, hottakeId) {
-    moveHottakeToRank(element, rankDiv, sourceParent, hottakeId);
+function placeHottakeInRank(element, rankDiv, sourceParent, hottakeId, originPlaceholder = null, originNextSibling = null) {
+    moveHottakeToRank(element, rankDiv, sourceParent, hottakeId, originPlaceholder, originNextSibling);
     syncPicksFromRanks();
 }
 
@@ -1018,7 +1027,14 @@ function finishHottakeDrag(clientX, clientY) {
     const hottakeTarget = target ? target.closest('.hottake') : null;
 
     if (rankTarget) {
-        placeHottakeInRank(element, rankTarget, originParent, dragState.hottakeId);
+        placeHottakeInRank(
+            element,
+            rankTarget,
+            originParent,
+            dragState.hottakeId,
+            dragState.placeholder,
+            dragState.originNextSibling
+        );
     } else if (hottakeTarget && hottakeTarget.parentElement && hottakeTarget.parentElement.id === 'hottakes-list' && hottakeTarget !== element) {
         swapHottakeWithListItem(element, hottakeTarget, originParent, placeholder);
     } else if (listTarget) {

@@ -128,5 +128,13 @@
 **AI:**
 - Styles für Click-UI (Swap-Hinweis, Auswahl-Pulse, Abbrechen-Button) entfernt.
 
+### 2026-02-02
+
+**User:** Drag&Drop: Rank↔Liste tauschen springt manchmal ans Listenende; Drop-Umrandung bleibt stehen.
+
+**AI:**
+- Beim Drag von der Liste in einen belegten Rank wird das verdrängte Item nun an der ursprünglichen Listenposition eingefügt (statt ans Listenende) und nutzt Platzhalter/Next-Sibling als Anker. Umsetzung: [public/src/app.js](public/src/app.js)
+- Drop-Target-Umrandungen werden global entfernt, auch wenn ein markiertes Item in einen Rank wandert. Umsetzung: [public/src/app.js](public/src/app.js)
+
 
 
