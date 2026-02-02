@@ -11,7 +11,7 @@ type HottakeWithStatus = { id: number; status: HottakeOutcome['status']; gameDay
 
 const swipeDecisionSchema = z.object({
   hottakeId: z.number().int(),
-  decision: z.enum(['hit', 'pass'])
+  decision: z.enum(['hit', 'pass', 'skip'])
 });
 
 const submissionSchema = z.object({

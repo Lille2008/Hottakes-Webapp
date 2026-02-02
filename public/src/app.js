@@ -51,6 +51,8 @@ let swipeIndex = 0;
 let swipeDecisions = [];
 let swipeCompleted = false;
 let swipeGameDay = null;
+let swipeSessionHistory = [];
+let swipeResetPicksOnFinish = true;
 let swipeTouchStartX = null;
 let swipeTouchDeltaX = 0;
 let swipeAnimating = false;
@@ -101,12 +103,15 @@ const swipeOverlay = document.getElementById('swipe-overlay');
 const swipeCard = document.getElementById('swipe-card');
 const swipeCardBack = document.getElementById('swipe-card-back');
 const swipeBackButton = document.getElementById('swipe-back');
+const swipeCloseButton = document.getElementById('swipe-close');
+const swipeSkipButton = document.getElementById('swipe-skip');
 const swipeProgress = document.getElementById('swipe-progress');
 
 const lockCountdown = document.getElementById('lock-countdown');
 const lockStatus = document.getElementById('lock-status');
 const gameDayBanner = document.getElementById('game-day-banner');
 const gameDayActions = document.querySelector('#game-day-banner .game-day-actions');
+const gameDayInfo = document.getElementById('game-day-info');
 let historySelect = null;
 let leaderboardSelect = null;
 const autoSaveToast = document.createElement('div');
@@ -466,7 +471,113 @@ function shouldAutoStartSwipe() {
         return false;
     }
 
-    return !swipeCompleted;
+    return !hasCompleteSwipeDecisions();
+}
+
+function getSwipeDecisionMap() {
+    const map = new Map();
+    swipeDecisions.forEach((entry) => {
+        if (!entry || typeof entry.hottakeId !== 'number') {
+            return;
+        }
+        map.set(entry.hottakeId, entry.decision);
+    });
+    return map;
+}
+
+function sortSwipeDecisions() {
+    const order = new Map(openHottakes.map((hot, index) => [hot.id, index]));
+    swipeDecisions.sort((a, b) => {
+        const aIndex = order.has(a.hottakeId) ? order.get(a.hottakeId) : Number.MAX_SAFE_INTEGER;
+        const bIndex = order.has(b.hottakeId) ? order.get(b.hottakeId) : Number.MAX_SAFE_INTEGER;
+        return aIndex - bIndex;
+    });
+}
+
+function upsertSwipeDecision(hottakeId, decision) {
+    const existingIndex = swipeDecisions.findIndex((entry) => entry.hottakeId === hottakeId);
+    const previousDecision = existingIndex >= 0 ? swipeDecisions[existingIndex].decision : null;
+    if (existingIndex >= 0) {
+        swipeDecisions[existingIndex].decision = decision;
+    } else {
+        swipeDecisions.push({ hottakeId, decision });
+    }
+    sortSwipeDecisions();
+    return previousDecision;
+}
+
+function revertSwipeDecision(hottakeId, previousDecision) {
+    if (previousDecision) {
+        upsertSwipeDecision(hottakeId, previousDecision);
+        return;
+    }
+
+    swipeDecisions = swipeDecisions.filter((entry) => entry.hottakeId !== hottakeId);
+}
+
+function hasCompleteSwipeDecisions() {
+    if (openHottakes.length === 0) {
+        return false;
+    }
+    const map = getSwipeDecisionMap();
+    return openHottakes.every((hot) => map.has(hot.id));
+}
+
+function buildSwipeDeck(startHottakeId = null) {
+    const openDeck = openHottakes.slice();
+    if (!startHottakeId) {
+        return openDeck;
+    }
+
+    const startHottake = openDeck.find((hot) => hot.id === startHottakeId) ||
+        allHottakes.find((hot) => hot.id === startHottakeId);
+
+    const remaining = openDeck.filter((hot) => hot.id !== startHottakeId);
+
+    if (startHottake) {
+        return [startHottake, ...remaining];
+    }
+
+    return remaining;
+}
+
+function getOpenHottakesCounterText(openCount) {
+    if (openCount === 1) {
+        return '1 offener Hottake';
+    }
+
+    return `${openCount} offene Hottakes`;
+}
+
+function renderGameDayInfo(lockTime, diffMs, openCount = 0) {
+    if (!gameDayInfo) {
+        return;
+    }
+
+    const items = [];
+
+    if (!lockTime) {
+        gameDayInfo.replaceChildren();
+        return;
+    }
+
+    const formattedLock = formatDateTime(lockTime);
+    const isLockedState = diffMs !== null && diffMs <= 0;
+
+    if (isLockedState) {
+        rankReadOnlyNotice.textContent = 'Spieltag gesperrt';
+        items.push(rankReadOnlyNotice);
+    } else {
+        lockScheduleNotice.textContent = `Sperre: ${formattedLock}`;
+        items.push(lockScheduleNotice);
+
+        if (openCount > 0) {
+            openHottakesCounter.textContent = getOpenHottakesCounterText(openCount);
+            items.push(openHottakesCounter);
+        }
+    }
+
+    gameDayInfo.replaceChildren(...items);
 }
 
 function renderSwipeCard() {
@@ -524,7 +635,10 @@ function renderSwipeCard() {
         swipeCardBack.append(buildCardContent(next));
     }
 
-    swipeProgress.textContent = `${Math.min(swipeIndex + 1, MIN_OPEN_HOTTAKES)} / ${MIN_OPEN_HOTTAKES}`;
+    const deckSize = swipeDeck.length;
+    swipeProgress.textContent = deckSize
+        ? `${Math.min(swipeIndex + 1, deckSize)} / ${deckSize}`
+        : '0 / 0';
 
     if (swipeBackButton) {
         swipeBackButton.disabled = swipeIndex === 0;
@@ -533,12 +647,14 @@ function renderSwipeCard() {
 }
 
 function finishSwipeFlow() {
-    swipeCompleted = true;
+    swipeCompleted = hasCompleteSwipeDecisions();
     closeSwipeOverlay();
 
-    // English comment: After swiping, keep ranks empty until the user explicitly ranks their Top 3.
-    picks = Array(RANK_COUNT).fill(null);
-    handlePicksChanged();
+    if (swipeResetPicksOnFinish) {
+        // English comment: After the full swipe flow, keep ranks empty until the user ranks their Top 3.
+        picks = Array(RANK_COUNT).fill(null);
+        handlePicksChanged();
+    }
 
     renderHottakes();
 }
@@ -553,7 +669,9 @@ function handleSwipeDecision(decision) {
         return;
     }
 
-    swipeDecisions.push({ hottakeId: current.id, decision });
+    const previousDecision = upsertSwipeDecision(current.id, decision);
+    swipeSessionHistory.push({ hottakeId: current.id, previousDecision });
+    swipeCompleted = hasCompleteSwipeDecisions();
     saveDraftState();
     swipeIndex += 1;
 
@@ -596,10 +714,29 @@ function handleSwipeBack() {
         return;
     }
 
-    swipeDecisions.pop();
+    const lastAction = swipeSessionHistory.pop();
+    if (lastAction) {
+        revertSwipeDecision(lastAction.hottakeId, lastAction.previousDecision);
+    } else {
+        swipeDecisions.pop();
+    }
+    swipeCompleted = hasCompleteSwipeDecisions();
     saveDraftState();
     swipeIndex = Math.max(0, swipeIndex - 1);
     renderSwipeCard();
+}
+
+function handleSwipeSkip() {
+    if (swipeAnimating) {
+        return;
+    }
+
+    handleSwipeDecision('skip');
+}
+
+function exitSwipeOverlay() {
+    closeSwipeOverlay();
+    renderHottakes();
 }
 
 function startSwipeFlow() {
@@ -607,14 +744,28 @@ function startSwipeFlow() {
         return;
     }
 
-    // English comment: Reset swipe state so each page load starts fresh.
-    swipeDeck = openHottakes.slice();
-    swipeIndex = 0;
-    swipeCompleted = false;
-    swipeDecisions = [];
-    picks = Array(RANK_COUNT).fill(null);
+    const hasExistingDecisions = swipeDecisions.length > 0;
+
+    swipeDeck = buildSwipeDeck();
+    swipeSessionHistory = [];
     swipeAnimating = false;
-    handlePicksChanged();
+    swipeResetPicksOnFinish = true;
+
+    if (!hasExistingDecisions) {
+        // English comment: Reset swipe state so each fresh flow starts clean.
+        swipeIndex = 0;
+        swipeCompleted = false;
+        swipeDecisions = [];
+        picks = Array(RANK_COUNT).fill(null);
+        handlePicksChanged();
+    } else {
+        sortSwipeDecisions();
+        const decisionMap = getSwipeDecisionMap();
+        const nextIndex = swipeDeck.findIndex((hot) => !decisionMap.has(hot.id));
+        swipeIndex = nextIndex === -1 ? swipeDeck.length : nextIndex;
+        swipeCompleted = hasCompleteSwipeDecisions();
+    }
+
     openSwipeOverlay();
     renderSwipeCard();
 }
@@ -622,6 +773,33 @@ function startSwipeFlow() {
 function resetSwipeFlow() {
     swipeCompleted = false;
     startSwipeFlow();
+}
+
+function startSwipeFlowForHottake(hottakeId) {
+    if (!currentUser || adminEnabled) {
+        return;
+    }
+
+    if (viewMode !== 'active' || isLocked) {
+        return;
+    }
+
+    if (swipeOverlay && swipeOverlay.classList.contains('is-open')) {
+        return;
+    }
+
+    const deck = buildSwipeDeck(hottakeId);
+    if (!deck.length) {
+        return;
+    }
+
+    swipeDeck = deck;
+    swipeIndex = 0;
+    swipeAnimating = false;
+    swipeSessionHistory = [];
+    swipeResetPicksOnFinish = false;
+    openSwipeOverlay();
+    renderSwipeCard();
 }
 
 function handleAutoScroll(event) {
@@ -720,12 +898,17 @@ if (ranksContainer) {
     ranksContainer.appendChild(rankSummary);
 }
 
+const lockScheduleNotice = document.createElement('p');
+lockScheduleNotice.id = 'lock-schedule-notice';
+lockScheduleNotice.className = 'lock-notice lock-notice--schedule';
+
+const openHottakesCounter = document.createElement('p');
+openHottakesCounter.id = 'open-hottakes-counter';
+openHottakesCounter.className = 'open-hottakes-counter';
+
 const rankReadOnlyNotice = document.createElement('p');
 rankReadOnlyNotice.id = 'rank-readonly-notice';
-rankReadOnlyNotice.className = 'rank-readonly-notice';
-if (ranksContainer) {
-    ranksContainer.appendChild(rankReadOnlyNotice);
-}
+rankReadOnlyNotice.className = 'lock-notice lock-notice--locked';
 
 const rankHint = null;
 
@@ -1290,7 +1473,7 @@ function applyLockStateUI() {
         ? [GAME_DAY_STATUS.FINALIZED, GAME_DAY_STATUS.ARCHIVED].includes(selectedMeta.status)
         : false;
     const hasExactOpen = openHottakes.length === MIN_OPEN_HOTTAKES;
-    const hasSwipeDecisions = viewMode !== 'active' || swipeDecisions.length === MIN_OPEN_HOTTAKES;
+    const hasSwipeDecisions = viewMode !== 'active' || hasCompleteSwipeDecisions();
     const isReadOnlyState = isLocked || isReadOnlyMode || finalized;
     const blocked = isReadOnlyState || !hasExactOpen || !hasSwipeDecisions;
 
@@ -1325,23 +1508,6 @@ function applyLockStateUI() {
         }
     }
 
-    if (rankReadOnlyNotice) {
-        const hasSavedPicks = Array.isArray(lastSubmissionPicks) &&
-            lastSubmissionPicks.some((id) => typeof id === 'number');
-        if (isReadOnlyState) {
-            rankReadOnlyNotice.textContent = hasSavedPicks
-                ? 'Spieltag gesperrt.'
-                : 'Spieltag gesperrt – keine gespeicherten Picks.';
-            rankReadOnlyNotice.classList.add('is-visible');
-            rankReadOnlyNotice.classList.toggle('is-danger', !hasSavedPicks);
-        } else {
-            rankReadOnlyNotice.textContent = '';
-            rankReadOnlyNotice.classList.remove('is-visible');
-            rankReadOnlyNotice.classList.remove('is-danger');
-        }
-    }
-
-
     if (hottakesNotice) {
         if (isFutureWithoutHottakes) {
             // Zukünftiger Spieltag ohne Hottakes
@@ -1353,10 +1519,6 @@ function applyLockStateUI() {
         } else if (!hasExactOpen) {
             // Nicht genug offene Hottakes
             hottakesNotice.textContent = `Es müssen genau ${MIN_OPEN_HOTTAKES} Hottakes offen sein. Aktuell: ${openHottakes.length}.`;
-            hottakesNotice.classList.add('is-visible');
-        } else if (!hasSwipeDecisions && viewMode === 'active') {
-            // Swipe-Flow noch nicht abgeschlossen
-            hottakesNotice.textContent = 'Bitte swipe zuerst alle 10 Hottakes, bevor du speicherst.';
             hottakesNotice.classList.add('is-visible');
         } else {
             hottakesNotice.textContent = '';
@@ -1375,30 +1537,23 @@ function updateLockBanner(lockTime, diffMs, openCount = 0) {
         lockStatus.textContent = 'Kein aktiver Spieltag';
         lockCountdown.textContent = 'Countdown inaktiv';
         lockCountdown.dataset.state = 'idle';
+        renderGameDayInfo(null, null, openCount);
         return;
     }
-
-    // Zukünftiger Spieltag ohne Hottakes: Kein Banner anzeigen
-    if (diffMs !== null && diffMs > 0 && openCount === 0) {
-        lockStatus.textContent = '';
-        lockCountdown.textContent = '';
-        lockCountdown.dataset.state = 'idle';
-        return;
-    }
-
-    const formattedLock = formatDateTime(lockTime);
 
     // Wenn diffMs <= 0, ist der Spieltag bereits gesperrt (läuft oder ist vorbei)
     if (diffMs !== null && diffMs <= 0) {
-        lockStatus.textContent = `Gesperrt seit ${formattedLock}`;
+        lockStatus.textContent = '';
         lockCountdown.textContent = '';
         lockCountdown.dataset.state = 'locked';
     } else {
         // Spieltag noch offen, Countdown läuft
-        lockStatus.textContent = `Sperre um ${formattedLock}`;
+        lockStatus.textContent = '';
         lockCountdown.textContent = diffMs === null ? 'Countdown inaktiv' : `Noch ${formatDuration(diffMs)}`;
         lockCountdown.dataset.state = 'open';
     }
+
+    renderGameDayInfo(lockTime, diffMs, openCount);
 }
 
 
@@ -1752,17 +1907,18 @@ function loadDraftState(allowedHottakes = openHottakes) {
               if (typeof entry.hottakeId !== 'number' || !validIds.has(entry.hottakeId)) {
                   return false;
               }
-              return entry.decision === 'hit' || entry.decision === 'miss';
+              return entry.decision === 'hit' || entry.decision === 'pass' || entry.decision === 'skip';
           })
         : [];
 
     picks = nextPicks;
     swipeDecisions = nextDecisions;
+    sortSwipeDecisions();
 
-    if (nextDecisions.length >= MIN_OPEN_HOTTAKES) {
-        swipeCompleted = true;
-        swipeIndex = MIN_OPEN_HOTTAKES;
-    }
+    const allowedList = Array.isArray(allowedHottakes) ? allowedHottakes : [];
+    const decisionIds = new Set(nextDecisions.map((entry) => entry.hottakeId));
+    swipeCompleted = allowedList.length > 0 && allowedList.every((hot) => decisionIds.has(hot.id));
+    swipeIndex = swipeCompleted ? allowedList.length : 0;
 }
 
 function resetAutoSaveState(nextGameDay = null) {
@@ -1817,7 +1973,7 @@ function canAutoSaveNow() {
         return false;
     }
 
-    if (swipeDecisions.length !== MIN_OPEN_HOTTAKES) {
+    if (!hasCompleteSwipeDecisions()) {
         return false;
     }
 
@@ -1897,7 +2053,7 @@ function showAutoSaveToast() {
 }
 
 
-function createHottakeElement(hottake, { readonly = false, picked = false } = {}) {
+function createHottakeElement(hottake, { readonly = false, picked = false, decision = null } = {}) {
     const element = document.createElement('p');
     element.textContent = '';
 
@@ -1913,6 +2069,14 @@ function createHottakeElement(hottake, { readonly = false, picked = false } = {}
     element.className = `hottake ${statusClass}`;
     if (readonly) {
         element.classList.add('is-readonly');
+    }
+
+    if (decision === 'hit') {
+        element.classList.add('is-swipe-hit');
+    } else if (decision === 'pass') {
+        element.classList.add('is-swipe-pass');
+    } else if (decision === 'skip') {
+        element.classList.add('is-swipe-skip');
     }
 
     if (picked) {
@@ -1971,6 +2135,22 @@ function createHottakeElement(hottake, { readonly = false, picked = false } = {}
         element.addEventListener('mousedown', (event) => startGesture(event, 'mouse'));
     }
 
+    element.addEventListener('click', () => {
+        if (viewMode !== 'active' || isLocked || adminEnabled) {
+            return;
+        }
+        if (!currentUser) {
+            return;
+        }
+        if (dragState || isDragging) {
+            return;
+        }
+        if (Date.now() - lastDragAt < 250) {
+            return;
+        }
+        startSwipeFlowForHottake(hottake.id);
+    });
+
     element.append(handle, textSpan);
     return element;
 }
@@ -2003,15 +2183,51 @@ function renderHottakes() {
         hottakesNotice.classList.remove('is-visible');
     }
 
+    const decisionMap = getSwipeDecisionMap();
+    const elements = new Map();
+
     availableHottakes.forEach((hottake) => {
         const element = createHottakeElement(hottake, {
             readonly: isReadOnly,
-            picked: referencePicks.includes(hottake.id)
+            picked: referencePicks.includes(hottake.id),
+            decision: decisionMap.get(hottake.id) || null
         });
-        const rankIndex = referencePicks.indexOf(hottake.id);
-        if (rankIndex !== -1) {
-            rankSlots[rankIndex].appendChild(element);
-        } else {
+        elements.set(hottake.id, element);
+    });
+
+    referencePicks.forEach((id, index) => {
+        if (typeof id !== 'number') {
+            return;
+        }
+        const element = elements.get(id);
+        if (!element || !rankSlots[index]) {
+            return;
+        }
+        rankSlots[index].appendChild(element);
+        elements.delete(id);
+    });
+
+    openHottakes.forEach((hottake, index) => {
+        if (index >= RANK_COUNT) {
+            return;
+        }
+        if (decisionMap.get(hottake.id) !== 'skip') {
+            return;
+        }
+        const element = elements.get(hottake.id);
+        if (!element || !rankSlots[index]) {
+            return;
+        }
+        if (rankSlots[index].querySelector('.hottake')) {
+            return;
+        }
+        rankSlots[index].appendChild(element);
+        elements.delete(hottake.id);
+    });
+
+    availableHottakes.forEach((hottake) => {
+        const element = elements.get(hottake.id);
+        if (element) {
             hottakesList.appendChild(element);
         }
     });
@@ -2043,6 +2259,7 @@ async function refreshHottakes(targetGameDay = null) {
             if (hasSavedSwipe) {
                 swipeCompleted = true;
                 swipeDecisions = lastSubmissionSwipeDecisions.slice();
+                sortSwipeDecisions();
             } else {
                 swipeCompleted = false;
                 swipeDecisions = [];
@@ -2074,6 +2291,7 @@ async function refreshHottakes(targetGameDay = null) {
         allHottakes = [...openHottakes, ...archivedHottakes];
         refreshLockState();
         loadDraftState(openHottakes);
+        swipeCompleted = hasCompleteSwipeDecisions();
         renderHottakes();
         startSwipeFlow();
     } catch (error) {
@@ -2167,6 +2385,7 @@ async function loadSubmissionForCurrentUser(gameDay = null, isReadOnly = false) 
         const hasSavedSwipe = lastSubmissionSwipeDecisions.length === MIN_OPEN_HOTTAKES;
         if (hasSavedSwipe) {
             swipeDecisions = lastSubmissionSwipeDecisions.slice();
+            sortSwipeDecisions();
             swipeCompleted = true;
             swipeGameDay = targetGameDay;
         }
@@ -2181,6 +2400,7 @@ async function loadSubmissionForCurrentUser(gameDay = null, isReadOnly = false) 
 
         if (isReadOnly) {
             swipeDecisions = lastSubmissionSwipeDecisions.slice();
+            sortSwipeDecisions();
             renderHottakes();
         } else {
             picks = nextPicks;
@@ -2221,9 +2441,9 @@ async function saveSubmission({ silent = false, source = 'manual' } = {}) {
         return;
     }
 
-    if (swipeDecisions.length !== MIN_OPEN_HOTTAKES) {
+    if (!hasCompleteSwipeDecisions()) {
         if (!silent) {
-            alert('Bitte swipe zuerst alle 10 Hottakes.');
+            alert('Bitte entscheide alle Hottakes im Swipe-Modus.');
         }
         return;
     }
@@ -2720,6 +2940,14 @@ if (swipeBackButton) {
     swipeBackButton.addEventListener('click', handleSwipeBack);
 }
 
+if (swipeCloseButton) {
+    swipeCloseButton.addEventListener('click', exitSwipeOverlay);
+}
+
+if (swipeSkipButton) {
+    swipeSkipButton.addEventListener('click', handleSwipeSkip);
+}
+
 if (swipeCard) {
     swipeCard.addEventListener('touchstart', (event) => {
         swipeTouchStartX = event.touches[0].clientX;
@@ -2771,6 +2999,12 @@ if (swipeCard) {
         }
     });
 }
+
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && swipeOverlay && swipeOverlay.classList.contains('is-open')) {
+        exitSwipeOverlay();
+    }
+});
 
 document.addEventListener('mousemove', (event) => {
     if (dragState && dragState.inputType === 'mouse') {

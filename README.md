@@ -160,5 +160,14 @@
 **AI:**
 - Scrollbars werden global ausgeblendet (ohne Scrollen zu deaktivieren). Umsetzung: [public/src/styles.css](public/src/styles.css)
 
+**User:** Swipe-Mode per Klick, Skip-Logik, Lock-Infos im Spieltagscontainer und Readonly-Transparenz.
+
+**AI:**
+- Swipe-Overlay öffnet per Klick auf eine Hottake-Karte (Auto-Start nur bei 10 offenen) und bietet jetzt Schließen (Kreuz) sowie Überspringen. Umsetzung: [public/src/app.js](public/src/app.js) und [public/index.html](public/index.html)
+- Skipped/Swiped-Feedback wird per grün/rot Glow bzw. grauer Skip-Karte in Ranks + Liste angezeigt. Umsetzung: [public/src/app.js](public/src/app.js) und [public/src/styles.css](public/src/styles.css)
+- Lock-Hinweise und Offene-Hottakes-Counter wurden unter das Dropdown verschoben; alte Banner-Texte entfernt; Counter blendet bei Lock aus. Umsetzung: [public/src/app.js](public/src/app.js), [public/index.html](public/index.html), [public/src/styles.css](public/src/styles.css)
+- Readonly-Mode zeigt alle Hottakes mit Opacity 0.7 und blockiert Swipe nach LockTime. Umsetzung: [public/src/app.js](public/src/app.js) und [public/src/styles.css](public/src/styles.css)
+- Backend erlaubt Skip-Entscheidungen und ignoriert sie beim Scoring. Umsetzung: [src/routes/submissions.ts](src/routes/submissions.ts), [src/lib/scoring.ts](src/lib/scoring.ts), [src/lib/leaderboard.ts](src/lib/leaderboard.ts)
+
 
 

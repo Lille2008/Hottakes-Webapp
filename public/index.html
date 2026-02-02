@@ -132,6 +132,7 @@
             <span id="lock-countdown" class="lock-countdown is-hidden" data-state="idle">Countdown inaktiv</span>
             </div>
         </div>
+        <div id="game-day-info" class="game-day-info"></div>
     </section>
 
     <div id="game">
@@ -153,13 +154,17 @@
 
     <section id="swipe-overlay" class="swipe-overlay" aria-hidden="true" role="dialog" aria-modal="true">
         <div class="swipe-overlay__inner">
+            <button id="swipe-close" class="swipe-close" type="button" aria-label="Swipe-Modus schließen">×</button>
             <p class="swipe-kicker">Hottakes ranken</p>
             <h2 class="swipe-title">Was denkst du?</h2>
             <div class="swipe-card-stack">
                 <div id="swipe-card-back" class="swipe-card swipe-card--back" aria-hidden="true"></div>
                 <div id="swipe-card" class="swipe-card" aria-live="polite"></div>
             </div>
-            <button id="swipe-back" class="swipe-button swipe-button--ghost" type="button">Zurück</button>
+            <div class="swipe-actions">
+                <button id="swipe-back" class="swipe-button swipe-button--ghost" type="button">Zurück</button>
+                <button id="swipe-skip" class="swipe-button swipe-button--ghost swipe-button--skip" type="button">Überspringen</button>
+            </div>
             <p id="swipe-progress" class="swipe-progress">0 / 10</p>
         </div>
     </section>

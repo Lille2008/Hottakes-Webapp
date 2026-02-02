@@ -7,7 +7,7 @@ export type HottakeOutcome = {
 
 export type SwipeDecision = {
   hottakeId: number;
-  decision: 'hit' | 'pass';
+  decision: 'hit' | 'pass' | 'skip';
 };
 
 export function calculateScore(
@@ -27,6 +27,9 @@ export function calculateScore(
   // This is separate from the ranking bonus points.
   const isCorrectDecision = (status: HottakeOutcome['status'], decision?: SwipeDecision['decision']) => {
     if (!decision) {
+      return false;
+    }
+    if (decision === 'skip') {
       return false;
     }
     return (status === 'WAHR' && decision === 'hit') || (status === 'FALSCH' && decision === 'pass');

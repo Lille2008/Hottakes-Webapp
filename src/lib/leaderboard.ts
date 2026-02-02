@@ -1,6 +1,6 @@
 import prisma from './db';
 import { GAME_DAY_STATUS } from './gameDay';
-import { calculateScore, type HottakeOutcome } from './scoring';
+import { calculateScore, type HottakeOutcome, type SwipeDecision } from './scoring';
 
 export type LeaderboardEntry = {
   nickname: string;
@@ -30,7 +30,7 @@ export async function buildLeaderboard(gameDay: number): Promise<LeaderboardEntr
 
   for (const submission of submissions) {
     const storedDecisions = Array.isArray(submission.swipeDecisions)
-      ? (submission.swipeDecisions as { hottakeId: number; decision: 'hit' | 'pass' }[])
+      ? (submission.swipeDecisions as SwipeDecision[])
       : [];
     const score = calculateScore(submission.picks, mappedHottakes, storedDecisions);
     const nickname = submission.user?.nickname || 'Unknown';
@@ -100,7 +100,7 @@ export async function buildLeaderboardAll(): Promise<LeaderboardEntry[]> {
   for (const submission of submissions) {
     const mappedHottakes = hottakesByGameDay.get(submission.gameDay) ?? [];
     const storedDecisions = Array.isArray(submission.swipeDecisions)
-      ? (submission.swipeDecisions as { hottakeId: number; decision: 'hit' | 'pass' }[])
+      ? (submission.swipeDecisions as SwipeDecision[])
       : [];
     const score = calculateScore(submission.picks, mappedHottakes, storedDecisions);
     const nickname = submission.user?.nickname || 'Unknown';
