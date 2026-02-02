@@ -55,8 +55,6 @@ let swipeAnimating = false;
 let isDragging = false;
 let dragState = null;
 let pendingGesture = null;
-let swapSelection = null;
-let slotSelection = null;
 let lastDragAt = 0;
 let dragFrameId = null;
 const DRAG_START_THRESHOLD = 10;
@@ -708,36 +706,12 @@ if (ranksContainer) {
     ranksContainer.appendChild(rankReadOnlyNotice);
 }
 
-const rankSwapNotice = document.createElement('p');
-rankSwapNotice.id = 'rank-swap-notice';
-rankSwapNotice.className = 'rank-swap-notice';
-if (ranksContainer) {
-    ranksContainer.appendChild(rankSwapNotice);
-}
-
 const rankHint = null;
 
 
 const hottakesList = document.createElement('div');
 hottakesList.id = 'hottakes-list';
-hottakesList.addEventListener('click', (event) => {
-    if (event.target && event.target.closest('.hottake')) {
-        return;
-    }
-    handleListTap();
-});
 hottakesContainer.appendChild(hottakesList);
-
-const cancelSelectionButton = document.createElement('button');
-cancelSelectionButton.id = 'cancel-selection';
-cancelSelectionButton.className = 'cancel-selection';
-cancelSelectionButton.type = 'button';
-cancelSelectionButton.textContent = 'Abbrechen';
-cancelSelectionButton.addEventListener('click', () => {
-    // English comment: Allow users to safely exit the click/slot selection mode.
-    clearSelections();
-});
-document.body.appendChild(cancelSelectionButton);
 
 
 const rankSlots = [];
@@ -754,23 +728,11 @@ function createRankSlots() {
         const label = document.createElement('div');
         label.textContent = `Platz ${i}`;
         label.className = 'rank-label';
-        label.addEventListener('click', (event) => {
-            // English comment: Let users select a filled slot via the label.
-            event.stopPropagation();
-            handleRankTap(rankDiv);
-        });
         container.appendChild(label);
 
         const rankDiv = document.createElement('div');
         rankDiv.className = 'rank';
         rankDiv.dataset.rank = String(i);
-        rankDiv.addEventListener('click', (event) => {
-            if (event.target && event.target.closest('.hottake')) {
-                return;
-            }
-            handleRankTap(rankDiv);
-        });
-
         container.appendChild(rankDiv);
         ranksContainer.appendChild(container);
         rankSlots.push(rankDiv);
@@ -791,61 +753,15 @@ function syncPicksFromRanks() {
     });
 }
 
-function clearSwapSelection() {
-    if (swapSelection?.element) {
-        swapSelection.element.classList.remove('is-selected');
-    }
-    swapSelection = null;
-}
-
-function clearSlotSelection() {
-    if (slotSelection) {
-        slotSelection.classList.remove('is-selected');
-    }
-    slotSelection = null;
-}
-
 function clearSelections() {
-    clearSwapSelection();
-    clearSlotSelection();
     clearDropHighlights();
     clearSwapIndicators();
-    updateSwapNotice();
     updateTargetAffordance();
-    updateCancelSelectionVisibility();
-}
-
-function setSwapSelection(element, hottakeId) {
-    if (swapSelection?.element && swapSelection.element !== element) {
-        swapSelection.element.classList.remove('is-selected');
-    }
-    swapSelection = { element, hottakeId };
-    element.classList.add('is-selected');
-    updateSwapNotice();
-    updateTargetAffordance();
-    updateCancelSelectionVisibility();
-}
-
-function setSlotSelection(rankDiv) {
-    if (slotSelection && slotSelection !== rankDiv) {
-        slotSelection.classList.remove('is-selected');
-    }
-    slotSelection = rankDiv;
-    rankDiv.classList.add('is-selected');
-    updateSwapNotice();
-    updateTargetAffordance();
-    updateSwapIndicatorForRank(rankDiv);
-    updateCancelSelectionVisibility();
 }
 
 function updateTargetAffordance() {
-    const isTargeting = Boolean(swapSelection || dragState);
+    const isTargeting = Boolean(dragState);
     document.body.classList.toggle('is-targeting', isTargeting);
-}
-
-function updateCancelSelectionVisibility() {
-    const isVisible = Boolean(swapSelection || slotSelection);
-    cancelSelectionButton.classList.toggle('is-visible', isVisible);
 }
 
 function clearSwapIndicators() {
@@ -885,27 +801,6 @@ function animateSwapIn(element) {
         ],
         { duration: 220, easing: 'cubic-bezier(0.2, 0, 0.2, 1)' }
     );
-}
-
-function updateSwapNotice() {
-    if (!rankSwapNotice) {
-        return;
-    }
-
-    if (swapSelection && viewMode === 'active' && !isLocked) {
-        rankSwapNotice.textContent = 'Wähle einen Slot aus, um den Hottake zu platzieren.';
-        rankSwapNotice.classList.add('is-visible');
-        return;
-    }
-
-    if (slotSelection && viewMode === 'active' && !isLocked) {
-        rankSwapNotice.textContent = 'Wähle einen Hottake aus, um ihn hier zu platzieren.';
-        rankSwapNotice.classList.add('is-visible');
-        return;
-    }
-
-    rankSwapNotice.textContent = '';
-    rankSwapNotice.classList.remove('is-visible');
 }
 
 function moveHottakeToList(element, sourceParent) {
@@ -967,121 +862,6 @@ function moveHottakeToRank(element, rankDiv, sourceParent, hottakeId) {
     saveDraftState();
 }
 
-function handleHottakeTap(element, hottakeId) {
-    if (viewMode !== 'active' || isLocked) {
-        return;
-    }
-
-    if (pendingGesture?.element === element) {
-        pendingGesture = null;
-    }
-
-    if (Date.now() - lastDragAt < 250) {
-        return;
-    }
-
-    if (slotSelection) {
-        const selectedParent = element.parentElement;
-        if (!selectedParent) {
-            clearSelections();
-            return;
-        }
-        moveHottakeToRank(element, slotSelection, selectedParent, hottakeId);
-        clearSelections();
-        return;
-    }
-
-    if (swapSelection && swapSelection.element !== element) {
-        const selected = swapSelection.element;
-        const selectedId = swapSelection.hottakeId;
-        const selectedParent = selected.parentElement;
-        const targetParent = element.parentElement;
-        if (!selectedParent || !targetParent) {
-            clearSelections();
-            return;
-        }
-
-        if (targetParent.classList.contains('rank')) {
-            moveHottakeToRank(selected, targetParent, selectedParent, selectedId);
-            clearSelections();
-            return;
-        }
-
-        if (targetParent.id === 'hottakes-list') {
-            if (selectedParent.classList.contains('rank')) {
-                swapRankWithListItemClick(selected, element, selectedParent);
-                clearSelections();
-                return;
-            }
-
-            if (selectedParent.id === 'hottakes-list') {
-                swapListItemsInList(selected, element);
-                clearSelections();
-                return;
-            }
-        }
-    }
-
-    if (swapSelection?.hottakeId === hottakeId) {
-        clearSelections();
-        return;
-    }
-
-    setSwapSelection(element, hottakeId);
-}
-
-function handleRankTap(rankDiv) {
-    if (viewMode !== 'active' || isLocked) {
-        return;
-    }
-
-    if (swapSelection) {
-        const selected = swapSelection.element;
-        const selectedId = swapSelection.hottakeId;
-        const selectedParent = selected.parentElement;
-        if (!selectedParent) {
-            clearSelections();
-            return;
-        }
-
-        moveHottakeToRank(selected, rankDiv, selectedParent, selectedId);
-        clearSelections();
-        return;
-    }
-
-    if (slotSelection === rankDiv) {
-        clearSelections();
-        return;
-    }
-
-    setSlotSelection(rankDiv);
-}
-
-function handleListTap() {
-    if (slotSelection) {
-        clearSelections();
-        return;
-    }
-
-    if (!swapSelection || viewMode !== 'active' || isLocked) {
-        return;
-    }
-
-    const selected = swapSelection.element;
-    const selectedParent = selected.parentElement;
-    if (!selectedParent) {
-        clearSelections();
-        return;
-    }
-
-    // English comment: Keep filled ranks filled; only swaps are allowed.
-    if (selectedParent.classList.contains('rank')) {
-        clearSelections();
-        return;
-    }
-
-    clearSelections();
-}
 
 function beginHottakeDrag({ element, hottakeId, clientX, clientY, inputType = 'mouse', touchId = null }) {
     if (dragState || viewMode !== 'active' || isLocked) {
@@ -2817,9 +2597,6 @@ document.addEventListener('mouseup', (event) => {
     if (pendingGesture.holdTimer) {
         window.clearTimeout(pendingGesture.holdTimer);
     }
-    if (distance < DRAG_START_THRESHOLD && duration <= TAP_MAX_DURATION_MS) {
-        handleHottakeTap(pendingGesture.element, pendingGesture.hottakeId);
-    }
 
     pendingGesture = null;
 });
@@ -2890,9 +2667,6 @@ document.addEventListener('touchend', (event) => {
     const duration = Date.now() - pendingGesture.startTime;
     if (pendingGesture.holdTimer) {
         window.clearTimeout(pendingGesture.holdTimer);
-    }
-    if (distance < DRAG_START_THRESHOLD && duration <= TAP_MAX_DURATION_MS) {
-        handleHottakeTap(pendingGesture.element, pendingGesture.hottakeId);
     }
 
     pendingGesture = null;

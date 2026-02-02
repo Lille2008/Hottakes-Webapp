@@ -118,5 +118,15 @@
 **AI:**
 - Pending-Gesture wird beim Tap gelöscht, damit keine „Geister-Auswahl“ entsteht.
 
+**User:** Click-Interaktionen entfernen, nur Drag&Drop
+
+**AI:**
+- Alle Click-Selections/Swaps entfernt; Interaktion läuft jetzt ausschließlich über Drag&Drop.
+
+**User:** Click-Styles aus CSS/HTML entfernen
+
+**AI:**
+- Styles für Click-UI (Swap-Hinweis, Auswahl-Pulse, Abbrechen-Button) entfernt.
+
 
 
