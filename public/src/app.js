@@ -549,6 +549,15 @@ function getOpenHottakesCounterText(openCount) {
     return `${openCount} offene Hottakes`;
 }
 
+function getRemainingOpenHottakesCount() {
+    if (!Array.isArray(openHottakes) || openHottakes.length === 0) {
+        return 0;
+    }
+
+    const decisionMap = getSwipeDecisionMap();
+    return openHottakes.filter((hot) => !decisionMap.has(hot.id)).length;
+}
+
 function renderGameDayInfo(lockTime, diffMs, openCount = 0) {
     if (!gameDayInfo) {
         return;
@@ -564,6 +573,8 @@ function renderGameDayInfo(lockTime, diffMs, openCount = 0) {
     const formattedLock = formatDateTime(lockTime);
     const isLockedState = diffMs !== null && diffMs <= 0;
 
+    const remainingOpenCount = typeof openCount === 'number' ? openCount : getRemainingOpenHottakesCount();
+
     if (isLockedState) {
         rankReadOnlyNotice.textContent = 'Spieltag gesperrt';
         items.push(rankReadOnlyNotice);
@@ -571,8 +582,8 @@ function renderGameDayInfo(lockTime, diffMs, openCount = 0) {
         lockScheduleNotice.textContent = `Sperre: ${formattedLock}`;
         items.push(lockScheduleNotice);
 
-        if (openCount > 0) {
-            openHottakesCounter.textContent = getOpenHottakesCounterText(openCount);
+        if (remainingOpenCount > 0) {
+            openHottakesCounter.textContent = getOpenHottakesCounterText(remainingOpenCount);
             items.push(openHottakesCounter);
         }
     }
@@ -1553,7 +1564,7 @@ function updateLockBanner(lockTime, diffMs, openCount = 0) {
         lockCountdown.dataset.state = 'open';
     }
 
-    renderGameDayInfo(lockTime, diffMs, openCount);
+    renderGameDayInfo(lockTime, diffMs, getRemainingOpenHottakesCount());
 }
 
 
@@ -2077,6 +2088,7 @@ function createHottakeElement(hottake, { readonly = false, picked = false, decis
         element.classList.add('is-swipe-pass');
     } else if (decision === 'skip') {
         element.classList.add('is-swipe-skip');
+        textSpan.textContent = '';
     }
 
     if (picked) {
@@ -2205,24 +2217,6 @@ function renderHottakes() {
         }
         rankSlots[index].appendChild(element);
         elements.delete(id);
-    });
-
-    openHottakes.forEach((hottake, index) => {
-        if (index >= RANK_COUNT) {
-            return;
-        }
-        if (decisionMap.get(hottake.id) !== 'skip') {
-            return;
-        }
-        const element = elements.get(hottake.id);
-        if (!element || !rankSlots[index]) {
-            return;
-        }
-        if (rankSlots[index].querySelector('.hottake')) {
-            return;
-        }
-        rankSlots[index].appendChild(element);
-        elements.delete(hottake.id);
     });
 
     availableHottakes.forEach((hottake) => {

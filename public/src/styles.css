@@ -1171,11 +1171,13 @@ body.swipe-open #cookie-banner {
 }
 
 .hottake.is-swipe-hit {
-    box-shadow: var(--shadow-card), 0 0 0 2px rgba(34, 197, 94, 0.55), 0 0 14px rgba(34, 197, 94, 0.35);
+    border-color: rgba(34, 197, 94, 0.7);
+    box-shadow: var(--shadow-card), 0 0 0 2px rgba(34, 197, 94, 0.45), 0 0 18px rgba(34, 197, 94, 0.55);
 }
 
 .hottake.is-swipe-pass {
-    box-shadow: var(--shadow-card), 0 0 0 2px rgba(239, 68, 68, 0.55), 0 0 14px rgba(239, 68, 68, 0.35);
+    border-color: rgba(239, 68, 68, 0.7);
+    box-shadow: var(--shadow-card), 0 0 0 2px rgba(239, 68, 68, 0.45), 0 0 18px rgba(239, 68, 68, 0.55);
 }
 
 .hottake.is-swipe-skip {
@@ -1788,9 +1790,11 @@ footer a:hover {
 .game-day-info {
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
+    align-items: stretch;
     gap: 8px;
     padding: 0 4px 6px;
+    width: 100%;
+    flex: 0 0 100%;
 }
 
 .game-day-info:empty {
@@ -1861,6 +1865,8 @@ footer a:hover {
     border-radius: 10px;
     font-weight: 700;
     white-space: nowrap;
+    width: 100%;
+    text-align: left;
 }
 
 .lock-notice--locked {
