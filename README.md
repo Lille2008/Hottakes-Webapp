@@ -178,5 +178,11 @@
 - Swipe-Deck zeigt beim Klick: gewählte Karte zuerst, danach nur offene (nicht final entschiedene) Karten. Umsetzung: [public/src/app.js](public/src/app.js)
 - Offene-Hottakes-Counter zählt Skips wieder mit, weil Skip als „offen“ behandelt wird. Umsetzung: [public/src/app.js](public/src/app.js)
 
+**User:** Finalisierte/gesperrte Spieltage sollen Hottakes zeigen, Ergebnis-Badge mit Symbolen, und “(aktiv)” nach 5‑Tage‑Regel nur für den nächsten Spieltag.
+
+**AI:**
+- Read-only Hottakes zeigen jetzt auch bei FINALIZED/ARCHIVED alle Hottakes (nicht leer), inklusive Ergebnis-Badge mit ?/✓/✗ für OFFEN/WAHR/FALSCH. Umsetzung: [public/src/app.js](public/src/app.js) und [public/src/styles.css](public/src/styles.css)
+- “(aktiv)” in allen Spieltag-Selects folgt der UI-Regel: locked aber nicht finalized **oder** nächste LockTime innerhalb von 5 Tagen. Umsetzung: [public/src/app.js](public/src/app.js)
+
 
 

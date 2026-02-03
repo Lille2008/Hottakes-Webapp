@@ -1117,6 +1117,7 @@ body.swipe-open #cookie-banner {
     display: flex;
     align-items: center;
     gap: 10px;
+    flex-wrap: wrap;
     will-change: transform;
 }
 
@@ -1185,6 +1186,45 @@ body.swipe-open #cookie-banner {
     background-color: rgba(148, 163, 184, 0.12);
     color: var(--text-secondary);
     box-shadow: var(--shadow-card);
+}
+
+.hottake-result {
+    /* English comment: The result badge explains outcomes for locked/finalized days. */
+    flex-basis: 100%;
+    margin-top: 8px;
+    margin-left: 24px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(0, 217, 255, 0.35);
+    background: rgba(0, 217, 255, 0.08);
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.hottake-result__label {
+    color: var(--text-secondary);
+}
+
+.hottake-result__icon {
+    font-size: 0.95rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.hottake-result__icon.is-open {
+    color: var(--status-open);
+}
+
+.hottake-result__icon.is-true {
+    color: var(--status-true);
+}
+
+.hottake-result__icon.is-false {
+    color: var(--status-false);
 }
 
 /* ============================================
@@ -1920,12 +1960,8 @@ footer a:hover {
 
 .hottake.is-readonly {
     cursor: default;
-    opacity: 0.7;
-}
-
-.hottake.is-picked {
-    outline: 2px solid rgba(0, 217, 255, 0.35);
-    box-shadow: 0 0 0 2px rgba(0, 217, 255, 0.15);
+    /* English comment: Lock/read-only should fade every hottake consistently. */
+    opacity: 0.6;
 }
 
 /* ============================================

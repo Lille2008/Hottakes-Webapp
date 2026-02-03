@@ -18,6 +18,14 @@ const STATUS_BADGE_CLASS = {
     FALSCH: 'is-false'
 };
 
+const STATUS_RESULT_SYMBOL = {
+    OFFEN: '?',
+    WAHR: '✓',
+    FALSCH: '✗'
+};
+
+const ACTIVE_LABEL_WINDOW_MS = 5 * 24 * 60 * 60 * 1000;
+
 const STATUS_VALUES = ['OFFEN', 'WAHR', 'FALSCH'];
 
 const GAME_DAY_STATUS = {
@@ -26,6 +34,60 @@ const GAME_DAY_STATUS = {
     FINALIZED: 'FINALIZED',
     ARCHIVED: 'ARCHIVED'
 };
+
+// English comment: Active labels follow the UI rule (locked-but-not-finalized OR next lock within 5 days).
+function getLockTimeMs(day) {
+    if (!day?.lockTime) {
+        return null;
+    }
+    const lockMs = new Date(day.lockTime).getTime();
+    return Number.isNaN(lockMs) ? null : lockMs;
+}
+
+function isFinalizedStatus(day) {
+    return !!day && [GAME_DAY_STATUS.FINALIZED, GAME_DAY_STATUS.ARCHIVED].includes(day.status);
+}
+
+function isLockedByTime(day, nowMs = Date.now()) {
+    const lockMs = getLockTimeMs(day);
+    if (lockMs === null) {
+        return false;
+    }
+    return lockMs <= nowMs;
+}
+
+function getNextUpcomingActiveLabelId(days, nowMs = Date.now(), windowMs = ACTIVE_LABEL_WINDOW_MS) {
+    if (!Array.isArray(days)) {
+        return null;
+    }
+
+    let candidate = null;
+    days.forEach((day) => {
+        if (isFinalizedStatus(day)) {
+            return;
+        }
+        const lockMs = getLockTimeMs(day);
+        if (lockMs === null || lockMs <= nowMs || lockMs - nowMs > windowMs) {
+            return;
+        }
+        if (!candidate || lockMs < candidate.lockMs) {
+            candidate = { id: day.gameDay, lockMs };
+        }
+    });
+
+    return candidate ? candidate.id : null;
+}
+
+function shouldShowActiveLabel(day, { nowMs = Date.now(), nextUpcomingId = null } = {}) {
+    if (!day || isFinalizedStatus(day)) {
+        return false;
+    }
+    if (isLockedByTime(day, nowMs)) {
+        return true;
+    }
+    const activeUpcomingId = nextUpcomingId ?? getNextUpcomingActiveLabelId(gameDays, nowMs);
+    return day.gameDay === activeUpcomingId;
+}
 
 
 let allHottakes = [];
@@ -1699,11 +1761,14 @@ function updateHistorySelect() {
 
     select.disabled = false;
 
+    const nowMs = Date.now();
+    const nextUpcomingId = getNextUpcomingActiveLabelId(gameDays, nowMs);
+
     gameDays.forEach((day) => {
         const option = document.createElement('option');
         option.value = String(day.gameDay);
-        const isActive = day.status === GAME_DAY_STATUS.ACTIVE;
-        const suffix = isActive ? ' (aktiv)' : '';
+        const isActiveLabel = shouldShowActiveLabel(day, { nowMs, nextUpcomingId });
+        const suffix = isActiveLabel ? ' (aktiv)' : '';
         option.textContent = day.description ? `${day.description}${suffix}` : `Spieltag ${day.gameDay}${suffix}`;
         select.appendChild(option);
     });
@@ -1766,10 +1831,13 @@ function updateLeaderboardSelect() {
         [GAME_DAY_STATUS.FINALIZED, GAME_DAY_STATUS.ACTIVE].includes(day.status)
     );
 
+    const nowMs = Date.now();
+    const nextUpcomingId = getNextUpcomingActiveLabelId(gameDays, nowMs);
+
     selectableDays.forEach((day) => {
         const option = document.createElement('option');
-        const isActive = day.status === GAME_DAY_STATUS.ACTIVE;
-        const suffix = isActive ? ' (aktiv)' : '';
+        const isActiveLabel = shouldShowActiveLabel(day, { nowMs, nextUpcomingId });
+        const suffix = isActiveLabel ? ' (aktiv)' : '';
         option.value = String(day.gameDay);
         option.textContent = day.description ? `${day.description}${suffix}` : `Spieltag ${day.gameDay}${suffix}`;
         select.appendChild(option);
@@ -2075,7 +2143,7 @@ function showAutoSaveToast() {
 }
 
 
-function createHottakeElement(hottake, { readonly = false, picked = false, decision = null } = {}) {
+function createHottakeElement(hottake, { readonly = false, decision = null, showResultBadge = false } = {}) {
     const element = document.createElement('p');
     element.textContent = '';
 
@@ -2093,15 +2161,32 @@ function createHottakeElement(hottake, { readonly = false, picked = false, decis
         element.classList.add('is-readonly');
     }
 
+    let resultBadge = null;
+    if (showResultBadge) {
+        // English comment: The result badge is only shown for locked/finalized days to explain outcomes.
+        const resultLabel = document.createElement('span');
+        resultLabel.className = 'hottake-result__label';
+        resultLabel.textContent = 'Ergebnis:';
+
+        const resultIcon = document.createElement('span');
+        resultIcon.className = `hottake-result__icon ${statusClass}`;
+        resultIcon.textContent = STATUS_RESULT_SYMBOL[hottake.status] || STATUS_RESULT_SYMBOL.OFFEN;
+
+        resultBadge = document.createElement('span');
+        resultBadge.className = 'hottake-result';
+        resultBadge.append(resultLabel, resultIcon);
+        const labelText = STATUS_LABELS[hottake.status] || STATUS_LABELS.OFFEN;
+        resultBadge.setAttribute('aria-label', `Ergebnis: ${labelText}`);
+        resultBadge.setAttribute('title', `Ergebnis: ${labelText}`);
+    }
+
     if (decision === 'hit') {
         element.classList.add('is-swipe-hit');
     } else if (decision === 'pass') {
         element.classList.add('is-swipe-pass');
     }
 
-    if (picked) {
-        element.classList.add('is-picked');
-    }
+    // English comment: We keep a single colored border + glow, so no extra pick outline.
 
     element.draggable = false;
     element.dataset.hottakeId = String(hottake.id);
@@ -2172,21 +2257,27 @@ function createHottakeElement(hottake, { readonly = false, picked = false, decis
     });
 
     element.append(handle, textSpan);
+    if (resultBadge) {
+        element.append(resultBadge);
+    }
     return element;
 }
 
 
 function renderHottakes() {
     clearSelections();
-    const isReadOnly = viewMode !== 'active' || isLocked;
+    const selectedMeta = getSelectedGameDayMeta();
+    const isFinalized = selectedMeta
+        ? [GAME_DAY_STATUS.FINALIZED, GAME_DAY_STATUS.ARCHIVED].includes(selectedMeta.status)
+        : false;
+    const isReadOnly = viewMode !== 'active' || isLocked || isFinalized;
     const useSavedPicks = isReadOnly;
-    const availableHottakes = isLocked
-        ? openHottakes
-        : viewMode !== 'active'
-            ? allHottakes
-            : openHottakes;
+    const availableHottakes = isFinalized || viewMode !== 'active'
+        ? allHottakes
+        : openHottakes;
     const sanitizeSource = availableHottakes;
     const referencePicks = useSavedPicks ? lastSubmissionPicks : picks;
+    const showResultBadge = isLocked || isFinalized;
 
     sanitizePicks(sanitizeSource);
     hottakesList.innerHTML = '';
@@ -2209,8 +2300,8 @@ function renderHottakes() {
     availableHottakes.forEach((hottake) => {
         const element = createHottakeElement(hottake, {
             readonly: isReadOnly,
-            picked: referencePicks.includes(hottake.id),
-            decision: decisionMap.get(hottake.id) || null
+            decision: decisionMap.get(hottake.id) || null,
+            showResultBadge
         });
         elements.set(hottake.id, element);
     });
@@ -2710,13 +2801,14 @@ function renderGameDayAdmin() {
         select.appendChild(opt);
         select.disabled = true;
     } else {
+        const nowMs = Date.now();
+        const nextUpcomingId = getNextUpcomingActiveLabelId(gameDays, nowMs);
+
         gameDays.forEach((day) => {
             const option = document.createElement('option');
             option.value = String(day.gameDay);
-            const statusLabel =
-                day.status === GAME_DAY_STATUS.ACTIVE
-                    ? ' (aktiv)'
-                    : '';
+            const isActiveLabel = shouldShowActiveLabel(day, { nowMs, nextUpcomingId });
+            const statusLabel = isActiveLabel ? ' (aktiv)' : '';
             option.textContent = day.description ? `${day.description}${statusLabel}` : `Spieltag ${day.gameDay}${statusLabel}`;
             select.appendChild(option);
         });
