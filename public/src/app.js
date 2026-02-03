@@ -781,7 +781,7 @@ function handleSwipeDecision(decision) {
     const previousDecision = upsertSwipeDecision(current.id, decision);
     swipeSessionHistory.push({ hottakeId: current.id, previousDecision });
     swipeCompleted = hasCompleteSwipeDecisions();
-    saveDraftState();
+    handleSwipeDecisionsChanged();
     swipeIndex += 1;
 
     if (swipeIndex >= swipeDeck.length) {
@@ -830,7 +830,7 @@ function handleSwipeBack() {
         swipeDecisions.pop();
     }
     swipeCompleted = hasCompleteSwipeDecisions();
-    saveDraftState();
+    handleSwipeDecisionsChanged();
     swipeIndex = Math.max(0, swipeIndex - 1);
     renderSwipeCard();
 }
@@ -2152,6 +2152,17 @@ function handlePicksChanged() {
     }
 }
 
+function handleSwipeDecisionsChanged() {
+    // English comment: Swipe decisions can change without altering picks.
+    saveDraftState();
+
+    if (!autoSaveHasSavedOnce) {
+        return;
+    }
+
+    scheduleAutoSave();
+}
+
 function showAutoSaveToast() {
     if (!autoSaveToast) {
         return;
@@ -2329,9 +2340,10 @@ function renderHottakes() {
     const elements = new Map();
 
     availableHottakes.forEach((hottake) => {
+        const decision = showResultBadge ? null : (decisionMap.get(hottake.id) || null);
         const element = createHottakeElement(hottake, {
             readonly: isReadOnly,
-            decision: decisionMap.get(hottake.id) || null,
+            decision,
             showResultBadge
         });
         elements.set(hottake.id, element);

@@ -195,5 +195,25 @@
 **AI:**
 - Ergebnis-Badge nutzt jetzt eine eigene Pill innerhalb einer Zeile, damit Handle + Text zusammenbleiben. Umsetzung: [public/src/app.js](public/src/app.js) und [public/src/styles.css](public/src/styles.css)
 
+**User:** Hottake-Body soll immer einheitlich sein, unabhängig von Ergebnis oder User-Entscheidung.
+
+**AI:**
+- Status-spezifische Hintergrundfarben entfernt, nur der Rand zeigt Status/Entscheidung. Umsetzung: [public/src/styles.css](public/src/styles.css)
+
+**User:** Swipe-Entscheidungen nach späteren Swipes sollen sicher gespeichert werden.
+
+**AI:**
+- Swipe-Entscheidungen lösen jetzt Auto-Save aus, damit nachträgliche Entscheidungen nicht als „offen“ hängen bleiben. Umsetzung: [public/src/app.js](public/src/app.js)
+
+**User:** Entscheidung per Swipe soll als Rahmen bleiben, aber bei Lock trotzdem gleich blass aussehen.
+
+**AI:**
+- Readonly-Swipe-Hottakes behalten den Rahmen, aber die Glow-Schatten werden entfernt, damit alle Bodies gleich blass wirken. Umsetzung: [public/src/styles.css](public/src/styles.css)
+
+**User:** Später entschiedene Hottakes sollen im finalized gleich blass aussehen wie alle anderen.
+
+**AI:**
+- Swipe-Decision-Styles werden bei Ergebnis-Badges nicht gesetzt, damit die Opacity für alle gleich bleibt. Umsetzung: [public/src/app.js](public/src/app.js)
+
 
 

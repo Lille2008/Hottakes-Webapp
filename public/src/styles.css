@@ -1161,17 +1161,14 @@ body.swipe-open #cookie-banner {
 
 .hottake.is-open {
     border-color: var(--status-open);
-    background-color: rgba(0, 217, 255, 0.05);
 }
 
 .hottake.is-true {
     border-color: var(--status-true);
-    background-color: rgba(34, 197, 94, 0.05);
 }
 
 .hottake.is-false {
     border-color: var(--status-false);
-    background-color: rgba(239, 68, 68, 0.05);
 }
 
 .hottake.is-swipe-hit {
@@ -1183,6 +1180,7 @@ body.swipe-open #cookie-banner {
     border-color: rgba(239, 68, 68, 0.7);
     box-shadow: var(--shadow-card), 0 0 0 2px rgba(239, 68, 68, 0.45), 0 0 18px rgba(239, 68, 68, 0.55);
 }
+
 
 .hottake.is-swipe-skip {
     border-color: rgba(148, 163, 184, 0.45);
