@@ -701,6 +701,8 @@ h3 {
     height: min(74vh, 640px);
 }
 
+/* English comment: Restore the missing selector so the swipe action bar is styled correctly. */
+.swipe-actions {
     left: 0;
     right: 0;
     bottom: 18px;
@@ -940,6 +942,21 @@ body.swipe-open #cookie-banner {
     padding: 20px;
     border: 1px solid rgba(0, 217, 255, 0.18);
     box-shadow: var(--shadow-card);
+}
+
+/* English comment: Align the profile auth row like other profile containers. */
+.auth-user-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+/* English comment: Smaller chip variant for compact rows. */
+.user-chip--sm {
+    padding: 6px 10px;
+    font-size: 0.9rem;
 }
 
 /* ============================================
