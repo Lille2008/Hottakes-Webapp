@@ -14,7 +14,7 @@ Ziel: Die Webapp auf Nutzer vorbereiten, erste Klick-Daten sammeln, UX auf Mobil
 
 ---
 
-## 1) Swipe-Feature (Option 1) – Höchste Priorität
+## 1) Swipe-Feature (Option 1) – Höchste Priorität Erledigt
 **Ziel:** Hottakes zuerst per Swipe bewerten, danach Top-3 ranking. Swipe-Entscheidungen zählen je +1 Punkt, Ranks geben +3/+2/+1 für richtige Vorhersagen.
 
 ### 1.1 UX-Flow (geplant)
@@ -69,7 +69,7 @@ Ziel: Die Webapp auf Nutzer vorbereiten, erste Klick-Daten sammeln, UX auf Mobil
 
 ---
 
-## 4) Passwort-Wiederherstellung entfernen
+## 4) Passwort-Wiederherstellung entfernen Erledigt
 **Ziel:** Entfernen des E-Mail-Reset-Flows (wenn nicht benötigt).
 
 ### 4.1 Frontend
@@ -83,7 +83,7 @@ Ziel: Die Webapp auf Nutzer vorbereiten, erste Klick-Daten sammeln, UX auf Mobil
 
 ---
 
-## 5) Dokumentation (README)
+## 5) Dokumentation (README) Erledigt
 - Neue Einträge im KI-Dialog-Logbuch:
   - Welche Features geplant sind.
   - Offene Fragen (z. B. Tracking, FAQ-Content).

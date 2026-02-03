@@ -2,7 +2,7 @@ const API_BASE = window.APP_API_BASE || '/api';
 const RANK_COUNT = 3;
 const MIN_OPEN_HOTTAKES = 10;
 const SWIPE_THRESHOLD = 50;
-const AUTO_SAVE_DEBOUNCE_MS = 1500;
+const AUTO_SAVE_DEBOUNCE_MS = 3000;
 
 
 const STATUS_LABELS = {
