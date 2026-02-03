@@ -68,14 +68,33 @@ app.use('/api', (_req, res) => {
   res.status(404).json({ message: 'Nicht gefunden' });
 });
 
-app.use(express.static(path.join(__dirname, '..', 'public')));
+const publicRoot = path.join(__dirname, '..', 'public');
+
+const sendPublicFile = (res: Response, fileName: string) => {
+  res.sendFile(path.join(publicRoot, fileName));
+};
+
+app.get('/', (_req, res) => sendPublicFile(res, 'spieltag.html'));
+app.get('/spieltag', (_req, res) => sendPublicFile(res, 'spieltag.html'));
+app.get('/leaderboard', (_req, res) => sendPublicFile(res, 'leaderboard.html'));
+app.get('/profil', (_req, res) => sendPublicFile(res, 'profil.html'));
+app.get('/admin', (_req, res) => sendPublicFile(res, 'admin.html'));
+
+app.get('/login', (_req, res) => sendPublicFile(res, 'login.html'));
+app.get('/register', (_req, res) => sendPublicFile(res, 'register.html'));
+app.get('/forgot-password', (_req, res) => sendPublicFile(res, 'forgot-password.html'));
+app.get('/reset-password', (_req, res) => sendPublicFile(res, 'reset-password.html'));
+app.get('/impressum', (_req, res) => sendPublicFile(res, 'impressum.html'));
+app.get('/datenschutz', (_req, res) => sendPublicFile(res, 'datenschutz.html'));
+
+app.use(express.static(publicRoot));
 
 app.get('*', (req, res, next) => {
   if (req.method !== 'GET' || req.path.startsWith('/api')) {
     return next();
   }
 
-  return res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+  return res.sendFile(path.join(publicRoot, 'spieltag.html'));
 });
 
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {

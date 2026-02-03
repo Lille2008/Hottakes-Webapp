@@ -158,6 +158,14 @@ let autoSaveGameDay = null;
 let isSavingSubmission = false;
 let autoSaveToastTimer = null;
 
+const PAGE_TYPE = document.body?.dataset?.page || 'spieltag';
+const isGamePage = PAGE_TYPE === 'spieltag';
+const isLeaderboardPage = PAGE_TYPE === 'leaderboard';
+const isProfilePage = PAGE_TYPE === 'profil';
+const isAdminPage = PAGE_TYPE === 'admin';
+const shouldShowGlobalSelect = isGamePage || isLeaderboardPage || isAdminPage;
+const ADMIN_NICKNAME = 'lille08';
+
 const hottakesContainer = document.getElementById('hottakes-container');
 const ranksContainer = document.getElementById('ranks-container');
 const leaderboardContainer = document.getElementById('leaderboard-container');
@@ -179,7 +187,11 @@ const settingsAuthGuest = document.getElementById('settings-auth-guest');
 const settingsAuthUser = document.getElementById('settings-auth-user');
 const settingsUsername = document.getElementById('settings-username');
 const settingsLogout = document.getElementById('settings-logout');
-const userChip = document.getElementById('user-chip'); //Benutzernickname im Header
+const userChip = document.getElementById('user-chip'); // Benutzernickname (nur Profil-Seite)
+const navToggle = document.getElementById('nav-toggle');
+const navMenu = document.getElementById('nav-menu');
+const navBackdrop = document.getElementById('nav-backdrop');
+const navAdminItem = document.querySelector('[data-nav="admin"]');
 const legalBackdrop = document.getElementById('legal-backdrop');
 const legalModal = document.getElementById('legal-modal');
 const legalContent = document.getElementById('legal-content');
@@ -199,20 +211,26 @@ const lockStatus = document.getElementById('lock-status');
 const gameDayBanner = document.getElementById('game-day-banner');
 const gameDayActions = document.querySelector('#game-day-banner .game-day-actions');
 const gameDayInfo = document.getElementById('game-day-info');
+const globalSelect = document.getElementById('global-select');
 let historySelect = null;
 let leaderboardSelect = null;
 const autoSaveToast = document.createElement('div');
 
-// Sicherstellen, dass alle notwendigen DOM-Elemente vorhanden sind
-if (
-    !hottakesContainer ||
-    !ranksContainer ||
-    !leaderboardContainer ||
-    !adminArea ||
-    !adminList ||
-    !adminAdd
-) {
-    throw new Error('Hottakes App Initialisierung fehlgeschlagen: DOM-Elemente nicht gefunden.');
+// Sicherstellen, dass alle notwendigen DOM-Elemente pro Seite vorhanden sind
+const hasGameElements = !!(hottakesContainer && ranksContainer);
+const hasLeaderboardElements = !!leaderboardContainer;
+const hasAdminElements = !!(adminArea && adminList && adminAdd);
+
+if (isGamePage && !hasGameElements) {
+    throw new Error('Hottakes App Initialisierung fehlgeschlagen: Game-Elemente nicht gefunden.');
+}
+
+if (isLeaderboardPage && !hasLeaderboardElements) {
+    throw new Error('Hottakes App Initialisierung fehlgeschlagen: Leaderboard-Elemente nicht gefunden.');
+}
+
+if (isAdminPage && !hasAdminElements) {
+    throw new Error('Hottakes App Initialisierung fehlgeschlagen: Admin-Elemente nicht gefunden.');
 }
 
 leaderboardHeader.className = 'leaderboard-header';
@@ -235,7 +253,9 @@ async function loadGameDays() {
         const data = await apiFetch('/game-days', {}, { allowNotFound: true });
         gameDays = Array.isArray(data) ? data : [];
         updateHistorySelect();
-        updateLeaderboardSelect();
+        if (leaderboardContainer) {
+            updateLeaderboardSelect();
+        }
     } catch (error) {
         console.warn('Spieltage konnten nicht geladen werden.', error.message || error);
     }
@@ -244,30 +264,24 @@ async function loadGameDays() {
 const THEME_MODE_STORAGE_KEY = 'hottakes-theme-mode';
 let systemMediaQuery = null;
 
-adminList.classList.add('admin-card');
-adminAdd.classList.add('admin-card');
+if (adminList) {
+    adminList.classList.add('admin-card');
+}
+if (adminAdd) {
+    adminAdd.classList.add('admin-card');
+}
 if (adminGameDay) {
     adminGameDay.classList.add('admin-card');
 }
 
-const adminFeedback = document.createElement('div');
-adminFeedback.id = 'admin-feedback';
-adminFeedback.className = 'admin-feedback';
-adminFeedback.setAttribute('role', 'status');
-adminFeedback.setAttribute('aria-live', 'polite');
-adminArea.insertBefore(adminFeedback, adminArea.firstChild);
-
 function showAdminMessage(message, tone = 'info') {
     if (!message) {
-        adminFeedback.textContent = '';
-        adminFeedback.classList.remove('is-visible');
-        adminFeedback.removeAttribute('data-tone');
         return;
     }
 
-    adminFeedback.textContent = message;
-    adminFeedback.dataset.tone = tone;
-    adminFeedback.classList.add('is-visible');
+    // English comment: Admin feedback is intentionally logged only, no UI banner.
+    const logger = tone === 'error' ? console.warn : console.info;
+    logger(`Admin: ${message}`);
 }
 
 // Ermittelt das aktuelle System-Theme (light/dark)
@@ -373,6 +387,87 @@ function initTheme() {
     });
 }
 
+function openNavMenu() {
+    if (!navMenu) {
+        return;
+    }
+
+    navMenu.classList.add('is-open');
+    navMenu.setAttribute('aria-hidden', 'false');
+    if (navToggle) {
+        navToggle.setAttribute('aria-expanded', 'true');
+    }
+    if (navBackdrop) {
+        navBackdrop.classList.add('is-open');
+        navBackdrop.setAttribute('aria-hidden', 'false');
+    }
+}
+
+function closeNavMenu() {
+    if (!navMenu) {
+        return;
+    }
+
+    navMenu.classList.remove('is-open');
+    navMenu.setAttribute('aria-hidden', 'true');
+    if (navToggle) {
+        navToggle.setAttribute('aria-expanded', 'false');
+    }
+    if (navBackdrop) {
+        navBackdrop.classList.remove('is-open');
+        navBackdrop.setAttribute('aria-hidden', 'true');
+    }
+}
+
+function syncActiveNavLink() {
+    if (!navMenu) {
+        return;
+    }
+
+    navMenu.querySelectorAll('[data-nav]').forEach((link) => {
+        const isActive = link.dataset.nav === PAGE_TYPE;
+        link.classList.toggle('is-active', isActive);
+        if (isActive) {
+            link.setAttribute('aria-current', 'page');
+        } else {
+            link.removeAttribute('aria-current');
+        }
+    });
+}
+
+function setupNavMenu() {
+    if (navToggle) {
+        navToggle.addEventListener('click', () => {
+            if (navMenu && navMenu.classList.contains('is-open')) {
+                closeNavMenu();
+            } else {
+                openNavMenu();
+            }
+        });
+    }
+
+    if (navMenu) {
+        navMenu.addEventListener('click', (event) => {
+            const target = event.target;
+            if (target && target.matches && target.matches('a')) {
+                closeNavMenu();
+            }
+        });
+    }
+
+    if (navBackdrop) {
+        navBackdrop.addEventListener('click', closeNavMenu);
+    }
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && navMenu && navMenu.classList.contains('is-open')) {
+            closeNavMenu();
+        }
+    });
+
+    syncActiveNavLink();
+}
+
 
 function openSettings() {
     if (!settingsPanel || !settingsBackdrop) {
@@ -407,7 +502,9 @@ function closeSettings() {
     }
 
     document.body.classList.remove('settings-open');
-    startSwipeFlow();
+    if (isGamePage) {
+        startSwipeFlow();
+    }
 }
 
 
@@ -441,7 +538,7 @@ function setupSettingsPanel() {
 async function loadLegalContent(type) {
     if (!legalContent) return;
 
-    const path = type === 'impressum' ? '/impressum.html' : '/datenschutz.html';
+    const path = type === 'impressum' ? '/impressum' : '/datenschutz';
     legalContent.innerHTML = '<p>Lädt...</p>';
 
     try {
@@ -478,11 +575,17 @@ function closeLegal() {
     legalModal.setAttribute('aria-hidden', 'true');
     legalBackdrop.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('legal-open');
-    startSwipeFlow();
+    if (isGamePage) {
+        startSwipeFlow();
+    }
 }
 
 
 function setupLegalModal() {
+    if (!legalModal || !legalBackdrop || !legalContent) {
+        return;
+    }
+
     const legalLinks = document.querySelectorAll('.legal-link');
     legalLinks.forEach((link) => {
         link.addEventListener('click', (event) => {
@@ -657,7 +760,7 @@ function getRemainingOpenHottakesCount() {
 }
 
 function renderGameDayInfo(lockTime, diffMs, openCount = 0) {
-    if (!gameDayInfo) {
+    if (!gameDayInfo || !rankReadOnlyNotice || !lockScheduleNotice || !openHottakesCounter) {
         return;
     }
 
@@ -991,43 +1094,48 @@ function setHeaderAuthState(isLoggedIn) {
     }
 }
 
-const hottakesNotice = document.createElement('p');
-hottakesNotice.id = 'hottakes-notice';
-hottakesNotice.className = 'hottakes-notice';
-if (ranksContainer) {
-    ranksContainer.appendChild(hottakesNotice);
-} else {
-    hottakesContainer.appendChild(hottakesNotice);
-}
-
-const rankSummary = document.createElement('p');
-rankSummary.id = 'rank-summary';
-rankSummary.className = 'rank-summary';
-if (ranksContainer) {
-    ranksContainer.appendChild(rankSummary);
-}
-
-const lockScheduleNotice = document.createElement('p');
-lockScheduleNotice.id = 'lock-schedule-notice';
-lockScheduleNotice.className = 'lock-notice lock-notice--schedule';
-
-const openHottakesCounter = document.createElement('p');
-openHottakesCounter.id = 'open-hottakes-counter';
-openHottakesCounter.className = 'open-hottakes-counter';
-
-const rankReadOnlyNotice = document.createElement('p');
-rankReadOnlyNotice.id = 'rank-readonly-notice';
-rankReadOnlyNotice.className = 'lock-notice lock-notice--locked';
-
-const rankHint = null;
-
-
-const hottakesList = document.createElement('div');
-hottakesList.id = 'hottakes-list';
-hottakesContainer.appendChild(hottakesList);
-
-
 const rankSlots = [];
+let hottakesNotice = null;
+let rankSummary = null;
+let lockScheduleNotice = null;
+let openHottakesCounter = null;
+let rankReadOnlyNotice = null;
+const rankHint = null;
+let hottakesList = null;
+
+if (isGamePage && hottakesContainer) {
+    hottakesNotice = document.createElement('p');
+    hottakesNotice.id = 'hottakes-notice';
+    hottakesNotice.className = 'hottakes-notice';
+    if (ranksContainer) {
+        ranksContainer.appendChild(hottakesNotice);
+    } else {
+        hottakesContainer.appendChild(hottakesNotice);
+    }
+
+    rankSummary = document.createElement('p');
+    rankSummary.id = 'rank-summary';
+    rankSummary.className = 'rank-summary';
+    if (ranksContainer) {
+        ranksContainer.appendChild(rankSummary);
+    }
+
+    lockScheduleNotice = document.createElement('p');
+    lockScheduleNotice.id = 'lock-schedule-notice';
+    lockScheduleNotice.className = 'lock-notice lock-notice--schedule';
+
+    openHottakesCounter = document.createElement('p');
+    openHottakesCounter.id = 'open-hottakes-counter';
+    openHottakesCounter.className = 'open-hottakes-counter';
+
+    rankReadOnlyNotice = document.createElement('p');
+    rankReadOnlyNotice.id = 'rank-readonly-notice';
+    rankReadOnlyNotice.className = 'lock-notice lock-notice--locked';
+
+    hottakesList = document.createElement('div');
+    hottakesList.id = 'hottakes-list';
+    hottakesContainer.appendChild(hottakesList);
+}
 
 
 function createRankSlots() {
@@ -1674,7 +1782,9 @@ function refreshLockState() {
     if (!selectedMeta) {
         isLocked = false;
         updateLockBanner(null, null, openHottakes.length);
-        applyLockStateUI();
+        if (isGamePage) {
+            applyLockStateUI();
+        }
         return;
     }
 
@@ -1682,7 +1792,9 @@ function refreshLockState() {
     if ([GAME_DAY_STATUS.FINALIZED, GAME_DAY_STATUS.ARCHIVED].includes(selectedMeta.status)) {
         isLocked = true;
         updateLockBanner(selectedMeta.lockTime || null, 0, openHottakes.length);
-        applyLockStateUI();
+        if (isGamePage) {
+            applyLockStateUI();
+        }
         return;
     }
 
@@ -1692,7 +1804,9 @@ function refreshLockState() {
     if (!selectedMeta.lockTime) {
         isLocked = false;
         updateLockBanner(null, null, openHottakes.length);
-        applyLockStateUI();
+        if (isGamePage) {
+            applyLockStateUI();
+        }
         return;
     }
 
@@ -1702,7 +1816,9 @@ function refreshLockState() {
         const diffMs = lockTime.getTime() - Date.now();
         isLocked = diffMs <= 0;
         updateLockBanner(lockTime, diffMs, openHottakes.length);
-        applyLockStateUI();
+        if (isGamePage) {
+            applyLockStateUI();
+        }
 
         if (isLocked) {
             stopLockCountdown();
@@ -1755,14 +1871,20 @@ function ensureHistorySelect() {
         selectedGameDay = value;
         selectedHistoryGameDay = value;
         resetAutoSaveState(value);
-        await refreshHottakes(value);
-        await loadSubmissionForCurrentUser(value, viewMode === 'readonly');
-        await drawLeaderboard();
+        if (isGamePage) {
+            await refreshHottakes(value);
+            await loadSubmissionForCurrentUser(value, viewMode === 'readonly');
+            renderHottakes();
+        }
+        if (isLeaderboardPage && leaderboardContainer) {
+            await drawLeaderboard();
+        }
         refreshLockState();
-        renderHottakes();
     });
 
-    if (gameDayActions) {
+    if (globalSelect) {
+        globalSelect.appendChild(historySelect);
+    } else if (gameDayActions) {
         gameDayActions.appendChild(historySelect);
     } else if (gameDayBanner) {
         gameDayBanner.appendChild(historySelect);
@@ -2307,6 +2429,9 @@ function createHottakeElement(hottake, { readonly = false, decision = null, show
 
 
 function renderHottakes() {
+    if (!isGamePage || !hottakesList || !hottakesContainer || !ranksContainer) {
+        return;
+    }
     clearSelections();
     const selectedMeta = getSelectedGameDayMeta();
     const isFinalized = selectedMeta
@@ -2377,6 +2502,9 @@ function renderHottakes() {
 
 
 async function refreshHottakes(targetGameDay = null) {
+    if (!isGamePage) {
+        return;
+    }
     try {
         const fallback = selectedGameDay !== null ? selectedGameDay : activeGameDay?.gameDay;
         const gameDay = targetGameDay !== null ? targetGameDay : fallback;
@@ -3318,6 +3446,11 @@ function updateUIForLogin(user) {
     setHeaderAuthState(true);
     persistThemePreference(getStoredThemeMode() || 'system');
 
+    const isAdminUser = user.nickname === ADMIN_NICKNAME;
+    if (navAdminItem) {
+        navAdminItem.classList.toggle('is-hidden', !isAdminUser);
+    }
+
     const userInfo = document.getElementById('user-info');
     const userDisplay = document.getElementById('user-nickname-display');
     if (userInfo && userDisplay) {
@@ -3335,23 +3468,24 @@ function updateUIForLogin(user) {
 
     const gameContainer = document.getElementById('game');
     const adminArea = document.getElementById('admin-area');
+    const adminLocked = document.getElementById('admin-locked');
 
-    if (user.nickname === 'lille08') {
-        closeSwipeOverlay();
-        swipeCompleted = false;
-        swipeDecisions = [];
+    adminEnabled = isAdminUser && isAdminPage;
 
-        if (gameContainer) gameContainer.style.display = 'none';
-        if (savePicksButton) savePicksButton.style.display = 'none';
-        if (gameDayShell) gameDayShell.style.display = 'none';
-
+    if (isAdminPage) {
+        if (adminLocked) {
+            adminLocked.classList.toggle('is-hidden', isAdminUser);
+        }
         if (adminArea) {
-            adminArea.style.display = 'flex';
+            adminArea.style.display = isAdminUser ? 'flex' : 'none';
+        }
+        if (isAdminUser) {
             enableAdminArea();
         }
-    } else {
-        adminEnabled = false;
+        return;
+    }
 
+    if (isGamePage) {
         if (gameContainer) gameContainer.style.display = 'grid';
         if (gameDayShell) gameDayShell.style.display = 'block';
         if (savePicksButton) {
@@ -3362,7 +3496,6 @@ function updateUIForLogin(user) {
         if (adminArea) {
             adminArea.style.display = 'none';
         }
-
         loadSubmissionForCurrentUser();
     }
 }
@@ -3380,6 +3513,10 @@ async function updateUIForGuest() {
     adminEnabled = false;
     swipeCompleted = false;
     swipeDecisions = [];
+
+    if (navAdminItem) {
+        navAdminItem.classList.add('is-hidden');
+    }
 
 
     const guestArea = document.getElementById('guest-nickname-area');
@@ -3399,10 +3536,12 @@ async function updateUIForGuest() {
 
     const gameContainer = document.getElementById('game');
     const adminArea = document.getElementById('admin-area');
+    const adminLocked = document.getElementById('admin-locked');
 
-    if (gameContainer) gameContainer.style.display = 'none';
-    if (gameDayShell) gameDayShell.style.display = 'none';
+    if (gameContainer && isGamePage) gameContainer.style.display = 'none';
+    if (gameDayShell && isGamePage) gameDayShell.style.display = 'none';
     if (adminArea) adminArea.style.display = 'none';
+    if (adminLocked && isAdminPage) adminLocked.classList.remove('is-hidden');
 
     if (savePicksButton) {
         savePicksButton.disabled = true;
@@ -3413,19 +3552,33 @@ async function updateUIForGuest() {
 
 async function initializeApp() {
     initTheme();
+    setupNavMenu();
     setupSettingsPanel();
     setupLegalModal();
-    createRankSlots();
-    await loadGameDays();
-    await loadActiveGameDay();
-    if (activeGameDay) {
-        selectedGameDay = activeGameDay.gameDay;
-        selectedHistoryGameDay = selectedGameDay;
-        updateHistorySelect();
+
+    if (isGamePage) {
+        createRankSlots();
     }
+
+    if (shouldShowGlobalSelect) {
+        await loadGameDays();
+        await loadActiveGameDay();
+        if (activeGameDay) {
+            selectedGameDay = activeGameDay.gameDay;
+            selectedHistoryGameDay = selectedGameDay;
+            updateHistorySelect();
+        }
+    }
+
     await checkLoginStatus();
-    await refreshHottakes();
-    await drawLeaderboard();
+
+    if (isGamePage) {
+        await refreshHottakes();
+    }
+
+    if (leaderboardContainer && (isLeaderboardPage || isGamePage || isAdminPage)) {
+        await drawLeaderboard();
+    }
 }
 
 initializeApp().catch((error) => {

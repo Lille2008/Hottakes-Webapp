@@ -161,6 +161,84 @@ header {
     line-height: 1.1;
 }
 
+/* ============================================
+   NAV DROPDOWN
+   ============================================ */
+.nav-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(4, 6, 22, 0.45);
+    backdrop-filter: blur(4px);
+    opacity: 0;
+    pointer-events: none;
+    transition: var(--transition-smooth);
+    z-index: 8;
+}
+
+.nav-backdrop.is-open {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.nav-menu {
+    position: absolute;
+    top: 86px;
+    right: 20px;
+    background: var(--bg-card);
+    border: 1px solid rgba(0, 217, 255, 0.2);
+    border-radius: 16px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 200px;
+    box-shadow: var(--shadow-card);
+    opacity: 0;
+    transform: translateY(-10px);
+    pointer-events: none;
+    transition: var(--transition-smooth);
+    z-index: 9;
+}
+
+.nav-menu.is-open {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: all;
+}
+
+.nav-menu a {
+    text-decoration: none;
+    padding: 10px 12px;
+    border-radius: 12px;
+    color: var(--text-primary);
+    font-weight: 600;
+    transition: var(--transition-smooth);
+    background: transparent;
+}
+
+.nav-menu a:hover {
+    background: var(--bg-card-hover);
+    box-shadow: var(--glow-cyan);
+}
+
+.nav-menu a.is-active {
+    background: rgba(0, 217, 255, 0.14);
+    color: var(--gradient-start);
+}
+
+.nav-menu a.is-hidden {
+    display: none;
+}
+
+/* ============================================
+   GLOBAL SELECT BAR
+   ============================================ */
+.global-select {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
 h1 {
     color: var(--gradient-start); /* Fallback for browsers without background-clip support */
     background: var(--gradient-primary);
@@ -623,37 +701,6 @@ h3 {
     height: min(74vh, 640px);
 }
 
-.swipe-card--back {
-    position: absolute;
-    inset: 0;
-    transform: scale(0.98) translateY(6px);
-    opacity: 0.65;
-    filter: blur(0.5px);
-    transition: none;
-    pointer-events: none;
-}
-
-.swipe-card-content {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    text-align: center;
-    padding-bottom: 70px;
-}
-
-.swipe-text {
-    margin: 0;
-    font-size: clamp(1.4rem, 2.2vw, 2rem);
-    font-weight: 700;
-    line-height: 1.5;
-    text-align: center;
-}
-
-.swipe-arrows {
-    position: absolute;
     left: 0;
     right: 0;
     bottom: 18px;
@@ -829,6 +876,83 @@ body.swipe-open #cookie-banner {
     display: inline-flex;
     align-items: center;
     gap: 8px;
+}
+
+/* ============================================
+   PROFILE PAGE
+   ============================================ */
+.profile-shell {
+    max-width: 900px;
+    margin: 0 auto 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.profile-header {
+    background: var(--bg-card);
+    border-radius: 18px;
+    padding: 24px;
+    box-shadow: var(--shadow-card);
+    display: grid;
+    gap: 12px;
+}
+
+.profile-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 64px;
+    min-height: 64px;
+    border-radius: 18px;
+    font-size: 1.2rem;
+    background: rgba(0, 217, 255, 0.12);
+    color: var(--gradient-end);
+}
+
+.profile-info {
+    display: grid;
+    gap: 4px;
+}
+
+.profile-kicker {
+    margin: 0;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-secondary);
+}
+
+.profile-name {
+    margin: 0;
+    font-size: 1.4rem;
+    font-weight: 700;
+}
+
+.profile-hint {
+    margin: 0;
+    color: var(--text-secondary);
+}
+
+.profile-card {
+    background: var(--bg-card-hover);
+    border-radius: 16px;
+    padding: 20px;
+    border: 1px solid rgba(0, 217, 255, 0.18);
+    box-shadow: var(--shadow-card);
+}
+
+/* ============================================
+   ADMIN LOCKED NOTICE
+   ============================================ */
+.admin-locked {
+    max-width: 900px;
+    margin: 0 auto 24px;
+    background: var(--bg-card);
+    border-radius: 16px;
+    padding: 22px;
+    border: 1px solid rgba(255, 99, 99, 0.3);
+    box-shadow: var(--shadow-card);
 }
 
 .icon-button {

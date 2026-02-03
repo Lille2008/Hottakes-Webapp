@@ -195,6 +195,15 @@
 **AI:**
 - Ergebnis-Badge nutzt jetzt eine eigene Pill innerhalb einer Zeile, damit Handle + Text zusammenbleiben. Umsetzung: [public/src/app.js](public/src/app.js) und [public/src/styles.css](public/src/styles.css)
 
+### 2026-02-03
+
+**User:** Layout-Refactor: eigene Seiten (Spieltag, Leaderboard, Profil, Admin), globaler Auswahl-Container, Dropdown-Menu, schöne Pfade ohne .html.
+
+**AI:**
+- Multi-Page Struktur angelegt (spieltag.html, leaderboard.html, profil.html, admin.html) mit shared Header/Dropdown-Menu und globalem Select-Container auf Spieltag/Leaderboard/Admin. Profil bündelt Settings + Nickname-Icon. Umsetzung: [public/spieltag.html](public/spieltag.html), [public/leaderboard.html](public/leaderboard.html), [public/profil.html](public/profil.html), [public/admin.html](public/admin.html)
+- Pretty paths via Express-Routes (z. B. `/spieltag`, `/leaderboard`, `/profil`, `/admin`, `/login`) und Fallback auf spieltag.html. Umsetzung: [src/app.ts](src/app.ts)
+- `app.js` seitenfähig gemacht (page flags, Dropdown-Nav, Admin-Only Menu Item, game-only init). Umsetzung: [public/src/app.js](public/src/app.js)
+
 **User:** Hottake-Body soll immer einheitlich sein, unabhängig von Ergebnis oder User-Entscheidung.
 
 **AI:**
