@@ -190,5 +190,10 @@
 - Ergebnis-Badge schrumpft jetzt auf Inhalt und bleibt rechts unten im Hottake. Umsetzung: [public/src/styles.css](public/src/styles.css)
 - Spieltag- und Leaderboard-Dropdowns sortieren nach frühester LockTime. Umsetzung: [public/src/app.js](public/src/app.js)
 
+**User:** Ergebnis-Badge soll den Hottake-Text nicht umbrechen (Text bleibt neben dem Drag-Handle).
+
+**AI:**
+- Ergebnis-Badge nutzt jetzt eine eigene Pill innerhalb einer Zeile, damit Handle + Text zusammenbleiben. Umsetzung: [public/src/app.js](public/src/app.js) und [public/src/styles.css](public/src/styles.css)
+
 
 

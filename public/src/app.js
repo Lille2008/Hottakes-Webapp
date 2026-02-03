@@ -2199,9 +2199,13 @@ function createHottakeElement(hottake, { readonly = false, decision = null, show
         resultIcon.className = `hottake-result__icon ${statusClass}`;
         resultIcon.textContent = STATUS_RESULT_SYMBOL[hottake.status] || STATUS_RESULT_SYMBOL.OFFEN;
 
+        const resultPill = document.createElement('span');
+        resultPill.className = 'hottake-result__pill';
+        resultPill.append(resultLabel, resultIcon);
+
         resultBadge = document.createElement('span');
         resultBadge.className = 'hottake-result';
-        resultBadge.append(resultLabel, resultIcon);
+        resultBadge.append(resultPill);
         const labelText = STATUS_LABELS[hottake.status] || STATUS_LABELS.OFFEN;
         resultBadge.setAttribute('aria-label', `Ergebnis: ${labelText}`);
         resultBadge.setAttribute('title', `Ergebnis: ${labelText}`);
