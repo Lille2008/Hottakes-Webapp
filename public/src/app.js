@@ -465,7 +465,7 @@ function shouldAutoStartSwipe() {
 
     const targetGameDay = selectedGameDay ?? activeGameDay?.gameDay ?? null;
     const hasSavedSwipe = lastSubmissionGameDay === targetGameDay &&
-        lastSubmissionSwipeDecisions.length === MIN_OPEN_HOTTAKES;
+        hasCompleteSwipeDecisionsFor(lastSubmissionSwipeDecisions, openHottakes);
 
     if (hasSavedSwipe) {
         return false;
@@ -474,9 +474,15 @@ function shouldAutoStartSwipe() {
     return !hasCompleteSwipeDecisions();
 }
 
-function getSwipeDecisionMap() {
+function isFinalSwipeDecision(decision) {
+    // English comment: Only hit/pass count as a final decision. Skip stays "open".
+    return decision === 'hit' || decision === 'pass';
+}
+
+function getSwipeDecisionMap(decisions = swipeDecisions) {
     const map = new Map();
-    swipeDecisions.forEach((entry) => {
+    const source = Array.isArray(decisions) ? decisions : [];
+    source.forEach((entry) => {
         if (!entry || typeof entry.hottakeId !== 'number') {
             return;
         }
@@ -515,16 +521,21 @@ function revertSwipeDecision(hottakeId, previousDecision) {
     swipeDecisions = swipeDecisions.filter((entry) => entry.hottakeId !== hottakeId);
 }
 
-function hasCompleteSwipeDecisions() {
-    if (openHottakes.length === 0) {
+function hasCompleteSwipeDecisionsFor(decisions, hottakes = openHottakes) {
+    if (!Array.isArray(hottakes) || hottakes.length === 0) {
         return false;
     }
-    const map = getSwipeDecisionMap();
-    return openHottakes.every((hot) => map.has(hot.id));
+    const map = getSwipeDecisionMap(decisions);
+    return hottakes.every((hot) => isFinalSwipeDecision(map.get(hot.id)));
+}
+
+function hasCompleteSwipeDecisions() {
+    return hasCompleteSwipeDecisionsFor(swipeDecisions, openHottakes);
 }
 
 function buildSwipeDeck(startHottakeId = null) {
-    const openDeck = openHottakes.slice();
+    const decisionMap = getSwipeDecisionMap();
+    const openDeck = openHottakes.filter((hot) => !isFinalSwipeDecision(decisionMap.get(hot.id)));
     if (!startHottakeId) {
         return openDeck;
     }
@@ -555,7 +566,7 @@ function getRemainingOpenHottakesCount() {
     }
 
     const decisionMap = getSwipeDecisionMap();
-    return openHottakes.filter((hot) => !decisionMap.has(hot.id)).length;
+    return openHottakes.filter((hot) => !isFinalSwipeDecision(decisionMap.get(hot.id))).length;
 }
 
 function renderGameDayInfo(lockTime, diffMs, openCount = 0) {
@@ -772,7 +783,7 @@ function startSwipeFlow() {
     } else {
         sortSwipeDecisions();
         const decisionMap = getSwipeDecisionMap();
-        const nextIndex = swipeDeck.findIndex((hot) => !decisionMap.has(hot.id));
+        const nextIndex = swipeDeck.findIndex((hot) => !isFinalSwipeDecision(decisionMap.get(hot.id)));
         swipeIndex = nextIndex === -1 ? swipeDeck.length : nextIndex;
         swipeCompleted = hasCompleteSwipeDecisions();
     }
@@ -1548,7 +1559,7 @@ function updateLockBanner(lockTime, diffMs, openCount = 0) {
         lockStatus.textContent = 'Kein aktiver Spieltag';
         lockCountdown.textContent = 'Countdown inaktiv';
         lockCountdown.dataset.state = 'idle';
-        renderGameDayInfo(null, null, openCount);
+        renderGameDayInfo(null, null, getRemainingOpenHottakesCount());
         return;
     }
 
@@ -1927,8 +1938,8 @@ function loadDraftState(allowedHottakes = openHottakes) {
     sortSwipeDecisions();
 
     const allowedList = Array.isArray(allowedHottakes) ? allowedHottakes : [];
-    const decisionIds = new Set(nextDecisions.map((entry) => entry.hottakeId));
-    swipeCompleted = allowedList.length > 0 && allowedList.every((hot) => decisionIds.has(hot.id));
+    const decisionMap = getSwipeDecisionMap(nextDecisions);
+    swipeCompleted = allowedList.length > 0 && allowedList.every((hot) => isFinalSwipeDecision(decisionMap.get(hot.id)));
     swipeIndex = swipeCompleted ? allowedList.length : 0;
 }
 
@@ -2086,9 +2097,6 @@ function createHottakeElement(hottake, { readonly = false, picked = false, decis
         element.classList.add('is-swipe-hit');
     } else if (decision === 'pass') {
         element.classList.add('is-swipe-pass');
-    } else if (decision === 'skip') {
-        element.classList.add('is-swipe-skip');
-        textSpan.textContent = '';
     }
 
     if (picked) {
@@ -2247,15 +2255,14 @@ async function refreshHottakes(targetGameDay = null) {
         if (gameDay !== swipeGameDay) {
             // English comment: Reset swipe completion when switching game days.
             swipeGameDay = gameDay;
-            const hasSavedSwipe = lastSubmissionGameDay === gameDay &&
-                lastSubmissionSwipeDecisions.length === MIN_OPEN_HOTTAKES;
+            const hasStoredSwipe = lastSubmissionGameDay === gameDay &&
+                Array.isArray(lastSubmissionSwipeDecisions) &&
+                lastSubmissionSwipeDecisions.length > 0;
 
-            if (hasSavedSwipe) {
-                swipeCompleted = true;
+            if (hasStoredSwipe) {
                 swipeDecisions = lastSubmissionSwipeDecisions.slice();
                 sortSwipeDecisions();
             } else {
-                swipeCompleted = false;
                 swipeDecisions = [];
             }
         }
@@ -2376,12 +2383,17 @@ async function loadSubmissionForCurrentUser(gameDay = null, isReadOnly = false) 
             : [];
         lastSubmissionGameDay = submission ? targetGameDay : null;
 
-        const hasSavedSwipe = lastSubmissionSwipeDecisions.length === MIN_OPEN_HOTTAKES;
-        if (hasSavedSwipe) {
+        const hasStoredSwipe = lastSubmissionGameDay === targetGameDay &&
+            Array.isArray(lastSubmissionSwipeDecisions) &&
+            lastSubmissionSwipeDecisions.length > 0;
+        if (hasStoredSwipe) {
             swipeDecisions = lastSubmissionSwipeDecisions.slice();
             sortSwipeDecisions();
-            swipeCompleted = true;
+            swipeCompleted = hasCompleteSwipeDecisionsFor(lastSubmissionSwipeDecisions, openHottakes);
             swipeGameDay = targetGameDay;
+        } else {
+            swipeDecisions = [];
+            swipeCompleted = false;
         }
 
         if (submission && Array.isArray(submission.picks)) {

@@ -169,5 +169,14 @@
 - Readonly-Mode zeigt alle Hottakes mit Opacity 0.7 und blockiert Swipe nach LockTime. Umsetzung: [public/src/app.js](public/src/app.js) und [public/src/styles.css](public/src/styles.css)
 - Backend erlaubt Skip-Entscheidungen und ignoriert sie beim Scoring. Umsetzung: [src/routes/submissions.ts](src/routes/submissions.ts), [src/lib/scoring.ts](src/lib/scoring.ts), [src/lib/leaderboard.ts](src/lib/leaderboard.ts)
 
+### 2026-02-03
+
+**User:** Übersprungene Karten sehen falsch aus, Counter zählt sie nicht, und im Swipe-Deck erscheinen zu viele Karten.
+
+**AI:**
+- Skip-Karten sehen wieder wie offene Hottakes aus (Text bleibt sichtbar, keine graue Skip-Optik). Umsetzung: [public/src/app.js](public/src/app.js)
+- Swipe-Deck zeigt beim Klick: gewählte Karte zuerst, danach nur offene (nicht final entschiedene) Karten. Umsetzung: [public/src/app.js](public/src/app.js)
+- Offene-Hottakes-Counter zählt Skips wieder mit, weil Skip als „offen“ behandelt wird. Umsetzung: [public/src/app.js](public/src/app.js)
+
 
 
