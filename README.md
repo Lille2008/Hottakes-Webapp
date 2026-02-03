@@ -184,5 +184,11 @@
 - Read-only Hottakes zeigen jetzt auch bei FINALIZED/ARCHIVED alle Hottakes (nicht leer), inklusive Ergebnis-Badge mit ?/✓/✗ für OFFEN/WAHR/FALSCH. Umsetzung: [public/src/app.js](public/src/app.js) und [public/src/styles.css](public/src/styles.css)
 - “(aktiv)” in allen Spieltag-Selects folgt der UI-Regel: locked aber nicht finalized **oder** nächste LockTime innerhalb von 5 Tagen. Umsetzung: [public/src/app.js](public/src/app.js)
 
+**User:** Ergebnis-Badge soll nur so groß wie der Text sein und Spieltag/Leaderboard-Dropdowns nach LockTime sortieren (früheste zuerst).
+
+**AI:**
+- Ergebnis-Badge schrumpft jetzt auf Inhalt und bleibt rechts unten im Hottake. Umsetzung: [public/src/styles.css](public/src/styles.css)
+- Spieltag- und Leaderboard-Dropdowns sortieren nach frühester LockTime. Umsetzung: [public/src/app.js](public/src/app.js)
+
 
 

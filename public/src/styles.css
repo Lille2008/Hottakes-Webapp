@@ -1190,9 +1190,10 @@ body.swipe-open #cookie-banner {
 
 .hottake-result {
     /* English comment: The result badge explains outcomes for locked/finalized days. */
-    flex-basis: 100%;
+    flex: 0 0 auto;
     margin-top: 8px;
-    margin-left: 24px;
+    margin-left: auto;
+    align-self: flex-end;
     padding: 4px 10px;
     border-radius: 999px;
     border: 1px solid rgba(0, 217, 255, 0.35);
@@ -1203,6 +1204,7 @@ body.swipe-open #cookie-banner {
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    width: fit-content;
 }
 
 .hottake-result__label {
@@ -1961,7 +1963,7 @@ footer a:hover {
 .hottake.is-readonly {
     cursor: default;
     /* English comment: Lock/read-only should fade every hottake consistently. */
-    opacity: 0.6;
+    opacity: 0.8;
 }
 
 /* ============================================

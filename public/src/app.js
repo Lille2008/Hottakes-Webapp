@@ -89,6 +89,31 @@ function shouldShowActiveLabel(day, { nowMs = Date.now(), nextUpcomingId = null 
     return day.gameDay === activeUpcomingId;
 }
 
+function sortGameDaysByLockTime(days) {
+    if (!Array.isArray(days)) {
+        return [];
+    }
+
+    return days.slice().sort((a, b) => {
+        const aLock = getLockTimeMs(a);
+        const bLock = getLockTimeMs(b);
+
+        if (aLock === null && bLock === null) {
+            return (a?.gameDay ?? 0) - (b?.gameDay ?? 0);
+        }
+        if (aLock === null) {
+            return 1;
+        }
+        if (bLock === null) {
+            return -1;
+        }
+        if (aLock !== bLock) {
+            return aLock - bLock;
+        }
+        return (a?.gameDay ?? 0) - (b?.gameDay ?? 0);
+    });
+}
+
 
 let allHottakes = [];
 let openHottakes = [];
@@ -1763,8 +1788,9 @@ function updateHistorySelect() {
 
     const nowMs = Date.now();
     const nextUpcomingId = getNextUpcomingActiveLabelId(gameDays, nowMs);
+    const sortedDays = sortGameDaysByLockTime(gameDays);
 
-    gameDays.forEach((day) => {
+    sortedDays.forEach((day) => {
         const option = document.createElement('option');
         option.value = String(day.gameDay);
         const isActiveLabel = shouldShowActiveLabel(day, { nowMs, nextUpcomingId });
@@ -1833,8 +1859,9 @@ function updateLeaderboardSelect() {
 
     const nowMs = Date.now();
     const nextUpcomingId = getNextUpcomingActiveLabelId(gameDays, nowMs);
+    const sortedSelectableDays = sortGameDaysByLockTime(selectableDays);
 
-    selectableDays.forEach((day) => {
+    sortedSelectableDays.forEach((day) => {
         const option = document.createElement('option');
         const isActiveLabel = shouldShowActiveLabel(day, { nowMs, nextUpcomingId });
         const suffix = isActiveLabel ? ' (aktiv)' : '';
