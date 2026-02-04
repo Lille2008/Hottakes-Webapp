@@ -52,14 +52,14 @@
         <a href="/admin" data-nav="admin" class="is-hidden">Admin-Area</a>
     </nav>
 
-    <main class="profile-shell">
-        
-
-        <section class="profile-card">
+    <main class="page-shell">
+        <div class="page-panel">
+            <h2 class="page-title">Profil</h2>
+            <div class="profile-shell">
+            <section class="profile-card">
             <div class="settings-row settings-row--stack">
                 <div class="settings-row__text">
                     <p class="settings-label">Theme</p>
-                    <p class="settings-sub">Dark, Light oder Automatisch</p>
                 </div>
                 <div class="theme-choices" role="radiogroup" aria-label="Theme wählen">
                     <label class="theme-pill">
@@ -76,9 +76,9 @@
                     </label>
                 </div>
             </div>
-        </section>
+            </section>
 
-        <section class="profile-card">
+            <section class="profile-card">
             <div class="settings-row settings-row--stack">
                 <div class="settings-row__text">
                     <p class="settings-label">Feedback Hub</p>
@@ -86,9 +86,9 @@
                 </div>
                 <a class="pill-link" href="https://www.notion.so/Feedback-Hub-51f94fa7f34e4a1e9315e74cba0062da?source=copy_link" target="_blank" rel="noopener">Feedback Hub</a>
             </div>
-        </section>
+            </section>
 
-        <section class="profile-card" id="settings-auth-section">
+            <section class="profile-card" id="settings-auth-section">
             <div id="settings-auth-guest" class="settings-auth">
                 <p class="settings-label">Du bist als Gast unterwegs.</p>
                 <div class="settings-actions">
@@ -98,13 +98,15 @@
             </div>
 
             <div id="settings-auth-user" class="settings-auth is-hidden">
-                <p class="settings-label">Angemeldet als </p>
+                <p class="settings-label">Account</p>
                 <div class="auth-user-row">
                     <span id="user-chip" class="user-chip user-chip--sm" aria-live="polite"></span>
                     <button id="settings-logout" class="pill-link pill-link--danger" type="button">Logout</button>
                 </div>
             </div>
-        </section>
+            </section>
+            </div>
+        </div>
     </main>
 
     <footer>

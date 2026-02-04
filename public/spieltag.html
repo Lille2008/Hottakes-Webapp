@@ -52,52 +52,54 @@
         <a href="/admin" data-nav="admin" class="is-hidden">Admin-Area</a>
     </nav>
 
-    <div id="guest-nickname-area"></div>
+    <main class="page-shell">
+        <div class="page-panel">
+            <h2 class="page-title">Spieltag</h2>
+            <div id="guest-nickname-area"></div>
 
-    <section id="game-day-shell">
-        <div id="game-day-banner" class="game-day-banner">
-            <div>
-                <p class="game-day-kicker">Spieltag</p>
-                <p id="lock-status" class="game-day-title">Kein aktiver Spieltag</p>
+            <section id="game-day-shell">
+                <div class="game-day-select-row">
+                    <div id="global-select" class="global-select" aria-label="Spieltag auswählen"></div>
+                </div>
+                <div class="game-day-status is-hidden" aria-hidden="true">
+                    <p id="lock-status" class="game-day-title">Kein aktiver Spieltag</p>
+                    <span id="lock-countdown" class="lock-countdown is-hidden" data-state="idle">Countdown inaktiv</span>
+                </div>
+                <div id="game-day-info" class="game-day-info"></div>
+            </section>
+
+            <div id="game">
+                <div id="hottakes-container"></div>
+                <div id="ranks-container">
+                    <div class="ranks-header">
+                        <h2>Top 3</h2>
+                    </div>
+                </div>
             </div>
-            <div class="game-day-actions">
-                <div id="global-select" class="global-select" aria-label="Globale Auswahl"></div>
-                <span id="lock-countdown" class="lock-countdown is-hidden" data-state="idle">Countdown inaktiv</span>
-            </div>
-            <div id="game-day-info" class="game-day-info"></div>
+
+            <section id="welcome-banner">
+                <p class="welcome-kicker">Willkommen bei Hottakes!</p>
+                <p class="welcome-body">Bei Hottakes geht es darum Vorhersagen über die Bundesliga einzuranken. Jeden Spieltag hast du die Möglichkeit spannende Thesen, die Hottakes, danach zu ranken, für wie wahrscheinlich du sie hältst.</p>
+            </section>
+
+            <section id="swipe-overlay" class="swipe-overlay" aria-hidden="true" role="dialog" aria-modal="true">
+                <div class="swipe-overlay__inner">
+                    <button id="swipe-close" class="swipe-close" type="button" aria-label="Swipe-Modus schließen">×</button>
+                    <p class="swipe-kicker">Hottakes ranken</p>
+                    <h2 class="swipe-title">Was denkst du?</h2>
+                    <div class="swipe-card-stack">
+                        <div id="swipe-card-back" class="swipe-card swipe-card--back" aria-hidden="true"></div>
+                        <div id="swipe-card" class="swipe-card" aria-live="polite"></div>
+                    </div>
+                    <div class="swipe-actions">
+                        <button id="swipe-back" class="swipe-button swipe-button--ghost" type="button">Zurück</button>
+                        <button id="swipe-skip" class="swipe-button swipe-button--ghost swipe-button--skip" type="button">Überspringen</button>
+                    </div>
+                    <p id="swipe-progress" class="swipe-progress">0 / 10</p>
+                </div>
+            </section>
         </div>
-    </section>
-
-    <div id="game">
-        <div id="hottakes-container"></div>
-        <div id="ranks-container">
-            <div class="ranks-header">
-                <h2>Top 3</h2>
-            </div>
-        </div>
-    </div>
-
-    <section id="welcome-banner">
-        <p class="welcome-kicker">Willkommen bei Hottakes!</p>
-        <p class="welcome-body">Bei Hottakes geht es darum Vorhersagen über die Bundesliga einzuranken. Jeden Spieltag hast du die Möglichkeit spannende Thesen, die Hottakes, danach zu ranken, für wie wahrscheinlich du sie hältst.</p>
-    </section>
-
-    <section id="swipe-overlay" class="swipe-overlay" aria-hidden="true" role="dialog" aria-modal="true">
-        <div class="swipe-overlay__inner">
-            <button id="swipe-close" class="swipe-close" type="button" aria-label="Swipe-Modus schließen">×</button>
-            <p class="swipe-kicker">Hottakes ranken</p>
-            <h2 class="swipe-title">Was denkst du?</h2>
-            <div class="swipe-card-stack">
-                <div id="swipe-card-back" class="swipe-card swipe-card--back" aria-hidden="true"></div>
-                <div id="swipe-card" class="swipe-card" aria-live="polite"></div>
-            </div>
-            <div class="swipe-actions">
-                <button id="swipe-back" class="swipe-button swipe-button--ghost" type="button">Zurück</button>
-                <button id="swipe-skip" class="swipe-button swipe-button--ghost swipe-button--skip" type="button">Überspringen</button>
-            </div>
-            <p id="swipe-progress" class="swipe-progress">0 / 10</p>
-        </div>
-    </section>
+    </main>
 
     <footer>
         <hr>

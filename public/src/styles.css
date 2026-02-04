@@ -266,6 +266,51 @@ h3 {
 }
 
 /* ============================================
+   PAGE SHELL (Admin Width)
+   ============================================ */
+.page-shell {
+    max-width: 1200px;
+    width: 100%;
+    margin: 40px auto 50px;
+    padding: 0 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.page-title {
+    text-align: center;
+    margin: 0;
+    color: var(--gradient-start); /* Fallback for browsers without background-clip support */
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-size: 1.8rem;
+}
+
+/* English comment: Wrap page content in an admin-like container panel. */
+.page-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    align-items: stretch;
+    /* English comment: Match the bottom spacing with the side padding to avoid extra whitespace. */
+    padding: 30px 20px 20px;
+    width: 100%;
+    background: var(--bg-card);
+    border-radius: 12px;
+    box-shadow: var(--shadow-card);
+}
+
+/* English comment: Remove extra bottom spacing from the last sections inside the page panel. */
+.page-panel .profile-shell,
+.page-panel #leaderboard-container,
+.page-panel #welcome-banner {
+    margin-bottom: 0;
+}
+
+/* ============================================
    SETTINGS DRAWER
    ============================================ */
 .settings-backdrop {
@@ -684,7 +729,9 @@ h3 {
     display: flex;
     align-items: center;
     justify-content: center;
-    position: relative;
+    position: absolute;
+    inset: 0;
+    z-index: 1;
     transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
     user-select: none;
     -webkit-user-select: none;
@@ -701,6 +748,16 @@ h3 {
     height: min(74vh, 640px);
 }
 
+/* English comment: Back card sits behind the active card to avoid showing as a separate block. */
+.swipe-card--back {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    transform: scale(0.96) translateY(10px);
+    opacity: 0.6;
+    pointer-events: none;
+}
+
 /* English comment: Restore the missing selector so the swipe action bar is styled correctly. */
 .swipe-actions {
     left: 0;
@@ -711,6 +768,8 @@ h3 {
     justify-content: space-between;
     align-items: center;
     padding: 0 20px;
+    gap: 12px;
+    margin-top: 8px;
 }
 
 .swipe-button {
@@ -867,9 +926,9 @@ body.swipe-open #cookie-banner {
 .user-chip {
     display: none;
     padding: 8px 12px;
-    border-radius: 999px;
-    background: rgba(0, 105, 255, 0.12);
-    color: var(--gradient-end);
+    border-radius: 12px;
+    background: var(--gradient-end);
+    color: #ffffff;
     font-weight: 700;
     letter-spacing: 0.02em;
 }
@@ -951,6 +1010,12 @@ body.swipe-open #cookie-banner {
     justify-content: space-between;
     gap: 12px;
     margin-top: 12px;
+}
+
+/* English comment: Keep chip and logout button the same height for visual balance. */
+.auth-user-row .user-chip.is-visible,
+.auth-user-row .pill-link {
+    min-height: 40px;
 }
 
 /* English comment: Smaller chip variant for compact rows. */
@@ -1098,8 +1163,47 @@ body.swipe-open #cookie-banner {
     margin: 0 auto 20px;
     padding: 0 10px;
     justify-content: center;
-    align-items: start;
+    align-items: stretch;
     overflow-x: visible;
+}
+
+/* English comment: Keep game page containers aligned with the page shell width. */
+.page-shell #game-day-shell,
+.page-shell #game {
+    max-width: 100%;
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+/* English comment: Ensure banner and game containers share identical widths. */
+.page-shell #game-day-banner,
+.page-shell #game > * {
+    width: 100%;
+}
+
+/* English comment: Spieltag page forces banner + containers to identical width. */
+body[data-page="spieltag"] #game,
+body[data-page="spieltag"] #game-day-shell,
+body[data-page="spieltag"] #game-day-banner,
+body[data-page="spieltag"] #ranks-container,
+body[data-page="spieltag"] #hottakes-container {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+/* English comment: Stretch game layout so containers stay full width in readonly/locked states. */
+.page-shell #game {
+    align-items: stretch;
+}
+
+/* English comment: Let ranks and hottakes containers fill the available width. */
+.page-shell #hottakes-container,
+.page-shell #ranks-container {
+    width: 100%;
+    flex: 1 1 100%;
 }
 
 .layout-hint {
@@ -1132,14 +1236,24 @@ body.swipe-open #cookie-banner {
     border-radius: 12px;
     padding: 20px;
     box-shadow: var(--shadow-card);
+    width: 100%;
+    max-width: 100%;
+    flex: 0 0 100%;
+    min-width: 0;
 }
 
 .ranks-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
     gap: 12px;
     margin-bottom: 12px;
+}
+
+/* English comment: Center the ranks title inside the ranks container header. */
+#ranks-container .ranks-header h2 {
+    margin: 0;
+    text-align: center;
 }
 
 #hottakes-container {
@@ -1237,6 +1351,7 @@ body.swipe-open #cookie-banner {
     display: flex;
     flex-direction: column;
     gap: 12px;
+    width: 100%;
 }
 
 #hottakes-list.is-dragover {
@@ -1260,6 +1375,7 @@ body.swipe-open #cookie-banner {
     gap: 10px;
     flex-wrap: wrap;
     will-change: transform;
+    width: 100%;
 }
 
 
@@ -1379,6 +1495,7 @@ body.swipe-open #cookie-banner {
    ============================================ */
 .rank-wrapper {
     margin-bottom: 12px;
+    width: 100%;
 }
 
 .rank-label {
@@ -1397,6 +1514,7 @@ body.swipe-open #cookie-banner {
     border-radius: 8px;
     padding: 12px;
     transition: var(--transition-smooth);
+    width: 100%;
 }
 
 body.is-targeting .rank {
@@ -1423,6 +1541,7 @@ body.is-targeting .rank {
 
 .rank .hottake {
     margin: 0;
+    width: 100%;
 }
 
 .rank.is-swap-target .hottake {
@@ -1478,6 +1597,11 @@ body.is-targeting .rank {
     text-align: center;
 }
 
+/* English comment: Avoid extra bottom spacing on the Spieltag page panel. */
+body[data-page="spieltag"] .page-panel #welcome-banner {
+    margin-bottom: 0;
+}
+
 .welcome-kicker {
     margin: 0 0 8px;
     font-weight: 700;
@@ -1495,14 +1619,14 @@ body.is-targeting .rank {
 }
 
 #leaderboard-container {
-    max-width: 900px;
-    width: calc(100% - 40px);
-    margin: 30px auto 60px;
-    background: var(--bg-card);
-    border-radius: 12px;
-    padding: 30px;
-    box-shadow: var(--shadow-card);
-    border: 1px solid rgba(31, 224, 162, 0.16);
+    max-width: 100%;
+    width: 100%;
+    margin: 20px 0 0;
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
+    box-shadow: none;
+    border: none;
 }
 
 #leaderboard-container h2 {
@@ -1518,6 +1642,55 @@ body.is-targeting .rank {
     margin-bottom: 12px;
 }
 
+/* English comment: Leaderboard select should span the full panel width and align text left. */
+body[data-page="leaderboard"] .leaderboard-select-row {
+    width: 100%;
+    display: flex;
+}
+
+body[data-page="leaderboard"] .leaderboard-select-row .global-select {
+    width: 100%;
+}
+
+body[data-page="leaderboard"] .leaderboard-select-row .game-day-select {
+    width: 100%;
+    text-align: left;
+}
+
+/* English comment: Match Spieltag dropdown sizing to the leaderboard style. */
+body[data-page="spieltag"] .game-day-select-row {
+    width: 100%;
+    display: flex;
+}
+
+body[data-page="spieltag"] .game-day-select-row .global-select {
+    width: 100%;
+}
+
+body[data-page="spieltag"] .game-day-select-row .game-day-select {
+    width: 100%;
+    text-align: left;
+    padding: 12px 14px;
+}
+
+/* English comment: Hide legacy banner status while keeping nodes for JS updates. */
+body[data-page="spieltag"] .game-day-status {
+    display: none;
+}
+
+/* English comment: Let lock notices span the same width as the Hottakes container. */
+body[data-page="spieltag"] .game-day-info {
+    padding-left: 0;
+    padding-right: 0;
+    margin-top: 12px;
+    margin-bottom: 6px;
+}
+
+/* English comment: Tighten spacing between the lock notice and ranks container on Spieltag. */
+body[data-page="spieltag"] #game-day-shell {
+    margin-bottom: 8px;
+}
+
 #leaderboard-list {
     list-style: none;
     padding: 0;
@@ -1525,17 +1698,59 @@ body.is-targeting .rank {
     display: flex;
     flex-direction: column;
     gap: 12px;
+    background: var(--bg-card);
+    border-radius: 12px;
+    border: 1px solid rgba(0, 217, 255, 0.16);
+    overflow: hidden;
 }
 
 .leaderboard-entry {
-    display: flex;
+    display: grid;
+    grid-template-columns: 48px 1fr 64px 64px;
     align-items: center;
-    gap: 15px;
-    padding: 15px 20px;
-    background: var(--bg-card-hover);
-    border-radius: 10px;
-    border: 1px solid rgba(0, 217, 255, 0.2);
+    gap: 12px;
+    padding: 12px 16px;
+    background: transparent;
+    border: none;
+    border-top: 1px solid rgba(0, 217, 255, 0.12);
     transition: var(--transition-smooth);
+}
+
+/* English comment: Header row for the leaderboard table layout. */
+.leaderboard-entry--header {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 12px 16px;
+    margin-bottom: 0;
+    box-shadow: none;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    font-weight: 700;
+    border-top: none;
+    border-bottom: 1px solid rgba(0, 217, 255, 0.12);
+}
+
+/* English comment: Center numeric headers, keep Name left-aligned. */
+.leaderboard-entry--header .leaderboard-cell--rank,
+.leaderboard-entry--header .leaderboard-cell--gameday,
+.leaderboard-entry--header .leaderboard-cell--total {
+    justify-content: center;
+    text-align: center;
+}
+
+.leaderboard-entry--header .leaderboard-cell--user {
+    justify-content: flex-start;
+    text-align: left;
+}
+
+.leaderboard-entry--header:hover {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+    transform: none;
 }
 
 .leaderboard-entry:hover {
@@ -1546,30 +1761,86 @@ body.is-targeting .rank {
 }
 
 .leaderboard-rank {
-    background: linear-gradient(135deg, var(--gradient-start), var(--accent-green), var(--gradient-end));
+    background: transparent;
     color: var(--text-primary);
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    display: flex;
+    width: auto;
+    height: auto;
+    border-radius: 0;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-weight: bold;
-    font-size: 1.1rem;
+    text-align: center;
+    font-weight: 700;
+    font-size: 0.95rem;
     flex-shrink: 0;
+    min-width: 22px;
+    line-height: 1;
+}
+
+.leaderboard-cell {
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+}
+
+.leaderboard-cell--rank {
+    justify-content: center;
+    text-align: center;
+    align-self: center;
+}
+
+.leaderboard-cell--user {
+    color: var(--text-primary);
+}
+
+.leaderboard-cell--gameday,
+.leaderboard-cell--total {
+    justify-content: center;
+    text-align: center;
+    font-weight: 800;
+    color: var(--gradient-start);
+}
+
+.leaderboard-cell--gameday {
+    color: var(--gradient-end);
 }
 
 .leaderboard-nickname {
-    flex: 1;
-    font-weight: 600;
-    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-.leaderboard-score {
-    font-weight: bold;
-    font-size: 1.2rem;
+/* English comment: Adjust score column widths based on max digit length. */
+#leaderboard-list.leaderboard-list--digits-2 .leaderboard-entry {
+    grid-template-columns: 48px 1fr 56px 56px;
+}
+
+#leaderboard-list.leaderboard-list--digits-3 .leaderboard-entry {
+    grid-template-columns: 48px 1fr 64px 64px;
+}
+
+.leaderboard-score-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-secondary);
+    font-weight: 700;
+}
+
+.leaderboard-score-value {
+    font-weight: 800;
+    font-size: 1.05rem;
     color: var(--gradient-start);
-    flex-shrink: 0;
+}
+
+.leaderboard-score--gameday .leaderboard-score-value {
+    color: var(--gradient-end);
 }
 
 /* ============================================
@@ -2273,13 +2544,20 @@ footer a:hover {
     }
     
     .leaderboard-entry {
-        padding: 12px 15px;
+        grid-template-columns: 42px 1fr 58px 58px;
+        padding: 12px 14px;
+    }
+
+    #leaderboard-list.leaderboard-list--digits-2 .leaderboard-entry {
+        grid-template-columns: 42px 1fr 52px 52px;
+    }
+
+    #leaderboard-list.leaderboard-list--digits-3 .leaderboard-entry {
+        grid-template-columns: 42px 1fr 58px 58px;
     }
     
     .leaderboard-rank {
-        width: 35px;
-        height: 35px;
-        font-size: 1rem;
+        font-size: 0.95rem;
     }
 
     .admin-form,
@@ -2326,12 +2604,22 @@ footer a:hover {
     }
     
     #leaderboard-container {
-        padding: 20px;
+        /* English comment: Keep leaderboard entries aligned with the full-width dropdown. */
+        padding: 0;
     }
     
     .leaderboard-entry {
+        grid-template-columns: 36px 1fr 54px 54px;
         gap: 10px;
         padding: 10px 12px;
+    }
+
+    #leaderboard-list.leaderboard-list--digits-2 .leaderboard-entry {
+        grid-template-columns: 36px 1fr 48px 48px;
+    }
+
+    #leaderboard-list.leaderboard-list--digits-3 .leaderboard-entry {
+        grid-template-columns: 36px 1fr 54px 54px;
     }
     
     .leaderboard-rank {
@@ -2340,8 +2628,9 @@ footer a:hover {
         font-size: 0.9rem;
     }
     
-    .leaderboard-score {
-        font-size: 1rem;
+    .leaderboard-cell--gameday,
+    .leaderboard-cell--total {
+        font-size: 0.95rem;
     }
 }
 

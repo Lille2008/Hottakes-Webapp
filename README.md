@@ -20,6 +20,90 @@
 
 **User:** Swipe-Flow ersetzt Drag&Drop (5 Ranks) und neue Scoring-Logik
 
+
+### 2026-02-04
+
+**User:** Die beiden Elemente sollen gleich groß sein.
+
+**AI:**
+- Im Profil sind User-Chip und Logout-Button jetzt gleich hoch, damit sie optisch zusammenpassen. Umsetzung: [public/src/styles.css](public/src/styles.css)
+
+**User:** Der User-Chip soll die gleiche Eckenrundung haben wie der Logout-Button. Das aktuelle blau der schrift vom User-Chip soll der Hintergrund werden und die Schrift wird weiß.
+
+**AI:**
+- Der User-Chip nutzt jetzt die gleiche Rundung wie der Logout-Button und hat eine blaue Fläche mit weißer Schrift. Umsetzung: [public/src/styles.css](public/src/styles.css)
+
+**User:** Container nach LockTime sind schmaler als das Banner.
+
+**AI:**
+- Game-Container sind jetzt immer auf volle Breite gestreckt, damit Ranks/Hottakes so breit wie der obere Container sind. Umsetzung: [public/src/styles.css](public/src/styles.css)
+
+**User:** Leaderboard-Überarbeitung, automatische Spieltag-Auswahl nach zuletzt erreichter LockTime (Vergangenheit), Admin-List-Bug, und neue Seiten-Container für Profil/Spieltag/Leaderboard.
+
+**AI:**
+- Leaderboard zeigt jetzt Spieltag- und Gesamtpunkte nebeneinander; Auswahl läuft über den Banner-Select und nutzt die letzte erreichte LockTime. Umsetzung: [public/src/app.js](public/src/app.js) und [public/src/styles.css](public/src/styles.css)
+- Admin-Liste lädt Hottakes wieder korrekt, auch im Admin-Bereich. Umsetzung: [public/src/app.js](public/src/app.js)
+- Profil/Spieltag/Leaderboard sind in neue Seiten-Container mit Admin-Breite eingebettet. Umsetzung: [public/profil.html](public/profil.html), [public/spieltag.html](public/spieltag.html), [public/leaderboard.html](public/leaderboard.html), [public/src/styles.css](public/src/styles.css)
+
+**User:** Die Container auf der Spieltags-Seite wirken kleiner.
+
+**AI:**
+- Die GameDay- und Game-Container füllen jetzt die volle Seitenbreite innerhalb der neuen Page-Shell. Umsetzung: [public/src/styles.css](public/src/styles.css)
+
+**User:** Ranks- und Hottakes-Container sind noch dünn.
+
+**AI:**
+- Ranks- und Hottakes-Container füllen jetzt die volle Breite innerhalb der Page-Shell. Umsetzung: [public/src/styles.css](public/src/styles.css)
+
+**User:** Nach der LockTime sind die Container weiterhin zu schmal.
+
+**AI:**
+- Die Game-Layout-Ausrichtung streckt jetzt auch im Locked/Readonly-Zustand auf volle Breite. Umsetzung: [public/src/styles.css](public/src/styles.css)
+
+**User:** Swipe-Overlay: Karten lassen sich nicht ziehen, Buttons fehlen, Back-Card sichtbar.
+
+**AI:**
+- Swipe-Overlay-Layout korrigiert (Back-Card positioniert, Actions sichtbar) und Fokus vor aria-hidden entfernt. Umsetzung: [public/src/styles.css](public/src/styles.css), [public/src/app.js](public/src/app.js)
+
+**User:** Ranks- und Hottakes-Container passen sich an die Textlänge an.
+
+**AI:**
+- Hottake-Listen, Rank-Slots und Karten sind jetzt auf feste Breite (100%) gesetzt, damit sie nicht mit Textlänge schrumpfen. Umsetzung: [public/src/styles.css](public/src/styles.css)
+
+**User:** Ranks- und Hottakes-Container sind manchmal noch nicht breit genug.
+
+**AI:**
+- Container werden per Flex-Basis fix auf volle Breite gehalten, damit sie nicht schrumpfen. Umsetzung: [public/src/styles.css](public/src/styles.css)
+
+**User:** Ranks- und Hottakes-Container sollen exakt so breit wie das Game-Day-Banner sein.
+
+**AI:**
+- Banner und Game-Container werden jetzt auf identische volle Breite innerhalb der Page-Shell gezwungen. Umsetzung: [public/src/styles.css](public/src/styles.css)
+
+**User:** Ranks- und Hottakes-Container sind weiter schmaler als das Game-Day-Banner.
+
+**AI:**
+- Spieltag-Seite erzwingt jetzt identische Breite für Banner, Ranks und Hottakes per page-spezifischem CSS. Umsetzung: [public/src/styles.css](public/src/styles.css)
+
+**User:** Profil-, Spieltag- und Leaderboard-Seite sollen einen Admin-ähnlichen Container um alle Elemente haben.
+
+**AI:**
+- Alle drei Seiten sind jetzt in eine Page-Panel-Box mit Admin-Style gewrappt. Umsetzung: [public/profil.html](public/profil.html), [public/spieltag.html](public/spieltag.html), [public/leaderboard.html](public/leaderboard.html), [public/src/styles.css](public/src/styles.css)
+
+**User:** Leaderboard-Punkte-Container soll genauso breit wie der Container darüber sein.
+
+**AI:**
+- Leaderboard-Container nutzt jetzt volle Panel-Breite wie der Banner-Container. Umsetzung: [public/src/styles.css](public/src/styles.css)
+
+**User:** Nach Refresh vor LockTime fehlen Rank-Picks (nur Anzeige), nach LockTime erscheinen sie wieder.
+
+**AI:**
+- Swipe-Overlay startet jetzt nur, wenn weder gespeicherte Entscheidungen noch gespeicherte Picks existieren, damit gespeicherte Ranks nicht mehr überschrieben werden. Umsetzung: [public/src/app.js](public/src/app.js)
+
+**User:** Ranks fehlen nach Refresh weiterhin vor LockTime.
+
+**AI:**
+- In aktivem Modus werden gespeicherte Picks angezeigt, wenn lokale Picks leer sind. Umsetzung: [public/src/app.js](public/src/app.js)
 **AI:**
 - Swipe-Overlay startet bei jedem Laden für aktive, nicht gesperrte Spieltage mit exakt 10 offenen Hottakes.
 - Swipe-Entscheidungen werden gespeichert (Objektliste `{ hottakeId, decision }`) und geben je +1 Punkt bei richtiger Vorhersage.
@@ -114,6 +198,71 @@
 - Hinweis „Du kannst auch \"passiert nicht\" ranken.“ wurde entfernt.
 
 **User:** Click-Modus springt nach Slot-Placement zurück
+
+**User:** Unten ist im Profil/Spieltag/Leaderboard zu viel Leerraum im Page-Container.
+
+**AI:**
+- Der Page-Panel-Container hat jetzt den gleichen Bottom-Abstand wie die Seitenränder, und die letzten Sections bekommen kein zusätzliches Bottom-Margin. Umsetzung: [public/src/styles.css](public/src/styles.css)
+
+**User:** Auf der Spieltag-Seite ist der untere Rand noch zu groß.
+
+**AI:**
+- Der Welcome-Banner im Spieltag-Panel bekommt kein extra Bottom-Margin mehr, damit der Container unten bündig endet. Umsetzung: [public/src/styles.css](public/src/styles.css)
+
+**User:** Leaderboard: Punkte-Container entfernen, Banner weg, Dropdown full-width linksbündig.
+
+**AI:**
+- Der Leaderboard-Card-Container wurde auf transparent ohne Padding/Border gesetzt, das Banner entfernt und der Spieltag-Select auf volle Breite mit linksbündigem Text gestylt. Umsetzung: [public/leaderboard.html](public/leaderboard.html), [public/src/styles.css](public/src/styles.css)
+
+**User:** Leaderboard-Entries sollen links/rechts exakt mit dem Dropdown ausgerichtet sein.
+
+**AI:**
+- Das mobile Padding am Leaderboard-Container wurde entfernt, damit die Entries bis zu den Dropdown-Kanten reichen. Umsetzung: [public/src/styles.css](public/src/styles.css)
+
+**User:** „Punkte“ soll nicht über den Entries stehen, und das Leaderboard soll tabellarisch mit Spalten wirken.
+
+**AI:**
+- Die Überschrift wurde entfernt und das Leaderboard rendert jetzt eine Header‑Zeile mit Spalten (Platz, User, Spieltag, Gesamt) in einem Grid‑Layout. Umsetzung: [public/src/app.js](public/src/app.js), [public/src/styles.css](public/src/styles.css)
+
+**User:** Spaltennamen sollen kurz sein: P, Name, S, G.
+
+**AI:**
+- Die Header-Texte wurden auf P, Name, S und G gekürzt. Umsetzung: [public/src/app.js](public/src/app.js)
+
+**User:** Leaderboard: Name wird abgeschnitten, Rank-Kreis weg, Header im Container und subtile Linien.
+
+**AI:**
+- Der Rank-Kreis wurde entfernt und die Spaltenbreite reduziert, damit mehr Platz für Namen entsteht. Die Header-Zeile bleibt im Container, und das Leaderboard hat jetzt dezente Trennlinien innerhalb eines Tabellen-Containers. Umsetzung: [public/src/styles.css](public/src/styles.css)
+
+**User:** Spaltenüberschriften zentrieren, S/G nur Platz für "XXX P".
+
+**AI:**
+- Header-Zellen sind jetzt zentriert, und die S/G-Spaltenbreite wurde auf 3-stellige Werte plus Suffix abgestimmt (inkl. Responsive). Umsetzung: [public/src/styles.css](public/src/styles.css)
+
+**User:** Header-Alignment: P/S/G zentriert, Name links; Zeileninhalte gleiche Höhe/Schrift.
+
+**AI:**
+- Header-Alignment pro Spalte korrigiert und Zeilen-Typografie mit einheitlicher Schriftgröße/Line-Height vereinheitlicht. Umsetzung: [public/src/styles.css](public/src/styles.css)
+
+**User:** P/S/G zentriert über Inhalten; Spaltenbreite soll sich an 2- oder 3-stelligen Werten orientieren.
+
+**AI:**
+- S/G-Spalten sind jetzt zentriert und bekommen digit-aware Breiten (2- oder 3-stellig), inkl. Responsive. Umsetzung: [public/src/app.js](public/src/app.js), [public/src/styles.css](public/src/styles.css)
+
+**User:** Spieltag: Banner-Änderungen wie im Leaderboard, Dropdown größer, Lock-Notiz volle Breite.
+
+**AI:**
+- Der Spieltag-Banner wurde entfernt, das Dropdown läuft jetzt vollbreit, und die Lock-Notizen füllen die Container-Breite. Umsetzung: [public/spieltag.html](public/spieltag.html), [public/src/styles.css](public/src/styles.css)
+
+**User:** Mehr Abstand zwischen Dropdown und Notiz, weniger zwischen Notiz und Ranks.
+
+**AI:**
+- Abstand nach oben in der Notiz erhöht und der Abstand zum Ranks-Container reduziert. Umsetzung: [public/src/styles.css](public/src/styles.css)
+
+**User:** H2 im Ranks-Container soll zentriert sein.
+
+**AI:**
+- Die Ranks-Überschrift wird jetzt im Header zentriert. Umsetzung: [public/src/styles.css](public/src/styles.css)
 
 **AI:**
 - Pending-Gesture wird beim Tap gelöscht, damit keine „Geister-Auswahl“ entsteht.

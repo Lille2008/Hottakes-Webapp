@@ -52,21 +52,15 @@
         <a href="/admin" data-nav="admin" class="is-hidden">Admin-Area</a>
     </nav>
 
-    <section id="game-day-shell">
-        <div id="game-day-banner" class="game-day-banner">
-            <div>
-                <p class="game-day-kicker">Spieltag</p>
-                <p id="lock-status" class="game-day-title">Gesamtansicht</p>
+    <main class="page-shell">
+        <div class="page-panel">
+            <h2 class="page-title">Leaderboard</h2>
+            <div class="leaderboard-select-row">
+                <div id="global-select" class="global-select" aria-label="Spieltag auswählen"></div>
             </div>
-            <div class="game-day-actions">
-                <div id="global-select" class="global-select" aria-label="Globale Auswahl"></div>
-                <span id="lock-countdown" class="lock-countdown is-hidden" data-state="idle">Countdown inaktiv</span>
-            </div>
-            <div id="game-day-info" class="game-day-info"></div>
+            <div id="leaderboard-container"></div>
         </div>
-    </section>
-
-    <div id="leaderboard-container"></div>
+    </main>
 
     <footer>
         <hr>
