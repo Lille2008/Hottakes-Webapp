@@ -74,7 +74,8 @@ const sendPublicFile = (res: Response, fileName: string) => {
   res.sendFile(path.join(publicRoot, fileName));
 };
 
-app.get('/', (_req, res) => sendPublicFile(res, 'spieltag.html'));
+app.get('/', (_req, res) => sendPublicFile(res, 'guest.html'));
+app.get('/guest', (_req, res) => sendPublicFile(res, 'guest.html'));
 app.get('/spieltag', (_req, res) => sendPublicFile(res, 'spieltag.html'));
 app.get('/leaderboard', (_req, res) => sendPublicFile(res, 'leaderboard.html'));
 app.get('/profil', (_req, res) => sendPublicFile(res, 'profil.html'));

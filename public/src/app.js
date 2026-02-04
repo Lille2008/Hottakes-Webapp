@@ -102,6 +102,33 @@ function getLatestReachedLockGameDayId(days, nowMs = Date.now()) {
     return candidate ? candidate.id : null;
 }
 
+// English comment: Prefer the most recently reached lockTime among non-finalized days.
+function getLatestReachedNonFinalizedLockGameDayId(days, nowMs = Date.now()) {
+    if (!Array.isArray(days)) {
+        return null;
+    }
+
+    let candidate = null;
+    days.forEach((day) => {
+        if (isFinalizedStatus(day)) {
+            return;
+        }
+        const lockMs = getLockTimeMs(day);
+        if (lockMs === null || lockMs > nowMs) {
+            return;
+        }
+        if (!candidate || lockMs > candidate.lockMs) {
+            candidate = { id: day.gameDay, lockMs };
+            return;
+        }
+        if (lockMs === candidate.lockMs && (day.gameDay ?? 0) > candidate.id) {
+            candidate = { id: day.gameDay, lockMs };
+        }
+    });
+
+    return candidate ? candidate.id : null;
+}
+
 function shouldShowActiveLabel(day, { nowMs = Date.now(), nextUpcomingId = null } = {}) {
     if (!day || isFinalizedStatus(day)) {
         return false;
@@ -187,8 +214,14 @@ const isGamePage = PAGE_TYPE === 'spieltag';
 const isLeaderboardPage = PAGE_TYPE === 'leaderboard';
 const isProfilePage = PAGE_TYPE === 'profil';
 const isAdminPage = PAGE_TYPE === 'admin';
+const isGuestPage = PAGE_TYPE === 'guest';
 const shouldShowGlobalSelect = isGamePage || isLeaderboardPage || isAdminPage;
 const ADMIN_NICKNAME = 'lille08';
+
+// English comment: Hide auth UI until we know if the user is logged in.
+if (document.body) {
+    document.body.classList.add('auth-pending');
+}
 
 const hottakesContainer = document.getElementById('hottakes-container');
 const ranksContainer = document.getElementById('ranks-container');
@@ -1942,6 +1975,7 @@ function updateHistorySelect() {
     const nowMs = Date.now();
     const nextUpcomingId = getNextUpcomingActiveLabelId(gameDays, nowMs);
     const latestReachedId = getLatestReachedLockGameDayId(gameDays, nowMs);
+    const latestReachedNonFinalizedId = getLatestReachedNonFinalizedLockGameDayId(gameDays, nowMs);
     const sortedDays = sortGameDaysByLockTime(gameDays);
 
     sortedDays.forEach((day) => {
@@ -1954,7 +1988,8 @@ function updateHistorySelect() {
     });
 
     if (selectedGameDay === null && gameDays.length > 0) {
-        const fallbackId = activeGameDay?.gameDay ?? gameDays[0].gameDay;
+        const fallbackFromSorted = sortedDays.length > 0 ? sortedDays[sortedDays.length - 1].gameDay : gameDays[0].gameDay;
+        const fallbackId = activeGameDay?.gameDay ?? nextUpcomingId ?? latestReachedNonFinalizedId ?? fallbackFromSorted;
         selectedGameDay = (isLeaderboardPage ? latestReachedId : null) ?? fallbackId;
         selectedHistoryGameDay = selectedGameDay;
         resetAutoSaveState(selectedGameDay);
@@ -2497,6 +2532,9 @@ async function refreshHottakes(targetGameDay = null) {
         const fallback = selectedGameDay !== null ? selectedGameDay : activeGameDay?.gameDay;
         const gameDay = targetGameDay !== null ? targetGameDay : fallback;
         const meta = gameDay !== null && gameDay !== undefined ? getSelectedGameDayMeta() : null;
+        // English comment: Ensure stored-state flags exist regardless of swipe reset path.
+        let hasStoredPicks = false;
+        let hasStoredSwipe = false;
 
         if (gameDay !== autoSaveGameDay) {
             resetAutoSaveState(gameDay);
@@ -2505,10 +2543,10 @@ async function refreshHottakes(targetGameDay = null) {
         if (gameDay !== swipeGameDay) {
             // English comment: Reset swipe completion when switching game days.
             swipeGameDay = gameDay;
-            const hasStoredSwipe = lastSubmissionGameDay === gameDay &&
+            hasStoredSwipe = lastSubmissionGameDay === gameDay &&
                 Array.isArray(lastSubmissionSwipeDecisions) &&
                 lastSubmissionSwipeDecisions.length > 0;
-            const hasStoredPicks = lastSubmissionGameDay === gameDay &&
+            hasStoredPicks = lastSubmissionGameDay === gameDay &&
                 Array.isArray(lastSubmissionPicks) &&
                 lastSubmissionPicks.length > 0;
 
@@ -2518,6 +2556,13 @@ async function refreshHottakes(targetGameDay = null) {
             } else {
                 swipeDecisions = [];
             }
+        } else {
+            hasStoredSwipe = lastSubmissionGameDay === gameDay &&
+                Array.isArray(lastSubmissionSwipeDecisions) &&
+                lastSubmissionSwipeDecisions.length > 0;
+            hasStoredPicks = lastSubmissionGameDay === gameDay &&
+                Array.isArray(lastSubmissionPicks) &&
+                lastSubmissionPicks.length > 0;
         }
 
         // Only finished days should force readonly. Future (PENDING) days are still editable.
@@ -3084,6 +3129,7 @@ function renderGameDayAdmin() {
         updateHistorySelect();
         renderHottakes();
         renderGameDayAdmin();
+        renderAdminForm();
     });
 
     selectLabel.appendChild(select);
@@ -3521,11 +3567,20 @@ async function checkLoginStatus() {
 
 
 function updateUIForLogin(user) {
+    if (document.body) {
+        document.body.classList.remove('auth-pending', 'auth-guest');
+        document.body.classList.add('auth-user');
+    }
     currentUser = user;
     updateUserChip(user);
     updateSettingsAuth(user);
     setHeaderAuthState(true);
     persistThemePreference(getStoredThemeMode() || 'system');
+
+    if (isGuestPage) {
+        window.location.replace('/spieltag');
+        return;
+    }
 
     const isAdminUser = user.nickname === ADMIN_NICKNAME;
     if (navAdminItem) {
@@ -3583,6 +3638,10 @@ function updateUIForLogin(user) {
 
 
 async function updateUIForGuest() {
+    if (document.body) {
+        document.body.classList.remove('auth-pending', 'auth-user');
+        document.body.classList.add('auth-guest');
+    }
     currentUser = null;
     updateUserChip(null);
     updateSettingsAuth(null);
@@ -3627,6 +3686,10 @@ async function updateUIForGuest() {
     if (savePicksButton) {
         savePicksButton.disabled = true;
         savePicksButton.style.display = 'none';
+    }
+
+    if (!isGuestPage) {
+        window.location.replace('/guest');
     }
 }
 

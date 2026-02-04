@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hottakes – Willkommen</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="src/styles.css">
+
+    <link rel="icon" type="image/png" sizes="16x16" href="hottakes_favicons/Hottakes.icon-16x16.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="hottakes_favicons/Hottakes.icon-32x32.png">
+    <link rel="icon" type="image/png" sizes="48x48" href="hottakes_favicons/Hottakes.icon-48x48.png">
+
+    <link rel="apple-touch-icon" sizes="150x150" href="hottakes_favicons/Hottakes.icon-150x150.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="hottakes_favicons/Hottakes.icon-180x180.png">
+
+    <link rel="icon" type="image/png" sizes="192x192" href="hottakes_favicons/Hottakes.icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="hottakes_favicons/Hottakes.icon-512x512.png">
+
+    <meta name="msapplication-TileColor" content="#ffffff">
+    <meta name="msapplication-TileImage" content="hottakes_favicons/Hottakes.icon-150x150.png">
+
+    <meta name="theme-color" content="#ffffff">
+</head>
+
+<body data-page="guest">
+    <header>
+        <a class="brand" href="/guest">
+            <img src="hottakes_favicons/Hottakes.icon-192x192.png" alt="Hottakes Logo" class="brand-logo">
+            <span class="brand-name">Hottakes</span>
+        </a>
+    </header>
+
+    <main class="page-shell page-shell--guest">
+        <div class="page-panel page-panel--guest">
+            <h2 class="page-title">Willkommen</h2>
+            <section class="guest-actions" aria-label="Anmeldung oder Registrierung">
+                <a href="/login" class="btn">Anmelden</a>
+                <a href="/register" class="btn">Registrieren</a>
+            </section>
+
+            <section id="welcome-banner">
+                <p class="welcome-kicker">Willkommen bei Hottakes!</p>
+                <p class="welcome-body">Bei Hottakes geht es darum Vorhersagen über die Bundesliga einzuranken. Jeden Spieltag hast du die Möglichkeit spannende Thesen, die Hottakes, danach zu ranken, für wie wahrscheinlich du sie hältst.</p>
+            </section>
+        </div>
+    </main>
+
+    <footer>
+        <hr>
+        <p>
+            <a href="/impressum">Impressum</a> |
+            <a href="/datenschutz">Datenschutz</a>
+        </p>
+        <div id="cookie-banner">
+            Diese Seite nutzt technisch notwendige Cookies (Session/Auth).
+            <button id="accept-cookies">OK</button>
+        </div>
+    </footer>
+
+    <script src="src/app.js"></script>
+    <script>
+        // Simple Cookie Banner Logic
+        if (!localStorage.getItem('cookiesAccepted')) {
+            document.getElementById('cookie-banner').style.display = 'block';
+        }
+        document.getElementById('accept-cookies').addEventListener('click', () => {
+            localStorage.setItem('cookiesAccepted', 'true');
+            document.getElementById('cookie-banner').style.display = 'none';
+        });
+    </script>
+</body>
+
+</html>

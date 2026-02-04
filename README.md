@@ -199,6 +199,72 @@
 
 **User:** Click-Modus springt nach Slot-Placement zurück
 
+**User:** Hottake speichern ist grau, obwohl LockTime noch nicht erreicht ist.
+
+**AI:**
+- In der Admin-UI wird der Button nur über den Spieltag-Status freigeschaltet: erlaubt sind **nur** `PENDING` oder `ACTIVE`. LockTime wird hier **nicht** geprüft. Umsetzung: [public/src/app.js](public/src/app.js#L2946-L2990)
+- Beim Wechsel des Spieltags (Dropdown in „Spieltag & Sperre“) wird die Admin-Form **nicht** neu gerendert. Daher bleibt ein einmal deaktivierter Button grau, auch wenn später ein anderer Spieltag gewählt wird. Umsetzung: [public/src/app.js](public/src/app.js#L3045-L3078) und [public/src/app.js](public/src/app.js#L2946-L2990)
+
+**User:** Nach Reload wird der falsche (finalisierte) Spieltag ausgewählt, und der Save-Button bleibt grau.
+
+**AI:**
+- Standard-Auswahl im Select bevorzugt jetzt den nächsten/aktiven Spieltag anhand der LockTime (nicht mehr den ältesten finalisierten). Umsetzung: [public/src/app.js](public/src/app.js#L61-L135) und [public/src/app.js](public/src/app.js#L1931-L1970)
+- Beim Wechsel des Spieltags im Admin-Dropdown wird die Hottake-Form jetzt neu gerendert, damit der Button-Status korrekt ist. Umsetzung: [public/src/app.js](public/src/app.js#L3045-L3086)
+
+**User:** app.js:2600 ReferenceError: hasStoredPicks is not defined
+
+**AI:**
+- In `refreshHottakes` wurde `hasStoredPicks` nur im `gameDay !== swipeGameDay`-Block deklariert, aber später immer benutzt. Fix: Flags werden vorab definiert und in beiden Pfaden gesetzt. Umsetzung: [public/src/app.js](public/src/app.js#L2527-L2599)
+
+**User:** Das P im Leaderboard soll die gleiche Farbe wie die Platzierung (leaderboard-rank) haben.
+
+**AI:**
+- Header-Spalte „P“ nutzt jetzt die gleiche Farbe wie die Platzierungszahl über eine gezielte CSS-Override-Regel. Umsetzung: [public/src/styles.css](public/src/styles.css#L1733-L1746)
+
+**User:** „Name“ im Leaderboard soll Groß-/Kleinschreibung behalten.
+
+**AI:**
+- Für die Header-Zelle „Name“ ist das Uppercase-Style jetzt deaktiviert (nur für diese Spalte). Umsetzung: [public/src/styles.css](public/src/styles.css#L1744-L1752)
+
+**User:** Gäste sollen eine eigene Landing-Page ohne Hamburger bekommen, Buttons unter dem Header, Welcome-Text separat; Footer soll auf Mobile unten bleiben; Login/Register soll nicht mehr kurz blitzen.
+
+**AI:**
+- Neue Gast-Seite unter `/guest` (inkl. Welcome-Text aus Spieltag) und `/` zeigt jetzt die Gast-Landing. Umsetzung: [public/guest.html](public/guest.html) und [src/app.ts](src/app.ts#L35-L62)
+- Gäste werden von Spieltag/Leaderboard/Profil/Admin zur Gast-Seite umgeleitet; eingeloggte User von `/guest` zur Spieltag-Seite. Umsetzung: [public/src/app.js](public/src/app.js#L206-L365)
+- Auth-UI flackert nicht mehr: `auth-pending` blendet Header-Actions bis der Status bekannt ist. Umsetzung: [public/src/app.js](public/src/app.js#L203-L212) und [public/src/styles.css](public/src/styles.css#L79-L121)
+- Footer ist jetzt sticky (Flex-Layout), damit Impressum/Datenschutz am unteren Rand bleiben. Umsetzung: [public/src/styles.css](public/src/styles.css#L64-L121)
+
+**User:** Beim Seitenwechsel sieht man kurz „Anmelden/Registrieren“ und Leaderboard-Zeilen sind unterschiedlich hoch.
+
+**AI:**
+- Header-Actions sind nun standardmäßig versteckt, bis `auth-user`/`auth-guest` gesetzt ist. So gibt es kein „Guest-Flash“ mehr bei Page-Loads. Umsetzung: [public/src/styles.css](public/src/styles.css#L92-L130)
+- Leaderboard-Zeilen haben jetzt eine feste Mindesthöhe (Header + Rows), damit alle gleich hoch wirken. Umsetzung: [public/src/styles.css](public/src/styles.css#L1694-L1756)
+
+**User:** Zeilenhöhe im Leaderboard ist weiterhin unterschiedlich.
+
+**AI:**
+- Rows und Header bekommen jetzt eine feste Höhe (zusätzlich zur Mindesthöhe), um visuell exakt gleich hoch zu bleiben. Umsetzung: [public/src/styles.css](public/src/styles.css#L1754-L1787)
+
+**User:** Untere Zeile im Leaderboard ist weiterhin kleiner.
+
+**AI:**
+- Zusätzliche Fixierung über `flex-basis` (flex: 0 0 ...) auf Rows und Header, damit die Flex-Column exakt gleiche Höhe erzwingt. Umsetzung: [public/src/styles.css](public/src/styles.css#L1754-L1790)
+
+**User:** Inhalt wirkt nicht vertikal zentriert, obere Zeile hat mehr Platz unten.
+
+**AI:**
+- Rows nutzen jetzt `box-sizing: border-box`, Zellen bekommen `height: 100%` + `line-height: 1`, damit der Inhalt optisch mittig sitzt. Umsetzung: [public/src/styles.css](public/src/styles.css#L1754-L1865)
+
+**User:** Unterste Zeile wirkt kleiner (vermutlich wegen fehlender Gap-Fläche unten).
+
+**AI:**
+- Das Leaderboard-List-Container bekommt unten `padding-bottom`, um die optische Gap auch unter der letzten Zeile zu haben. Umsetzung: [public/src/styles.css](public/src/styles.css#L1689-L1701)
+
+**User:** Zeilen etwas niedriger und Inhalte vertikal mittig.
+
+**AI:**
+- Row/Header-Höhe reduziert und Padding angepasst; `line-height` leicht erhöht für visuelle Mitte. Umsetzung: [public/src/styles.css](public/src/styles.css#L1754-L1865)
+
 **User:** Unten ist im Profil/Spieltag/Leaderboard zu viel Leerraum im Page-Container.
 
 **AI:**
