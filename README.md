@@ -119,6 +119,14 @@
 
 **User:** Lock-Status soll sofort greifen und Drag&Drop auf Mobile ohne Long-Press funktionieren.
 
+### 2026-02-05
+
+**User:** FAQ auf Guest- und Profil-Seite, Guest-Layout wie andere Seiten.
+
+**AI:**
+- FAQ-Accordion mit drei Swipe-bezogenen Fragen auf Guest (unten) und Profil (über dem Account-Container). Umsetzung: [public/guest.html](public/guest.html), [public/profil.html](public/profil.html), [public/src/styles.css](public/src/styles.css)
+- Guest-Layout nutzt jetzt den Titel-Container mit grüner Border; der alte Page-Panel-Wrapper wurde entfernt. Umsetzung: [public/guest.html](public/guest.html)
+
 **AI:**
 - Lock-State wird vor dem ersten Render/Swipe aktualisiert, damit keine Swipe-Karten mehr erscheinen, wenn der Spieltag gesperrt ist.
 - Drag&Drop nutzt HTML5-Drag für Maus und Pointer-Drag für Touch, inklusive visuellem Drop-Feedback.
@@ -198,6 +206,30 @@
 - Hinweis „Du kannst auch \"passiert nicht\" ranken.“ wurde entfernt.
 
 **User:** Click-Modus springt nach Slot-Placement zurück
+
+### 2026-02-05
+
+**User:** h2-Farbverlauf anpassen und Seiten-Container entfernen (Profil/Leaderboard/Spieltag/Admin).
+
+**AI:**
+- h2 nutzt jetzt einen Verlauf von hellem Blau zu Logo-Grün; die großen Seitentitel sind in eigene Title-Karten gelegt. Umsetzung: [public/src/styles.css](public/src/styles.css)
+- Page-Panel-Wrapper entfernt und Title-Container ergänzt für Profil, Leaderboard, Spieltag und Admin-Bereich. Umsetzung: [public/profil.html](public/profil.html), [public/leaderboard.html](public/leaderboard.html), [public/spieltag.html](public/spieltag.html), [public/admin.html](public/admin.html)
+
+**User:** Titel-Container nur so breit wie die Überschrift.
+
+**AI:**
+- Title-Container passt sich jetzt der Textbreite an und bleibt zentriert. Umsetzung: [public/src/styles.css](public/src/styles.css)
+
+**User:** h2-Text weiß, Border der Title-Container in Logo-Grün.
+
+**AI:**
+- h2 ist jetzt weiß und die Title-Container haben einen grünen Rahmen. Umsetzung: [public/src/styles.css](public/src/styles.css)
+
+**User:** Finalisierter Spieltag: Hottake-Ränder sollen bei fehlenden Entscheidungen blau bleiben.
+
+**AI:**
+- In der finalen Ansicht bleiben die Hottake-Ränder neutral, wenn keine Entscheidung vorliegt; Ergebnisse werden weiter im Badge gezeigt. Umsetzung: [public/src/app.js](public/src/app.js)
+
 
 **User:** Hottake speichern ist grau, obwohl LockTime noch nicht erreicht ist.
 
@@ -294,6 +326,14 @@
 
 **AI:**
 - Die Header-Texte wurden auf P, Name, S und G gekürzt. Umsetzung: [public/src/app.js](public/src/app.js)
+
+**User:** Pfeil-Labels („Passiert/Passiert nicht“) sollen unten in der Hottake-Karte sein; Login/Register-Buttons sollen nicht gegenseitig im Header erscheinen; beim Seitenwechsel soll kein Impressum/Datenschutz-Flash auftreten; lieber kurz einen Ladebildschirm zeigen.
+
+**AI:**
+- Swipe-Karten-Layout erweitert: neuer Content-Wrapper + Pfeil-Leiste unten statt mittig (kein Text-Overlap). Umsetzung: [public/src/styles.css](public/src/styles.css#L790-L934)
+- Auth-Loading-Overlay ergänzt, damit beim Auth-Check kein Guest-Flash oder Footer-Flash entsteht. Umsetzung: [public/src/app.js](public/src/app.js#L213-L225) und [public/src/styles.css](public/src/styles.css#L133-L190)
+- `auth-pending` direkt im Body der App-Seiten gesetzt, um FOUC zu vermeiden. Umsetzung: [public/guest.html](public/guest.html), [public/spieltag.html](public/spieltag.html), [public/leaderboard.html](public/leaderboard.html), [public/profil.html](public/profil.html), [public/admin.html](public/admin.html)
+- Header-Buttons auf Login/Register-Seiten entfernt. Umsetzung: [public/login.html](public/login.html) und [public/register.html](public/register.html)
 
 **User:** Leaderboard: Name wird abgeschnitten, Rank-Kreis weg, Header im Container und subtile Linien.
 

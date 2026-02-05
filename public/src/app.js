@@ -221,6 +221,17 @@ const ADMIN_NICKNAME = 'lille08';
 // English comment: Hide auth UI until we know if the user is logged in.
 if (document.body) {
     document.body.classList.add('auth-pending');
+
+    // English comment: Add a lightweight loading overlay to avoid UI flashes during auth checks.
+    const authLoading = document.createElement('div');
+    authLoading.className = 'auth-loading';
+    authLoading.innerHTML = `
+        <div class="auth-loading__card" role="status" aria-live="polite">
+            <div class="auth-spinner" aria-hidden="true"></div>
+            <span>Session wird geprüft …</span>
+        </div>
+    `;
+    document.body.append(authLoading);
 }
 
 const hottakesContainer = document.getElementById('hottakes-container');
@@ -2330,7 +2341,9 @@ function createHottakeElement(hottake, { readonly = false, decision = null, show
     textSpan.textContent = hottake.text;
 
     const statusClass = STATUS_BADGE_CLASS[hottake.status] || 'is-open';
-    element.className = `hottake ${statusClass}`;
+    // English comment: When showing final results, keep borders neutral unless the user made a decision.
+    const baseStatusClass = showResultBadge ? 'is-open' : statusClass;
+    element.className = `hottake ${baseStatusClass}`;
     if (readonly) {
         element.classList.add('is-readonly');
     }

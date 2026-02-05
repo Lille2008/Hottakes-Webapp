@@ -26,7 +26,7 @@
     <meta name="theme-color" content="#ffffff">
 </head>
 
-<body data-page="guest">
+<body data-page="guest" class="auth-pending">
     <header>
         <a class="brand" href="/guest">
             <img src="hottakes_favicons/Hottakes.icon-192x192.png" alt="Hottakes Logo" class="brand-logo">
@@ -35,18 +35,52 @@
     </header>
 
     <main class="page-shell page-shell--guest">
-        <div class="page-panel page-panel--guest">
+        <div class="section-title-card">
             <h2 class="page-title">Willkommen</h2>
-            <section class="guest-actions" aria-label="Anmeldung oder Registrierung">
-                <a href="/login" class="btn">Anmelden</a>
-                <a href="/register" class="btn">Registrieren</a>
-            </section>
-
-            <section id="welcome-banner">
-                <p class="welcome-kicker">Willkommen bei Hottakes!</p>
-                <p class="welcome-body">Bei Hottakes geht es darum Vorhersagen über die Bundesliga einzuranken. Jeden Spieltag hast du die Möglichkeit spannende Thesen, die Hottakes, danach zu ranken, für wie wahrscheinlich du sie hältst.</p>
-            </section>
         </div>
+        <section class="guest-actions" aria-label="Anmeldung oder Registrierung">
+            <a href="/login" class="btn">Anmelden</a>
+            <a href="/register" class="btn">Registrieren</a>
+        </section>
+
+        <section id="welcome-banner">
+            <p class="welcome-kicker">Willkommen bei Hottakes!</p>
+            <p class="welcome-body">Bei Hottakes geht es darum Vorhersagen über die Bundesliga einzuranken. Jeden Spieltag hast du die Möglichkeit spannende Thesen, die Hottakes, danach zu ranken, für wie wahrscheinlich du sie hältst.</p>
+        </section>
+
+        <section class="faq-section" aria-label="Fragen und Antworten">
+            <h3 class="faq-title">Fragen & Antworten</h3>
+            <details class="faq-item">
+                <summary>Wie füge ich Hottakes zum Home-Bildschirm hinzu?</summary>
+                <div class="faq-answer">
+                    Tippe im Browser auf das Teilen-Symbol oder die drei Punkte und danach auf "Zum Home-Bildschirm" bzw. "App installieren".
+                </div>
+            </details>
+            <details class="faq-item">
+                <summary>Wie sammelt man Punkte?</summary>
+                <div class="faq-answer">
+                    Du bekommst 1 Punkt pro richtige Swipe-Entscheidung bei jedem Hottake. Zusätzlich gibt es Bonuspunkte für deine Top 3 und zwar von oben nach unten 3, 2, 1 Punkte.
+                </div>
+            </details>
+            <details class="faq-item">
+                <summary>Kann ich meine Entscheidung nochmal ändern?</summary>
+                <div class="faq-answer">
+                    Ja, solange der Spieltag noch nicht begonnen hat.
+                </div>
+            </details>
+            <details class="faq-item">
+                <summary>Wie ändere ich meine Entscheidung?</summary>
+                <div class="faq-answer">
+                    Einfach auf den Hottake klicken, den du ändern möchtest.
+                </div>
+            </details>
+            <details class="faq-item">
+                <summary>Warum wird nicht gespeichert?</summary>
+                <div class="faq-answer">
+                    Das liegt entweder daran, dass du noch nicht alle Swipes gemacht hast oder deine Top 3 noch nicht gefüllt ist.
+                </div>
+            </details>
+        </section>
     </main>
 
     <footer>

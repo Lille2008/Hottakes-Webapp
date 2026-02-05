@@ -26,7 +26,7 @@
     <meta name="theme-color" content="#ffffff">
 </head>
 
-<body data-page="admin">
+<body data-page="admin" class="auth-pending">
     <header>
         <a class="brand" href="/spieltag">
             <img src="hottakes_favicons/Hottakes.icon-192x192.png" alt="Hottakes Logo" class="brand-logo">
@@ -53,12 +53,16 @@
     </nav>
 
     <section id="admin-locked" class="admin-locked is-hidden">
-        <h2>Admin-Area</h2>
+        <div class="section-title-card">
+            <h2 class="page-title">Admin-Area</h2>
+        </div>
         <p>Du hast aktuell keine Admin-Rechte. Wenn du glaubst, das sei ein Fehler, melde dich bitte beim Admin-Team.</p>
     </section>
 
     <div id="admin-area">
-        <h2>Admin Bereich</h2>
+        <div class="section-title-card">
+            <h2 class="page-title">Admin Bereich</h2>
+        </div>
         <div id="admin-content">
             <div id="hottake-list">
                 <h3>Hottakes-Check</h3>

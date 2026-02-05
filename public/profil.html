@@ -26,7 +26,7 @@
     <meta name="theme-color" content="#ffffff">
 </head>
 
-<body data-page="profil">
+<body data-page="profil" class="auth-pending">
     <header>
         <a class="brand" href="/spieltag">
             <img src="hottakes_favicons/Hottakes.icon-192x192.png" alt="Hottakes Logo" class="brand-logo">
@@ -53,59 +53,87 @@
     </nav>
 
     <main class="page-shell">
-        <div class="page-panel">
+        <div class="section-title-card">
             <h2 class="page-title">Profil</h2>
-            <div class="profile-shell">
+        </div>
+        <div class="profile-shell">
             <section class="profile-card">
-            <div class="settings-row settings-row--stack">
-                <div class="settings-row__text">
-                    <p class="settings-label">Theme</p>
+                <div class="settings-row settings-row--stack">
+                    <div class="settings-row__text">
+                        <p class="settings-label">Theme</p>
+                    </div>
+                    <div class="theme-choices" role="radiogroup" aria-label="Theme wählen">
+                        <label class="theme-pill">
+                            <input type="radio" name="theme-mode" value="dark" id="theme-dark">
+                            <span>Dark</span>
+                        </label>
+                        <label class="theme-pill">
+                            <input type="radio" name="theme-mode" value="light" id="theme-light">
+                            <span>Light</span>
+                        </label>
+                        <label class="theme-pill">
+                            <input type="radio" name="theme-mode" value="system" id="theme-system">
+                            <span>Auto</span>
+                        </label>
+                    </div>
                 </div>
-                <div class="theme-choices" role="radiogroup" aria-label="Theme wählen">
-                    <label class="theme-pill">
-                        <input type="radio" name="theme-mode" value="dark" id="theme-dark">
-                        <span>Dark</span>
-                    </label>
-                    <label class="theme-pill">
-                        <input type="radio" name="theme-mode" value="light" id="theme-light">
-                        <span>Light</span>
-                    </label>
-                    <label class="theme-pill">
-                        <input type="radio" name="theme-mode" value="system" id="theme-system">
-                        <span>Auto</span>
-                    </label>
-                </div>
-            </div>
             </section>
 
             <section class="profile-card">
-            <div class="settings-row settings-row--stack">
-                <div class="settings-row__text">
-                    <p class="settings-label">Feedback Hub</p>
-                    <p class="settings-sub">Falls dir Probleme auffallen oder du ein Feature vorschlagen möchtest, dann klicke den folgenden Button</p>
+                <div class="settings-row settings-row--stack">
+                    <div class="settings-row__text">
+                        <p class="settings-label">Feedback Hub</p>
+                        <p class="settings-sub">Falls dir Probleme auffallen oder du ein Feature vorschlagen möchtest, dann klicke den folgenden Button</p>
+                    </div>
+                    <a class="pill-link" href="https://www.notion.so/Feedback-Hub-51f94fa7f34e4a1e9315e74cba0062da?source=copy_link" target="_blank" rel="noopener">Feedback Hub</a>
                 </div>
-                <a class="pill-link" href="https://www.notion.so/Feedback-Hub-51f94fa7f34e4a1e9315e74cba0062da?source=copy_link" target="_blank" rel="noopener">Feedback Hub</a>
-            </div>
+            </section>
+
+            <section class="faq-section" aria-label="Fragen und Antworten">
+                <h3 class="faq-title">Fragen & Antworten</h3>
+                <details class="faq-item">
+                    <summary>Wie sammelt man Punkte?</summary>
+                    <div class="faq-answer">
+                        Du bekommst +1 Punkt pro richtige Swipe-Entscheidung (WAHR → Hit, FALSCH → Pass). Zusätzlich gibt es Bonuspunkte für deine Top-3: 3, 2, 1 Punkte.
+                    </div>
+                </details>
+                <details class="faq-item">
+                    <summary>Kann ich meine Entscheidung nochmal ändern?</summary>
+                    <div class="faq-answer">
+                        Ja, solange der Spieltag noch nicht begonnen hat.
+                    </div>
+                </details>
+                <details class="faq-item">
+                    <summary>Wie ändere ich meine Entscheidung?</summary>
+                    <div class="faq-answer">
+                        Einfach auf den Hottake klicken, den du ändern möchtest.
+                    </div>
+                </details>
+                <details class="faq-item">
+                    <summary>Warum wird nicht gespeichert?</summary>
+                    <div class="faq-answer">
+                        Das liegt entweder daran, dass du noch nicht alle Swipes gemacht hast oder deine Top 3 noch nicht gefüllt ist.
+                    </div>
+                </details>
             </section>
 
             <section class="profile-card" id="settings-auth-section">
-            <div id="settings-auth-guest" class="settings-auth">
-                <p class="settings-label">Du bist als Gast unterwegs.</p>
-                <div class="settings-actions">
-                    <a href="/login" class="pill-link">Anmelden</a>
-                    <a href="/register" class="pill-link pill-link--ghost">Registrieren</a>
+                <div id="settings-auth-guest" class="settings-auth">
+                    <p class="settings-label">Du bist als Gast unterwegs.</p>
+                    <div class="settings-actions">
+                        <a href="/login" class="pill-link">Anmelden</a>
+                        <a href="/register" class="pill-link pill-link--ghost">Registrieren</a>
+                    </div>
                 </div>
-            </div>
 
-            <div id="settings-auth-user" class="settings-auth is-hidden">
-                <p class="settings-label">Account</p>
-                <div class="auth-user-row">
-                    <span id="user-chip" class="user-chip user-chip--sm" aria-live="polite"></span>
-                    <button id="settings-logout" class="pill-link pill-link--danger" type="button">Logout</button>
+                <div id="settings-auth-user" class="settings-auth is-hidden">
+                    <p class="settings-label">Account</p>
+                    <div class="auth-user-row">
+                        <span id="user-chip" class="user-chip user-chip--sm" aria-live="polite"></span>
+                        <button id="settings-logout" class="pill-link pill-link--danger" type="button">Logout</button>
+                    </div>
                 </div>
-            </div>
             </section>
-            </div>
         </div>
     </main>
 
