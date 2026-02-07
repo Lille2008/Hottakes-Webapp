@@ -2470,9 +2470,7 @@ function renderHottakes() {
     const shouldUseStoredPicks = !isReadOnly && hasStoredPicks
         && picks.every((entry) => entry === null);
     const useSavedPicks = isReadOnly || shouldUseStoredPicks;
-    const availableHottakes = isFinalized || viewMode !== 'active'
-        ? allHottakes
-        : openHottakes;
+    const availableHottakes = allHottakes;
     const sanitizeSource = availableHottakes;
     const referencePicks = useSavedPicks ? lastSubmissionPicks : picks;
     const showResultBadge = isLocked || isFinalized;
