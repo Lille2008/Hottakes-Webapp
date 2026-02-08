@@ -20,6 +20,13 @@
 
 **User:** Swipe-Flow ersetzt Drag&Drop (5 Ranks) und neue Scoring-Logik
 
+### 2026-02-08
+
+**User:** Nach Ergebnis des letzten Hottakes soll auf der Spieltagsseite der letzte finalisierte Hottake angezeigt werden, bis der nächste Spieltag aktiv ist.
+
+**AI:**
+- Default-Auswahl der Spieltagsseite priorisiert jetzt `FINALIZED` (letzter finalisierter Spieltag), solange kein `ACTIVE` existiert. Umsetzung: [public/src/app.js](public/src/app.js)
+
 
 ### 2026-02-04
 

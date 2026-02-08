@@ -48,6 +48,14 @@ function isFinalizedStatus(day) {
     return !!day && [GAME_DAY_STATUS.FINALIZED, GAME_DAY_STATUS.ARCHIVED].includes(day.status);
 }
 
+function getFinalizedTimeMs(day) {
+    if (!day?.finalizedAt) {
+        return null;
+    }
+    const finalizedMs = new Date(day.finalizedAt).getTime();
+    return Number.isNaN(finalizedMs) ? null : finalizedMs;
+}
+
 function isLockedByTime(day, nowMs = Date.now()) {
     const lockMs = getLockTimeMs(day);
     if (lockMs === null) {
@@ -123,6 +131,33 @@ function getLatestReachedNonFinalizedLockGameDayId(days, nowMs = Date.now()) {
         }
         if (lockMs === candidate.lockMs && (day.gameDay ?? 0) > candidate.id) {
             candidate = { id: day.gameDay, lockMs };
+        }
+    });
+
+    return candidate ? candidate.id : null;
+}
+
+// English comment: Prefer the most recently finalized day (FINALIZED only).
+function getLatestFinalizedGameDayId(days) {
+    if (!Array.isArray(days)) {
+        return null;
+    }
+
+    let candidate = null;
+    days.forEach((day) => {
+        if (!day || day.status !== GAME_DAY_STATUS.FINALIZED) {
+            return;
+        }
+        const finalizedMs = getFinalizedTimeMs(day) ?? getLockTimeMs(day);
+        if (finalizedMs === null) {
+            return;
+        }
+        if (!candidate || finalizedMs > candidate.finalizedMs) {
+            candidate = { id: day.gameDay, finalizedMs };
+            return;
+        }
+        if (finalizedMs === candidate.finalizedMs && (day.gameDay ?? 0) > candidate.id) {
+            candidate = { id: day.gameDay, finalizedMs };
         }
     });
 
@@ -1987,6 +2022,7 @@ function updateHistorySelect() {
     const nextUpcomingId = getNextUpcomingActiveLabelId(gameDays, nowMs);
     const latestReachedId = getLatestReachedLockGameDayId(gameDays, nowMs);
     const latestReachedNonFinalizedId = getLatestReachedNonFinalizedLockGameDayId(gameDays, nowMs);
+    const latestFinalizedId = getLatestFinalizedGameDayId(gameDays);
     const sortedDays = sortGameDaysByLockTime(gameDays);
 
     sortedDays.forEach((day) => {
@@ -2000,7 +2036,11 @@ function updateHistorySelect() {
 
     if (selectedGameDay === null && gameDays.length > 0) {
         const fallbackFromSorted = sortedDays.length > 0 ? sortedDays[sortedDays.length - 1].gameDay : gameDays[0].gameDay;
-        const fallbackId = activeGameDay?.gameDay ?? nextUpcomingId ?? latestReachedNonFinalizedId ?? fallbackFromSorted;
+        const fallbackId = activeGameDay?.gameDay
+            ?? latestFinalizedId
+            ?? nextUpcomingId
+            ?? latestReachedNonFinalizedId
+            ?? fallbackFromSorted;
         selectedGameDay = (isLeaderboardPage ? latestReachedId : null) ?? fallbackId;
         selectedHistoryGameDay = selectedGameDay;
         resetAutoSaveState(selectedGameDay);
