@@ -999,13 +999,15 @@ h3 {
 }
 
 .swipe-arrow--left {
-    background: rgba(239, 68, 68, 0.35);
-    border-color: rgba(239, 68, 68, 0.45);
+    background: transparent;
+    border-color: transparent;
+    color: #ef4444;
 }
 
 .swipe-arrow--right {
-    background: rgba(34, 197, 94, 0.35);
-    border-color: rgba(34, 197, 94, 0.45);
+    background: transparent;
+    border-color: transparent;
+    color: #22c55e;
 }
 
 .swipe-overlay.is-swipe-left {
