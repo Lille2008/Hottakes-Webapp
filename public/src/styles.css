@@ -1036,7 +1036,7 @@ h3 {
 }
 
 .hottake {
-    touch-action: pan-y;
+    touch-action: none;
 }
 
 .drag-handle {

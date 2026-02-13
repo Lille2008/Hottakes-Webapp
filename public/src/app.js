@@ -234,7 +234,9 @@ let dragState = null;
 let pendingGesture = null;
 let lastDragAt = 0;
 let dragFrameId = null;
-const DRAG_START_THRESHOLD = 10;
+let autoScrollInterval = null;
+let lastAutoScrollY = null;
+const DRAG_START_THRESHOLD = 20;
 const TAP_MAX_DURATION_MS = 200;
 const LONG_PRESS_MS = 200;
 const DRAFT_STORAGE_PREFIX = 'hottakes-draft';
@@ -1113,23 +1115,58 @@ function startSwipeFlowForHottake(hottakeId) {
     renderSwipeCard();
 }
 
-function handleAutoScroll(event) {
-    if (!isDragging) {
-        return;
-    }
+function startAutoScroll(clientY) {
+    lastAutoScrollY = clientY;
+    
+    if (autoScrollInterval) return;
+    
+    autoScrollInterval = setInterval(() => {
+        if (!isDragging || lastAutoScrollY === null) {
+            stopAutoScroll();
+            return;
+        }
+        
+        const margin = 80;
+        const minSpeed = 4;   // Langsam am Rand
+        const maxSpeed = 16;  // Schnell ganz nah am Rand
+        
+        let speed = 0;
+        
+        // Oben: Je näher an 0, desto schneller
+        if (lastAutoScrollY < margin) {
+            const distance = margin - lastAutoScrollY; // 0 bis 80
+            const factor = distance / margin;          // 0.0 bis 1.0
+            speed = -(minSpeed + factor * (maxSpeed - minSpeed)); // Negativ = nach oben
+            window.scrollBy(0, speed);
+        } 
+        // Unten: Je näher am unteren Rand, desto schneller
+        else if (lastAutoScrollY > window.innerHeight - margin) {
+            const distance = lastAutoScrollY - (window.innerHeight - margin); // 0 bis 80
+            const factor = distance / margin;          // 0.0 bis 1.0
+            speed = minSpeed + factor * (maxSpeed - minSpeed); // Positiv = nach unten
+            window.scrollBy(0, speed);
+        }
+    }, 16);
+}
 
-    const clientY = typeof event === 'number' ? event : event?.clientY;
-    if (typeof clientY !== 'number') {
-        return;
+// NEU: Stoppt das kontinuierliche Scrollen
+function stopAutoScroll() {
+    if (autoScrollInterval) {
+        clearInterval(autoScrollInterval);
+        autoScrollInterval = null;
     }
+    lastAutoScrollY = null;
+}
 
+// NEU: Aktualisiert die Scroll-Position (alte handleAutoScroll)
+function updateAutoScroll(clientY) {
     const margin = 80;
-    if (clientY < margin) {
-        window.scrollBy(0, -12);
+    if (clientY < margin || clientY > window.innerHeight - margin) {
+        startAutoScroll(clientY);
+    } else {
+        stopAutoScroll();
     }
-    if (clientY > window.innerHeight - margin) {
-        window.scrollBy(0, 12);
-    }
+    lastAutoScrollY = clientY;
 }
 
 
@@ -1469,7 +1506,7 @@ function updateDragPosition(clientX, clientY) {
         const translateY = y - dragState.offsetY - dragState.baseTop;
         dragState.element.style.transform = `translate3d(${translateX}px, ${translateY}px, 0)`;
 
-        handleAutoScroll(y);
+        updateAutoScroll(y);
 
         const target = document.elementFromPoint(x, y);
         const rankTarget = target ? target.closest('.rank') : null;
@@ -1539,6 +1576,8 @@ function finishHottakeDrag(clientX, clientY) {
     if (!dragState) {
         return;
     }
+
+    stopAutoScroll();
 
     const { element, originParent, originNextSibling, placeholder } = dragState;
 
@@ -1688,6 +1727,8 @@ function cancelHottakeDrag() {
     if (!dragState) {
         return;
     }
+
+    stopAutoScroll();
 
     const { element, originParent, originNextSibling, placeholder } = dragState;
 
@@ -3512,7 +3553,9 @@ document.addEventListener('touchmove', (event) => {
             return;
         }
         event.preventDefault();
+        event.stopPropagation();
         updateDragPosition(touch.clientX, touch.clientY);
+        updateAutoScroll(touch.clientY);
         return;
     }
 
