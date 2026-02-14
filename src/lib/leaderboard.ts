@@ -67,18 +67,25 @@ export async function buildLeaderboard(gameDay: number): Promise<LeaderboardEntr
 }
 
 export async function buildLeaderboardAll(): Promise<LeaderboardEntry[]> {
-  const finalizedGameDays = await prisma.gameDay.findMany({
-    where: { status: { in: [GAME_DAY_STATUS.FINALIZED, GAME_DAY_STATUS.ARCHIVED] } },
+  // Hole alle Spieltage, deren lockTime erreicht wurde (in der Vergangenheit liegt)
+  const now = new Date();
+  const eligibleGameDays = await prisma.gameDay.findMany({
+    where: {
+      lockTime: {
+        not: null,
+        lte: now  // lockTime muss in der Vergangenheit liegen
+      }
+    },
     select: { gameDay: true }
   });
 
-  const finalizedIds = finalizedGameDays.map((g) => g.gameDay);
-  if (finalizedIds.length === 0) {
+  const eligibleIds = eligibleGameDays.map((g) => g.gameDay);
+  if (eligibleIds.length === 0) {
     return [];
   }
 
   const hottakesRaw = await prisma.hottake.findMany({
-    where: { gameDay: { in: finalizedIds } },
+    where: { gameDay: { in: eligibleIds } },
     select: { id: true, status: true, gameDay: true }
   });
 
@@ -90,7 +97,7 @@ export async function buildLeaderboardAll(): Promise<LeaderboardEntry[]> {
   }
 
   const submissions = await prisma.submission.findMany({
-    where: { gameDay: { in: finalizedIds } },
+    where: { gameDay: { in: eligibleIds } },
     include: { user: true },
     orderBy: { updatedAt: 'desc' }
   });

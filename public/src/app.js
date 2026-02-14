@@ -3486,6 +3486,72 @@ if (swipeCard) {
             swipeOverlay.classList.remove('is-swipe-left', 'is-swipe-right');
         }
     });
+    // Desktop-Support: Maus-Events für Swipe
+    let mouseSwipeStartX = null;
+    let mouseSwipeDeltaX = 0;
+    let isMouseSwiping = false;
+
+    swipeCard.addEventListener('mousedown', (event) => {
+        // Nur linke Maustaste
+        if (event.button !== 0) {
+            return;
+        }
+        mouseSwipeStartX = event.clientX;
+        mouseSwipeDeltaX = 0;
+        isMouseSwiping = true;
+        swipeCard.style.cursor = 'grabbing';
+    });
+
+    swipeCard.addEventListener('mousemove', (event) => {
+        if (!isMouseSwiping || mouseSwipeStartX === null) {
+            return;
+        }
+
+        mouseSwipeDeltaX = event.clientX - mouseSwipeStartX;
+        swipeCard.style.transform = `translateX(${mouseSwipeDeltaX}px)`;
+
+        if (swipeOverlay) {
+            swipeOverlay.classList.toggle('is-swipe-left', mouseSwipeDeltaX < -20);
+            swipeOverlay.classList.toggle('is-swipe-right', mouseSwipeDeltaX > 20);
+        }
+    });
+
+    swipeCard.addEventListener('mouseup', (event) => {
+        if (!isMouseSwiping || mouseSwipeStartX === null) {
+            return;
+        }
+
+        const delta = mouseSwipeDeltaX;
+        mouseSwipeStartX = null;
+        mouseSwipeDeltaX = 0;
+        isMouseSwiping = false;
+        swipeCard.style.cursor = 'grab';
+
+        if (swipeOverlay) {
+            swipeOverlay.classList.remove('is-swipe-left', 'is-swipe-right');
+        }
+
+        swipeCard.style.transform = '';
+
+        if (Math.abs(delta) < SWIPE_THRESHOLD) {
+            return;
+        }
+
+        animateSwipe(delta > 0 ? 'hit' : 'pass');
+    });
+
+    swipeCard.addEventListener('mouseleave', () => {
+        if (isMouseSwiping) {
+            mouseSwipeStartX = null;
+            mouseSwipeDeltaX = 0;
+            isMouseSwiping = false;
+            swipeCard.style.transform = '';
+            swipeCard.style.cursor = 'grab';
+            if (swipeOverlay) {
+                swipeOverlay.classList.remove('is-swipe-left', 'is-swipe-right');
+            }
+        }
+    });
 }
 
 document.addEventListener('keydown', (event) => {
