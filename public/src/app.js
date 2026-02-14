@@ -2619,6 +2619,9 @@ async function refreshHottakes(targetGameDay = null) {
     if (!isGamePage && !isAdminPage) {
         return;
     }
+
+    const currentOrder = allHottakes.map(h => h.id);
+
     try {
         const shouldRenderGame = isGamePage && hottakesList && hottakesContainer && ranksContainer;
         const fallback = selectedGameDay !== null ? selectedGameDay : activeGameDay?.gameDay;
@@ -2682,9 +2685,33 @@ async function refreshHottakes(targetGameDay = null) {
             apiFetch(`/hottakes?archived=true&gameDay=${encodeURIComponent(gameDay)}`)
         ]);
 
-        openHottakes = Array.isArray(openData) ? openData : [];
+       openHottakes = Array.isArray(openData) ? openData : [];
         archivedHottakes = Array.isArray(archivedData) ? archivedData : [];
-        allHottakes = [...openHottakes, ...archivedHottakes];
+        
+        // NEU: Hottakes zusammenführen und in der vorherigen Reihenfolge sortieren
+        const combinedHottakes = [...openHottakes, ...archivedHottakes];
+        
+        // NEU: Wenn wir eine gespeicherte Reihenfolge haben, diese beibehalten
+        if (currentOrder.length > 0) {
+            allHottakes = combinedHottakes.sort((a, b) => {
+                const indexA = currentOrder.indexOf(a.id);
+                const indexB = currentOrder.indexOf(b.id);
+                
+                // Wenn beide in der alten Reihenfolge waren, diese beibehalten
+                if (indexA !== -1 && indexB !== -1) {
+                    return indexA - indexB;
+                }
+                // Neue Hottakes ans Ende
+                if (indexA === -1 && indexB !== -1) return 1;
+                if (indexA !== -1 && indexB === -1) return -1;
+                // Beide neu: nach ID sortieren
+                return a.id - b.id;
+            });
+        } else {
+            // Beim ersten Laden: einfach kombinieren
+            allHottakes = combinedHottakes;
+        }
+        
         refreshLockState();
         if (shouldRenderGame) {
             if (currentUser && gameDay !== null && gameDay !== undefined && lastSubmissionGameDay !== gameDay) {
