@@ -189,6 +189,59 @@ router.post('/reset-password', async (req, res, next) => {
     }
 });
 
+// NEU: Nickname ändern
+const nicknameSchema = z.object({
+    nickname: z.string().min(3).max(20)
+});
+
+router.patch('/nickname', requireAuth, async (req, res, next) => {
+    try {
+        const { nickname } = nicknameSchema.parse(req.body);
+        const authUser = (req as AuthRequest).user;
+
+        if (!authUser) {
+            return res.status(401).json({ message: 'Authentication required' });
+        }
+
+        // Prüfen ob der neue Nickname bereits von jemand anderem verwendet wird
+        const existing = await prisma.user.findFirst({
+            where: {
+                nickname,
+                NOT: { id: authUser.id } // NEU: eigener User soll nicht blockieren
+            }
+        });
+
+        if (existing) {
+            return res.status(409).json({ message: 'Nickname bereits vergeben' });
+        }
+
+        // Nickname in der DB aktualisieren
+        const updated = await prisma.user.update({
+            where: { id: authUser.id },
+            data: { nickname },
+            select: { id: true, nickname: true, email: true }
+        });
+
+        // NEU: Frischen Token ausstellen, weil der Nickname im JWT steckt
+        const token = signUserToken({
+            id: updated.id,
+            nickname: updated.nickname,
+            email: updated.email
+        });
+
+        res.cookie('token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 7 * 24 * 60 * 60 * 1000
+        });
+
+        res.json({ user: updated });
+    } catch (error) {
+        next(error);
+    }
+});
+
 // Wenn der User auf Logout klickt
 router.post('/logout', (req, res) => {
     res.clearCookie('token', {

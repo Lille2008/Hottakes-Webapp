@@ -610,8 +610,10 @@ h3 {
     justify-content: center;
     padding: 10px 16px;
     border-radius: 12px;
-    border: 1px solid transparent;
+    border: none;
     font-weight: 700;
+    font-family: inherit;
+    font-size: 0.9rem;
     text-decoration: none;
     cursor: pointer;
     transition: var(--transition-smooth);
@@ -628,7 +630,7 @@ h3 {
 .pill-link--ghost {
     background: transparent;
     color: var(--gradient-end);
-    border-color: rgba(0, 102, 255, 0.45);
+    border: 1px solid rgba(0, 102, 255, 0.45);
 }
 
 .pill-link--danger {
@@ -1219,6 +1221,103 @@ body.swipe-open #cookie-banner {
     justify-content: space-between;
     gap: 12px;
     margin-top: 12px;
+}
+
+/* NEU: Titel "Account" im gleichen Stil wie "Fragen & Antworten" */
+#settings-auth-user .faq-title {
+    margin: 0 0 14px;
+}
+
+/* NEU: Zeile für Nickname-Anzeige und -Bearbeitung */
+.nickname-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+
+/* NEU: "Nickname:" / "Neu:" Label */
+.nickname-row__label {
+    color: var(--text-primary);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* NEU: Aktueller Nickname-Wert */
+.nickname-row__value {
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+/* NEU: "Ändern"-Link – sieht aus wie Text, verhält sich wie ein Button */
+.nickname-edit-link {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: underline;
+    transition: color 0.2s;
+    margin-left: auto;
+}
+
+/* NEU: Input-Feld für neuen Nickname */
+.nickname-row__input {
+    background: var(--bg-card);
+    border: 1px solid rgba(0, 217, 255, 0.35);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    padding: 6px 10px;
+    width: 140px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.nickname-row__input:focus {
+    border-color: var(--gradient-start);
+}
+
+/* NEU: ✓ und ✗ Buttons neben dem Input */
+.nickname-action-btn {
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 5px 9px;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.nickname-action-btn--save {
+    color: var(--accent-green);
+    border-color: var(--accent-green);
+}
+
+.nickname-action-btn--save:hover {
+    background: rgba(57, 255, 120, 0.12);
+}
+
+.nickname-action-btn--cancel {
+    color: #ff6363;
+    border-color: #ff6363;
+}
+
+.nickname-action-btn--cancel:hover {
+    background: rgba(255, 99, 99, 0.12);
+}
+
+/* NEU: Fehlermeldung unter der Zeile */
+.nickname-error {
+    margin: -8px 0 12px;
+    font-size: 0.85rem;
+    color: #ff6363;
+    font-weight: 600;
 }
 
 /* English comment: Keep chip and logout button the same height for visual balance. */

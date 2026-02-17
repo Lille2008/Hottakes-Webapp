@@ -236,9 +236,10 @@ let lastDragAt = 0;
 let dragFrameId = null;
 let autoScrollInterval = null;
 let lastAutoScrollY = null;
-const DRAG_START_THRESHOLD = 20;
+const DRAG_START_THRESHOLD = 12;
+const DRAG_MIN_HOLD_MS = 150;
 const TAP_MAX_DURATION_MS = 200;
-const LONG_PRESS_MS = 200;
+const LONG_PRESS_MS = 400;
 const DRAFT_STORAGE_PREFIX = 'hottakes-draft';
 let autoSaveTimer = null;
 let autoSaveHasSavedOnce = false;
@@ -1169,6 +1170,68 @@ function updateAutoScroll(clientY) {
     lastAutoScrollY = clientY;
 }
 
+function setupNicknameEdit(user) {
+    const displayRow = document.getElementById('nickname-display-row');
+    const editRow = document.getElementById('nickname-edit-row');
+    const editBtn = document.getElementById('nickname-edit-btn');
+    const saveBtn = document.getElementById('nickname-save-btn');
+    const cancelBtn = document.getElementById('nickname-cancel-btn');
+    const input = document.getElementById('nickname-input');
+    const errorEL = document.getElementById('nickname-error');
+
+    if (!displayRow || !editRow) return;
+
+    function showDisplay() {
+        displayRow.classList.remove('is-hidden');
+        editRow.classList.add('is-hidden');
+        if (errorEL)errorEL.classList.add('is-hidden');
+    }
+    function showEdit() {
+        displayRow.classList.add('is-hidden');
+        editRow.classList.remove('is-hidden');
+        if (input) {
+            input.value = currentUser?.nickname || '';
+            input.focus();
+        }
+    }
+
+    editBtn?.addEventListener('click', showEdit);
+    cancelBtn?.addEventListener('click', showDisplay);
+
+    saveBtn?.addEventListener('click', async () => {
+        const newNickname = input.value.trim();
+
+        if (newNickname.length < 3 || newNickname.length > 20) {
+            errorEL.textContent = 'Nickname muss 3-20 Zeichen lang sein.';
+            errorEL.classList.remove('is-hidden');
+            return;
+        }
+
+        saveBtn.disabled = true;
+
+        try {
+            const res = await apiFetch('/auth/nickname', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nickname: newNickname })
+            });
+
+            currentUser = { ...currentUser, nickname: res.user.nickname };
+            updateUserChip(currentUser);
+            showDisplay();
+        } catch (err) {
+            errorEL.textContent = err.message || 'Fehler beim Speichern.';
+            errorEL.classList.remove('is-hidden');
+        } finally {
+            saveBtn.disabled = false;
+        }
+    });
+
+    input?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') saveBtn.click();
+        if (e.key === 'Escape') cancelBtn.click();
+    });
+}
 
 function updateSettingsAuth(user) {
     if (!settingsAuthGuest || !settingsAuthUser) {
@@ -1182,6 +1245,8 @@ function updateSettingsAuth(user) {
         if (settingsUsername) {
             settingsUsername.textContent = user.nickname;
         }
+
+        if (isProfilePage) setupNicknameEdit(user);
 
         if (settingsLogout) {
             settingsLogout.onclick = async () => {
@@ -1987,7 +2052,7 @@ async function loadActiveGameDay() {
     try {
         const data = await apiFetch('/game-days/active', {}, { allowNotFound: true });
         activeGameDay = data || null;
-        if (activeGameDay && selectedGameDay === null && !isLeaderboardPage) {
+        if (activeGameDay && !hasManualGameDaySelection && !isLeaderboardPage) {
             selectedGameDay = activeGameDay.gameDay;
             selectedHistoryGameDay = selectedGameDay;
             resetAutoSaveState(selectedGameDay);
@@ -3666,7 +3731,17 @@ document.addEventListener('touchmove', (event) => {
     pendingGesture.lastX = touch.clientX;
     pendingGesture.lastY = touch.clientY;
     const distance = Math.hypot(deltaX, deltaY);
-    if (distance >= DRAG_START_THRESHOLD) {
+    const holdDuration = Date.now() - pendingGesture.startTime;
+    
+    if(distance >= DRAG_START_THRESHOLD && holdDuration < DRAG_MIN_HOLD_MS) {
+        if (pendingGesture.holdTimer) {
+            window.clearTimeout(pendingGesture.holdTimer);
+        }
+        pendingGesture = null;
+        return;
+    }
+
+    if (distance >= DRAG_START_THRESHOLD && holdDuration >= DRAG_MIN_HOLD_MS) {
         if (pendingGesture.holdTimer) {
             window.clearTimeout(pendingGesture.holdTimer);
         }

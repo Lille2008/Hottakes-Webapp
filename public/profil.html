@@ -138,12 +138,29 @@
                     </div>
                 </div>
 
+                <!-- NEU: Überarbeiteter Account-Bereich -->
                 <div id="settings-auth-user" class="settings-auth is-hidden">
-                    <p class="settings-label">Account</p>
-                    <div class="auth-user-row">
+
+                    <h3 class="faq-title">Account</h3>
+
+                    <!-- Anzeigemodus -->
+                    <div id="nickname-display-row" class="nickname-row">
+                        <span class="nickname-row__label">Nickname:&nbsp;</span>
                         <span id="user-chip" class="user-chip user-chip--sm" aria-live="polite"></span>
-                        <button id="settings-logout" class="pill-link pill-link--danger" type="button">Logout</button>
+                        <button id="nickname-edit-btn" class="nickname-edit-link" type="button">Ändern</button>
                     </div>
+
+                    <!-- Bearbeitungsmodus (anfangs versteckt) -->
+                    <div id="nickname-edit-row" class="nickname-row is-hidden">
+                        <span class="nickname-row__label">Neu:&nbsp;</span>
+                        <input id="nickname-input" class="nickname-row__input" type="text" maxlength="20" minlength="3">
+                        <button id="nickname-save-btn" class="nickname-action-btn nickname-action-btn--save" type="button" aria-label="Speichern">✓</button>
+                        <button id="nickname-cancel-btn" class="nickname-action-btn nickname-action-btn--cancel" type="button" aria-label="Abbrechen">✗</button>
+                    </div>
+
+                    <p id="nickname-error" class="nickname-error is-hidden"></p>
+
+                    <button id="settings-logout" class="pill-link pill-link--danger" type="button">Logout</button>
                 </div>
             </section>
         </div>
