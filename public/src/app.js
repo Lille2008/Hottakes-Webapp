@@ -299,6 +299,7 @@ const navAdminItem = document.querySelector('[data-nav="admin"]');
 const legalBackdrop = document.getElementById('legal-backdrop');
 const legalModal = document.getElementById('legal-modal');
 const legalContent = document.getElementById('legal-content');
+const legalCache = { impressum: null, datenschutz: null };
 const legalClose = document.getElementById('legal-close');
 const guestActions = document.getElementById('guest-actions');
 const authedActions = document.getElementById('authed-actions');
@@ -635,6 +636,11 @@ function setupSettingsPanel() {
 async function loadLegalContent(type) {
     if (!legalContent) return;
 
+    if (legalCache[type]) {
+        legalContent.innerHTML = legalCache[type];
+        return;
+    }
+
     const path = type === 'impressum' ? '/impressum' : '/datenschutz';
     legalContent.innerHTML = '<p>Lädt...</p>';
 
@@ -645,6 +651,8 @@ async function loadLegalContent(type) {
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
         const main = doc.querySelector('main');
+
+        legalCache[type] = content;
         legalContent.innerHTML = main ? main.innerHTML : '<p>Inhalt nicht gefunden.</p>';
     } catch (_error) {
         legalContent.innerHTML = '<p>Inhalt konnte nicht geladen werden.</p>';
