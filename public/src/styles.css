@@ -2951,4 +2951,45 @@ footer a:hover {
     }
 }
 
+.app-toast {
+    position: fixed;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-20px);
+    padding: 14px 22px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    box-shadow: var(--shadow-card-hover);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    z-index: 9999;
+    white-space: nowrap;
+    max-width: 90vw;
+    text-align: center;
+}
 
+.app-toast.is-visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    pointer-events: auto;
+}
+
+.app-toast[data-tone="success"] {
+    background: rgba(34, 197, 94, 0.15);
+    color: var(--status-true);
+    border: 1px solid var(--status-true);
+}
+
+.app-toast[data-tone="error"] {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--status-false);
+    border: 1px solid var(--status-false);
+}
+
+.app-toast[data-tone="info"] {
+    background: rgba(0, 217, 255, 0.1);
+    color: var(--gradient-start);
+    border: 1px solid var(--gradient-start);
+}

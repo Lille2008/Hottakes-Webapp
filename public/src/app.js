@@ -300,6 +300,7 @@ const legalBackdrop = document.getElementById('legal-backdrop');
 const legalModal = document.getElementById('legal-modal');
 const legalContent = document.getElementById('legal-content');
 const legalCache = { impressum: null, datenschutz: null };
+let toastTimer = null;
 const legalClose = document.getElementById('legal-close');
 const guestActions = document.getElementById('guest-actions');
 const authedActions = document.getElementById('authed-actions');
@@ -566,6 +567,24 @@ function setupNavMenu() {
     syncActiveNavLink();
 }
 
+function showToast(message, tone = 'info') {
+    const toast = document.getElementById('app-toast');
+    if (!toast) return;
+
+    if (toastTimer) {
+        clearTimeout(toastTimer);
+        toastTimer = null;
+    }
+
+    toast.textContent = message;
+    toast.dataset.tone = tone;
+    toast.classList.add('is-visible');
+
+    toastTimer = setTimeout(() => {
+        toast.classList.remove('is-visible');
+        toastTimer = null;
+    }, 3000);
+}
 
 function openSettings() {
     if (!settingsPanel || !settingsBackdrop) {
@@ -2993,7 +3012,7 @@ async function loadSubmissionForCurrentUser(gameDay = null, isReadOnly = false) 
             renderHottakes();
         }
     } catch (error) {
-        alert(error.message);
+        showToast(error.message, 'error');
     }
 }
 
@@ -3008,42 +3027,42 @@ async function saveSubmission({ silent = false, source = 'manual' } = {}) {
 
     if (selectedGameDay === null) {
         if (!silent) {
-            alert('Es ist kein Spieltag ausgewählt.');
+            showToast('Es ist kein Spieltag ausgewählt.', 'error');
         }
         return;
     }
 
     if (isLocked) {
         if (!silent) {
-            alert('Die Picks sind gesperrt. Der Spieltag hat bereits begonnen.');
+            showToast('Die Picks sind gesperrt. Der Spieltag hat bereits begonnen.', 'error');
         }
         return;
     }
 
     if (openHottakes.length !== MIN_OPEN_HOTTAKES) {
         if (!silent) {
-            alert(`Es müssen genau ${MIN_OPEN_HOTTAKES} Hottakes offen sein, um zu tippen.`);
+            showToast(`Es müssen genau ${MIN_OPEN_HOTTAKES} Hottakes offen sein, um zu tippen.`, 'error');
         }
         return;
     }
 
     if (!hasCompleteSwipeDecisions()) {
         if (!silent) {
-            alert('Bitte entscheide alle Hottakes im Swipe-Modus.');
+            showToast('Bitte entscheide alle Hottakes im Swipe-Modus.', 'error');
         }
         return;
     }
 
     if (picks.some((entry) => entry === null)) {
         if (!silent) {
-            alert('Bitte wähle alle 3 Hottakes aus, bevor du speicherst.');
+            showToast('Bitte wähle alle 3 Hottakes aus, bevor du speicherst.', 'error');
         }
         return;
     }
 
     if (!currentUser) {
         if (!silent) {
-            alert('Bitte melde dich zuerst an.');
+            showToast('Bitte melde dich zuerst an.', 'error');
         }
         return;
     }
@@ -3076,14 +3095,14 @@ async function saveSubmission({ silent = false, source = 'manual' } = {}) {
         clearDraftState();
 
         if (!silent) {
-            alert('Deine Picks wurden gespeichert.');
+            showToast('Deine Picks wurden gespeichert.', 'success');
             await drawLeaderboard();
         } else if (source === 'auto') {
             showAutoSaveToast();
         }
     } catch (error) {
         if (!silent) {
-            alert(error.message);
+            showToast(error.message, 'error');
         } else {
             console.warn('Auto-save fehlgeschlagen.', error);
         }
@@ -3993,7 +4012,7 @@ async function initializeApp() {
 
 initializeApp().catch((error) => {
     console.error(error);
-    alert('Fehler beim Initialisieren der App.');
+    showToast('Fehler beim Initialisieren der App.', 'error');
 });
 
 
